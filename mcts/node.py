@@ -18,7 +18,12 @@ class Node:
             self.children[idx] = temp
 
     def select(self):
-        return max([item for idx, item in self.children.items()], key=lambda x: x.get_value())
+        best_idx, best_u = 0, -float("inf")
+        for key, item in self.children:
+            if item.get_value() > best_u:
+                best_idx = key
+                best_u = item.get_value()
+        return best_idx, self.children[best_idx]
 
     def _update(self, value):
         self.visit += 1
@@ -28,6 +33,9 @@ class Node:
         if self.parent is not None:
             self.parent.update(-value)
         self._update(value)
+
+    def is_leaf(self):
+        return self.children == {}
 
 
 if __name__ == '__main__':
