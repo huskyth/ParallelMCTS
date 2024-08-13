@@ -2,6 +2,8 @@ import copy
 
 import numpy as np
 
+from chess.common import MOVE_TO_INDEX_DICT
+from constants import ACTION_SIZE
 from mcts.node import Node
 
 
@@ -26,6 +28,16 @@ class MCTS:
             value = 1 if winner == state.current_play() else -1
         else:
             value, probability = self.predict(state.get_torch_state())
+            available_action = state.get_legal_moves(state.current_player)
+            available_ = set()
+            for move in available_action:
+                available_.add(MOVE_TO_INDEX_DICT[move])
+            assert len(available_) == ACTION_SIZE / 2
+            for idx, p in enumerate(probability):
+                if idx not in available_:
+                    probability[idx] = 0
+            probability /= probability.sum()
+            # TODO: test it
             current_node.expand(probability)
         current_node.update(-value)
 
