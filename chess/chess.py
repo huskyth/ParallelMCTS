@@ -1,4 +1,5 @@
 from chess.chess_board import ChessBoard
+from chess.common import from_array_to_input_tensor
 
 
 class Chess(ChessBoard):
@@ -7,16 +8,20 @@ class Chess(ChessBoard):
         self.current_player = 1
 
     def is_end(self):
-        pass
+        winner = self.check_winner()
+        is_end = winner is not None
+        return is_end, winner
 
     def get_torch_state(self):
-        pass
+        return from_array_to_input_tensor(self.pointStatus)
 
     def do_action(self, action):
-        pass
+        self.execute_move(action, self.current_player)
+        self.current_player *= -1
 
     def get_current_player(self):
         return self.current_player
 
     def reset(self):
-        pass
+        self.init_point_status()
+        self.current_player = 1
