@@ -72,6 +72,7 @@ if __name__ == '__main__':
     tp.append(a)
     tp.append(b)
     tp.append(c)
+    np.random.shuffle(tp)
     cn.train(tp)
     state_, probability_, player, value_ = list(zip(*tp))
     print(len(state_))

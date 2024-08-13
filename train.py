@@ -13,7 +13,7 @@ class Trainer:
         self.test_rate = 5
         self.greedy_times = 5
         self.dirichlet_rate = 1 - 0.25
-        self.dirichlet_probability = 1 - 0.25
+        self.dirichlet_probability = 0.3
         self.network = ChessNetWrapper()
         self.old_network = ChessNetWrapper()
         self.mcts = MCTS(self.network.predict)
