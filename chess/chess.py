@@ -1,5 +1,9 @@
-class Chess:
+from chess.chess_board import ChessBoard
+
+
+class Chess(ChessBoard):
     def __init__(self):
+        super().__init__()
         self.current_player = 1
 
     def is_end(self):
