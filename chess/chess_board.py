@@ -1,6 +1,6 @@
 import copy
 
-from chess.common import GAME_MAP, LENGTH_OF_BOARD, BLACK, WHITE, DISTANCE, getNeighboors, shiftOutChessman
+from chess.common import GAME_MAP, LENGTH_OF_BOARD, BLACK, WHITE, DISTANCE, get_neighbours, shiftOutChessman
 
 
 class ChessBoard:
@@ -53,7 +53,7 @@ class ChessBoard:
         for from_point_idx, chessman in enumerate(self.pointStatus):
             if chessman != player:
                 continue
-            to_point_idx_list = getNeighboors(from_point_idx, self.distance)
+            to_point_idx_list = get_neighbours(from_point_idx, self.distance)
             for to_point_idx in to_point_idx_list:
                 to_point = self.pointStatus[to_point_idx]
                 if to_point != 0:

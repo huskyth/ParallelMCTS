@@ -4,7 +4,7 @@ import numpy as np
 
 from chess.chess import Chess
 from mcts.pure_mcts import MCTS
-from network import ChessNetWrapper
+from network_wrapper import ChessNetWrapper
 
 
 class Trainer:
