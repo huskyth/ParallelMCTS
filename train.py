@@ -80,6 +80,7 @@ class Trainer:
             self.train_sample.append(train_sample)
             self.network.save("old_version.pt")
             if len(self.train_sample) >= 10:
+                np.random.shuffle(self.train_sample)
                 self.network.train(self.train_sample)
 
             if (epoch + 1) % self.test_rate == 0:
