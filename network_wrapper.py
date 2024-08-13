@@ -1,6 +1,9 @@
+from models import ChessNet
+
+
 class ChessNetWrapper:
     def __init__(self):
-        pass
+        self.net = ChessNet()
 
     def predict(self, state):
         pass
