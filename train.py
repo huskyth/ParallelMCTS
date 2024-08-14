@@ -25,14 +25,14 @@ class Trainer:
         self.greedy_times = 5
         self.dirichlet_rate = 1 - 0.25
         self.dirichlet_probability = 0.3
-        self.use_gui = False
+        self.use_gui = True
         self.network = ChessNetWrapper()
         self.old_network = ChessNetWrapper()
         self.mcts = MCTS(self.network.predict)
         self.state = Chess()
         self.train_sample = deque(maxlen=1000)
         self.wm_chess_gui = WMChessGUI(7, -1)
-        self.writer = MySummary(use_wandb=False)
+        self.writer = MySummary(use_wandb=True)
 
     def _collect(self):
         return self._play()
