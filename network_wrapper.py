@@ -19,6 +19,8 @@ class ChessNetWrapper:
 
     @torch.no_grad()
     def predict(self, state):
+        if len(state.shape) == 2:
+            state = state.unsqueeze(0).unsqueeze(0)
         v, p = self.net(state)
         return v.detach().cpu().numpy(), p.detach().cpu().numpy()
 
