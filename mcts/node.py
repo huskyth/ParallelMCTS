@@ -19,7 +19,7 @@ class Node:
 
     def select(self):
         best_idx, best_u = 0, -float("inf")
-        for key, item in self.children:
+        for key, item in self.children.items():
             if item.get_value() > best_u:
                 best_idx = key
                 best_u = item.get_value()
