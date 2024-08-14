@@ -51,6 +51,7 @@ class Trainer:
                 self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
             train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
             self.state.do_action(action)
+            self.mcts.update_tree(action)
         _, winner = self.state.is_end()
         assert winner is not None
         for item in train_sample:
@@ -78,7 +79,8 @@ class Trainer:
                 probability_new = player.get_action_probability(self.state, True)
                 max_act = np.argmax(probability_new).item()
                 self.state.do_action(max_act)
-                player.update_tree(max_act)
+                new_player.update_tree(max_act)
+                old_mcts.update_tree(max_act)
                 current_player *= -1
 
             _, winner = self.state.is_end()

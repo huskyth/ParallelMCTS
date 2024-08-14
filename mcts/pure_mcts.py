@@ -42,11 +42,14 @@ class MCTS:
         current_node.update(-value)
 
     def update_tree(self, move):
-        if move == -1:
+        if move not in self.root.children:
             self.root = Node(1)
         else:
-            self.root = self.root.children[move]
-            self.root.parent = None
+            if self.root.children[move].p > 0:
+                self.root = self.root.children[move]
+                self.root.parent = None
+            else:
+                self.root = Node(1)
 
     def get_action_probability(self, state, is_greedy):
         for i in range(self.simulate_times):
