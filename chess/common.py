@@ -172,6 +172,7 @@ LENGTH_OF_BOARD = 21
 DISTANCE_PATH = str(ROOT_PATH / 'chess/data/distance.txt')
 MAP_PATH = str(ROOT_PATH / 'chess/data/pointPos.txt')
 MODEL_SAVE_PATH = ROOT_PATH / "temp"
+create_directory(MODEL_SAVE_PATH)
 
 DISTANCE = get_distance()
 GAME_MAP = get_map()
