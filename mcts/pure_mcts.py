@@ -50,10 +50,10 @@ class MCTS:
 
     def get_action_probability(self, state, is_greedy):
         for i in range(self.simulate_times):
-            state = copy.deepcopy(state)
-            self._simulate(state)
+            state_copy = copy.deepcopy(state)
+            self._simulate(state_copy)
 
-        probability = np.array([item.visit for item in self.root.children])
+        probability = np.array([item.visit for item in self.root.children.values()])
 
         if is_greedy:
             max_visit = np.max(probability)
