@@ -25,10 +25,10 @@ class MCTS:
         is_end, winner = state.is_end()
         if is_end is True:
             assert winner is not None
-            value = 1 if winner == state.current_play() else -1
+            value = 1 if winner == state.get_current_player() else -1
         else:
             value, probability = self.predict(state.get_torch_state())
-            available_action = state.get_legal_moves(state.current_player)
+            available_action = state.get_legal_moves(state.get_current_player())
             available_ = set()
             for move in available_action:
                 available_.add(MOVE_TO_INDEX_DICT[move])

@@ -1,8 +1,18 @@
+import sys
+import threading
 from collections import deque
 
 import numpy as np
 
+from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT
+
+path = str(ROOT_PATH / "chess")
+if path not in sys.path:
+    sys.path.append(path)
+else:
+    print("path already in")
 from chess.chess import Chess
+from chess.wm_chess_gui import WMChessGUI
 from mcts.pure_mcts import MCTS
 from network_wrapper import ChessNetWrapper
 
@@ -14,11 +24,13 @@ class Trainer:
         self.greedy_times = 5
         self.dirichlet_rate = 1 - 0.25
         self.dirichlet_probability = 0.3
+        self.use_gui = False
         self.network = ChessNetWrapper()
         self.old_network = ChessNetWrapper()
         self.mcts = MCTS(self.network.predict)
         self.state = Chess()
         self.train_sample = deque(maxlen=1000)
+        self.wm_chess_gui = WMChessGUI(7, -1)
 
     def _collect(self):
         return self._play()
@@ -28,11 +40,15 @@ class Trainer:
         train_sample = []
         self.mcts.update_tree(-1)
         self.state.reset()
+        if self.use_gui:
+            self.wm_chess_gui.reset_status()
         while not self.state.is_end()[0]:
             step += 1
             is_greedy = step < self.greedy_times
             probability = self.mcts.get_action_probability(state=self.state, is_greedy=is_greedy)
-            action = np.random.choice(probability)
+            action = np.random.choice(len(probability), p=probability)
+            if self.use_gui:
+                self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
             train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
             self.state.do_action(action)
         _, winner = self.state.is_end()
@@ -75,6 +91,9 @@ class Trainer:
         return new_win, old_win, draws
 
     def learn(self):
+        if self.use_gui:
+            t = threading.Thread(target=self.wm_chess_gui.loop)
+            t.start()
         for epoch in range(self.epoch):
             train_sample = self._collect()
             self.train_sample.append(train_sample)
@@ -92,3 +111,10 @@ class Trainer:
                     self.network.save("best.pt")
                 else:
                     print("REJECT")
+
+
+if __name__ == '__main__':
+    temp = [0.1, 0.2, 0.3, 0.4]
+    temp = np.array(temp)
+    y = np.random.choice(len(temp), p=temp)
+    print(y)
