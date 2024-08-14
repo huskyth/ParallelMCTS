@@ -24,8 +24,7 @@ class MySummary:
             wandb.login(key="613f55cae781fb261b18bad5ec25aa65766e6bc8")
             self.wandb_logger = wandb.init(project="Parallel", dir=WANDB_PATH)
 
-    def add_float(self, x, y, title, x_name=None):
-        self.writer.add_scalar(title, y, x)
+    def add_float(self, y, title):
         if self.use_wandb:
             self.wandb_logger.log({title: y})
 

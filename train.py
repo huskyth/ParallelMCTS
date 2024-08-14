@@ -5,6 +5,7 @@ from collections import deque
 import numpy as np
 
 from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT
+from tensor_board_tool import MySummary
 
 path = str(ROOT_PATH / "chess")
 if path not in sys.path:
@@ -31,6 +32,7 @@ class Trainer:
         self.state = Chess()
         self.train_sample = deque(maxlen=1000)
         self.wm_chess_gui = WMChessGUI(7, -1)
+        self.writer = MySummary(use_wandb=False)
 
     def _collect(self):
         return self._play()
@@ -52,6 +54,7 @@ class Trainer:
             train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
             self.state.do_action(action)
             self.mcts.update_tree(action)
+        self.writer.add_float(y=step, title="Training episode length")
         _, winner = self.state.is_end()
         assert winner is not None
         for item in train_sample:
@@ -82,7 +85,7 @@ class Trainer:
                 new_player.update_tree(max_act)
                 old_mcts.update_tree(max_act)
                 current_player *= -1
-
+            self.writer.add_float(y=step, title="Testing episode length")
             _, winner = self.state.is_end()
             assert winner is not None
             if winner == 1:
@@ -90,6 +93,9 @@ class Trainer:
             else:
                 old_win += 1
         draws = n - new_win - old_win
+        self.writer.add_float(y=new_win, title="New player winning number")
+        self.writer.add_float(y=old_win, title="Old player winning number")
+        self.writer.add_float(y=new_win / n, title="Winning rate")
         return new_win, old_win, draws
 
     def learn(self):
