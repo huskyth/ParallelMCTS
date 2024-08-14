@@ -61,6 +61,8 @@ ARRAY_TO_IMAGE = {
 
 
 def from_array_to_input_tensor(numpy_array):
+    if isinstance(numpy_array, list):
+        numpy_array = np.array(numpy_array)
     assert len(numpy_array) == 21
     assert isinstance(numpy_array, numpy.ndarray)
     input_tensor = np.zeros((7, 7))
