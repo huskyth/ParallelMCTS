@@ -28,11 +28,11 @@ class MCTS:
             value = 1 if winner == state.get_current_player() else -1
         else:
             value, probability = self.predict(state.get_torch_state())
+            probability = probability[0]
             available_action = state.get_legal_moves(state.get_current_player())
             available_ = set()
             for move in available_action:
                 available_.add(MOVE_TO_INDEX_DICT[move])
-            assert len(available_) == ACTION_SIZE / 2
             for idx, p in enumerate(probability):
                 if idx not in available_:
                     probability[idx] = 0
