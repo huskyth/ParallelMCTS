@@ -118,7 +118,7 @@ class WMChessGUI:
         # background image
         base_folder = os.path.dirname(__file__)
         self.background_img = pygame.image.load(
-            os.path.join(base_folder, '../assets/watermelon.png')).convert()
+            os.path.join(base_folder, 'assets/watermelon.png')).convert()
 
         # font
         self.font = pygame.font.SysFont('Arial', 16)
