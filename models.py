@@ -54,7 +54,7 @@ class ChessNet(nn.Module):
         self.value = nn.Linear(self.channel * 49, 1)
         self.probability = nn.Linear(self.channel * 49, ACTION_SIZE)
         self.tanh = nn.Tanh()
-        self.log_softmax = nn.LogSoftmax()
+        self.log_softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, state):
         assert len(state.shape) == 4
