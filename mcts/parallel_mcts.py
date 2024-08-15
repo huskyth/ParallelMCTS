@@ -95,7 +95,7 @@ class MCTS:
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
             coroutine_list.append(self._simulate(state_copy))
-        coroutine_list += self.handle()
+        coroutine_list += [self.handle()]
         self.loop.run_until_complete(asyncio.gather(*coroutine_list))
 
         probability = np.array([item.visit for item in self.root.children.values()])
