@@ -44,7 +44,6 @@ class MCTS:
         else:
             self.expanding_set.add(current_node)
             value, probability = await self.predict(state.get_torch_state())
-            probability = probability[0]
             available_action = state.get_legal_moves(state.get_current_player())
             available_ = set()
             for move in available_action:
