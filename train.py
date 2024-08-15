@@ -1,3 +1,4 @@
+import os
 import sys
 import threading
 from collections import deque
@@ -10,12 +11,12 @@ from tensor_board_tool import MySummary
 path = str(ROOT_PATH / "chess")
 if path not in sys.path:
     sys.path.append(path)
-else:
-    print("path already in")
+
 from chess.chess import Chess
 from chess.wm_chess_gui import WMChessGUI
-from mcts.pure_mcts import MCTS
+from mcts.parallel_mcts import MCTS
 from network_wrapper import ChessNetWrapper
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 class Trainer:
@@ -25,6 +26,7 @@ class Trainer:
         self.greedy_times = 5
         self.dirichlet_rate = 1 - 0.25
         self.dirichlet_probability = 0.3
+        self.contest_number = 10
         self.use_gui = True
         self.network = ChessNetWrapper()
         self.old_network = ChessNetWrapper()
@@ -64,39 +66,48 @@ class Trainer:
                 item.append(-1)
         return train_sample
 
-    def _contest(self, n):
-        new_player = MCTS(self.network.predict)
+    def contest(self, n):
         self.old_network.load("old_version.pt")
-        old_mcts = MCTS(self.old_network.predict)
         new_win, old_win, draws = 0, 0, 0
-        for i in range(n):
-            new_player.update_tree(-1)
-            old_mcts.update_tree(-1)
-            self.state.reset()
-            player_list = [old_mcts, None, new_player]
-            step = 0
-            current_player = 1
-            while not self.state.is_end()[0]:
-                step += 1
-                player = player_list[current_player + 1]
-                probability_new = player.get_action_probability(self.state, True)
-                max_act = np.argmax(probability_new).item()
-                self.state.do_action(max_act)
-                new_player.update_tree(max_act)
-                old_mcts.update_tree(max_act)
-                current_player *= -1
-            self.writer.add_float(y=step, title="Testing episode length")
-            _, winner = self.state.is_end()
-            assert winner is not None
-            if winner == 1:
-                new_win += 1
-            else:
-                old_win += 1
-        draws = n - new_win - old_win
-        self.writer.add_float(y=new_win, title="New player winning number")
-        self.writer.add_float(y=old_win, title="Old player winning number")
-        self.writer.add_float(y=new_win / n, title="Winning rate")
+        with ProcessPoolExecutor(max_workers=os.cpu_count()) as ppe:
+            future_list = [
+                ppe.submit(Trainer._contest, 1 if 1 % 2 == 0 else -1, self.network, self.old_network, self.state) for i
+                in range(n)]
+            for item in as_completed(future_list):
+                n, o, d = item.result()
+                new_win += n
+                old_win += o
+                draws += d
+
         return new_win, old_win, draws
+
+    @staticmethod
+    def _contest(current_player, network, old_network, state):
+        start_player = current_player
+        new_player = MCTS(network.predict)
+        old_mcts = MCTS(old_network.predict)
+        new_player.update_tree(-1)
+        old_mcts.update_tree(-1)
+        state.reset()
+        player_list = [old_mcts, None, new_player]
+        step = 0
+        while not state.is_end()[0]:
+            step += 1
+            player = player_list[current_player + 1]
+            probability_new = player.get_action_probability(state, True)
+            max_act = np.argmax(probability_new).item()
+            state.do_action(max_act)
+            new_player.update_tree(max_act)
+            old_mcts.update_tree(max_act)
+            current_player *= -1
+        _, winner = state.is_end()
+        assert winner is not None
+        if winner == 1:
+            new_win = 1 if start_player == 1 else 0
+        else:
+            new_win = 1 if start_player == -1 else 0
+
+        return new_win, 1 - new_win, 0
 
     def learn(self):
         if self.use_gui:
@@ -111,8 +122,12 @@ class Trainer:
                 self.network.train(self.train_sample)
 
             if (epoch + 1) % self.test_rate == 0:
-                new_win, old_win, draws = self._contest(10)
+                new_win, old_win, draws = self.contest(self.contest_number)
                 all_ = new_win + old_win + draws
+                self.writer.add_float(y=new_win, title="New player winning number")
+                self.writer.add_float(y=old_win, title="Old player winning number")
+                self.writer.add_float(y=draws, title="Draws number")
+                self.writer.add_float(y=new_win / self.contest_number, title="Winning rate")
 
                 if new_win / all_ > 0.6:
                     print("ACCEPT")
