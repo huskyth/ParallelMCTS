@@ -19,11 +19,14 @@ class Node:
             self.children[idx] = temp
 
     def select(self):
-        best_idx, best_u = 0, -float("inf")
+        best_idx, best_u = None, -float("inf")
         for key, item in self.children.items():
+            if item.p == 0:
+                continue
             if item.get_value() > best_u:
                 best_idx = key
                 best_u = item.get_value()
+        assert best_idx is not None
         self.children[best_idx].visual_loss += 1
         return best_idx, self.children[best_idx]
 

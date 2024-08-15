@@ -24,7 +24,6 @@ class MCTS:
         self.expanding_set = set()
         self.q = Queue(maxsize=1000)
         self.loop = asyncio.get_event_loop()
-        self.q_put = 16
 
     async def _simulate(self, state):
         current_node = self.root
@@ -66,8 +65,9 @@ class MCTS:
 
     async def handle(self):
         while True:
-            if self.q.qsize() <= self.q_put:
+            if self.q.qsize() <= 0:
                 await asyncio.sleep(1e-3)
+                continue
             item_list = [self.q.get_nowait() for _ in range(self.q.qsize())]
             state_list = [x.state for x in item_list]
             state = torch.cat(state_list, dim=0)
