@@ -91,9 +91,12 @@ class MCTS:
                 self.root = Node(1)
 
     def get_action_probability(self, state, is_greedy):
+        coroutine_list = []
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
-            self._simulate(state_copy)
+            coroutine_list.append(self._simulate(state_copy))
+        coroutine_list += self.handle()
+        self.loop.run_until_complete(asyncio.gather(*coroutine_list))
 
         probability = np.array([item.visit for item in self.root.children.values()])
 
