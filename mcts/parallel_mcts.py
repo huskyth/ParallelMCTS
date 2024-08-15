@@ -21,6 +21,7 @@ class MCTS:
         self.root = Node(1)
         self.model_predict = predict
         self.simulate_times = 1600
+        self.current_simulate = 0
         self.expanding_set = set()
         self.q = Queue(maxsize=1000)
         self.loop = asyncio.get_event_loop()
@@ -56,6 +57,7 @@ class MCTS:
             self.expanding_set.remove(current_node)
 
         current_node.update(-value)
+        self.current_simulate += 1
 
     async def push_queue(self, state):
         future = self.loop.create_future()
@@ -64,7 +66,7 @@ class MCTS:
         return future
 
     async def handle(self):
-        while True:
+        while self.current_simulate != self.simulate_times:
             if self.q.qsize() <= 0:
                 await asyncio.sleep(1e-3)
                 continue
@@ -91,18 +93,17 @@ class MCTS:
 
     def get_action_probability(self, state, is_greedy):
         coroutine_list = []
+        self.current_simulate = 0
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
             coroutine_list.append(self._simulate(state_copy))
         coroutine_list += [self.handle()]
         self.loop.run_until_complete(asyncio.gather(*coroutine_list))
-
         probability = np.array([item.visit for item in self.root.children.values()])
 
         if is_greedy:
             max_visit = np.max(probability)
             probability = np.where(probability == max_visit, 1, 0)
-            return probability
 
         visit_list = probability / probability.sum()
         return visit_list
