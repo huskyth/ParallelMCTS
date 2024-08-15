@@ -67,13 +67,12 @@ class Trainer:
         return train_sample
 
     def contest(self, n):
-        # TODO://random state will be added
         self.old_network.load("old_version.pt")
         new_win, old_win, draws = 0, 0, 0
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as ppe:
             future_list = [
-                ppe.submit(Trainer._contest, 1 if i % 2 == 0 else -1, self.network, self.old_network, self.state) for i
-                in range(n)]
+                ppe.submit(Trainer._contest, 1 if i % 2 == 0 else -1, self.network, self.old_network, self.state,
+                           i) for i in range(n)]
             for item in as_completed(future_list):
                 n, o, d = item.result()
                 new_win += n
@@ -83,7 +82,8 @@ class Trainer:
         return new_win, old_win, draws
 
     @staticmethod
-    def _contest(current_player, network, old_network, state):
+    def _contest(current_player, network, old_network, state, i):
+        random_state = np.random.RandomState(i)
         start_player = current_player
         new_player = MCTS(network.predict)
         old_mcts = MCTS(old_network.predict)
@@ -96,7 +96,7 @@ class Trainer:
             step += 1
             player = player_list[current_player + 1]
             probability_new = player.get_action_probability(state, True)
-            max_act = np.argmax(probability_new).item()
+            max_act = random_state.choice(len(probability_new), p=probability_new)
             state.do_action(max_act)
             new_player.update_tree(max_act)
             old_mcts.update_tree(max_act)
