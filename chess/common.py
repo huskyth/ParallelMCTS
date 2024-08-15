@@ -69,7 +69,7 @@ def from_array_to_input_tensor(numpy_array):
     for i, chessman in enumerate(numpy_array):
         row, column = ARRAY_TO_IMAGE[i]
         input_tensor[row, column] = chessman
-    return input_tensor
+    return input_tensor.unsqueeze(0).unsqueeze(0)
 
 
 def write_image(name, image):
