@@ -67,11 +67,12 @@ class Trainer:
         return train_sample
 
     def contest(self, n):
+        # TODO://random state will be added
         self.old_network.load("old_version.pt")
         new_win, old_win, draws = 0, 0, 0
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as ppe:
             future_list = [
-                ppe.submit(Trainer._contest, 1 if 1 % 2 == 0 else -1, self.network, self.old_network, self.state) for i
+                ppe.submit(Trainer._contest, 1 if i % 2 == 0 else -1, self.network, self.old_network, self.state) for i
                 in range(n)]
             for item in as_completed(future_list):
                 n, o, d = item.result()
@@ -137,7 +138,5 @@ class Trainer:
 
 
 if __name__ == '__main__':
-    temp = [0.1, 0.2, 0.3, 0.4]
-    temp = np.array(temp)
-    y = np.random.choice(len(temp), p=temp)
-    print(y)
+    temp = Trainer()
+    temp.contest(2)
