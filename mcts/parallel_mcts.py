@@ -74,7 +74,7 @@ class MCTS:
             state = torch.cat(state_list, dim=0)
             v, p = self.model_predict(state)
             for v_item, p_item, future_item in zip(v, p, item_list):
-                future_item.future.set_result(v_item.item(), p_item)
+                future_item.future.set_result((v_item.item(), p_item))
 
     async def predict(self, state):
         future = await self.push_queue(state)
