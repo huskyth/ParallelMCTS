@@ -56,7 +56,7 @@ class Trainer:
             self.wm_chess_gui.reset_status()
         while not self.state.is_end()[0]:
             step += 1
-            is_greedy = step < self.greedy_times
+            is_greedy = step > self.greedy_times
             probability = self.mcts.get_action_probability(state=self.state, is_greedy=is_greedy)
             action = np.random.choice(len(probability), p=probability)
             if self.use_gui:
