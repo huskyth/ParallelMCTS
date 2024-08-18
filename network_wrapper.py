@@ -50,12 +50,12 @@ class ChessNetWrapper:
             for step in range(batch_number):
                 start = step * self.batch
                 state_training = state[start:start + self.batch, :, :, :]
-                probability = probability[start:start + self.batch, :]
-                value = value[start:start + self.batch]
+                probability_training = probability[start:start + self.batch, :]
+                value_training = value[start:start + self.batch]
 
                 v_predict, p_predict = self.net(state_training)
-                value_loss = self.smooth_l1(v_predict, value)
-                probability_loss = self.cross_entropy(probability, p_predict)
+                value_loss = self.smooth_l1(v_predict, value_training)
+                probability_loss = self.cross_entropy(probability_training, p_predict)
                 loss = value_loss + probability_loss
                 self.opt.zero_grad()
                 loss.backward()
