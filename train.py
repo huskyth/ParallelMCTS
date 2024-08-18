@@ -121,7 +121,7 @@ class Trainer:
             self.network.save("old_version.pt")
             if len(self.train_sample) >= 64:
                 np.random.shuffle(self.train_sample)
-                self.network.train(self.train_sample)
+                self.network.train(self.train_sample, self.writer)
 
             if (epoch + 1) % self.test_rate == 0:
                 new_win, old_win, draws = self.contest(self.contest_number)
