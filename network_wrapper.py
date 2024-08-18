@@ -39,9 +39,9 @@ class ChessNetWrapper:
         state, probability, _, value = list(zip(*train_sample))
         state = torch.cat(state)
         state = state.cuda() if self.is_cuda else state
-        probability = torch.tensor(probability, dtype=torch.float32)
+        probability = torch.tensor(np.array(probability), dtype=torch.float32)
         probability = probability.cuda() if self.is_cuda else probability
-        value = torch.tensor(value, dtype=torch.float32)
+        value = torch.tensor(value, dtype=torch.float32).unsqueeze(1)
         value = value.cuda() if self.is_cuda else value
 
         batch_number = n // self.batch
@@ -49,11 +49,11 @@ class ChessNetWrapper:
             print(f"Training {epoch}")
             for step in range(batch_number):
                 start = step * self.batch
-                state = state[start:start + self.batch, :, :, :]
+                state_training = state[start:start + self.batch, :, :, :]
                 probability = probability[start:start + self.batch, :]
                 value = value[start:start + self.batch]
 
-                v_predict, p_predict = self.net(state)
+                v_predict, p_predict = self.net(state_training)
                 value_loss = self.smooth_l1(v_predict, value)
                 probability_loss = self.cross_entropy(probability, p_predict)
                 loss = value_loss + probability_loss
