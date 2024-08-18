@@ -32,7 +32,7 @@ class Trainer:
         self.old_network = ChessNetWrapper()
         self.mcts = MCTS(self.network.predict)
         self.state = Chess()
-        self.train_sample = deque(maxlen=1000)
+        self.train_sample = deque(maxlen=1024)
         self.wm_chess_gui = WMChessGUI(7, -1)
         self.writer = MySummary(use_wandb=True)
 
@@ -56,6 +56,7 @@ class Trainer:
             train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
             self.state.do_action(action)
             self.mcts.update_tree(action)
+
         self.writer.add_float(y=step, title="Training episode length")
         _, winner = self.state.is_end()
         assert winner is not None
@@ -101,6 +102,7 @@ class Trainer:
             new_player.update_tree(max_act)
             old_mcts.update_tree(max_act)
             current_player *= -1
+
         _, winner = state.is_end()
         assert winner is not None
         if winner == 1:

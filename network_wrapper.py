@@ -13,14 +13,17 @@ class ChessNetWrapper:
     def __init__(self):
         self.net = ChessNet()
         self.is_cuda = torch.cuda.is_available()
+        self.net = self.net.cuda() if self.is_cuda else self.net
         self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-2)
         self.epoch = 10
         self.batch = 8
 
     @torch.no_grad()
     def predict(self, state):
+        self.net.eval()
         if len(state.shape) == 2:
             state = state.unsqueeze(0).unsqueeze(0)
+        state = state.cuda() if self.is_cuda else state
         v, p = self.net(state)
         return v.detach().cpu().numpy(), p.detach().cpu().numpy()
 
@@ -31,11 +34,11 @@ class ChessNetWrapper:
         return F.cross_entropy(p, p_target)
 
     def train(self, train_sample, writer):
+        self.net.train()
         n = len(train_sample)
         state, probability, _, value = list(zip(*train_sample))
-        state = torch.tensor(state, dtype=torch.float32)
+        state = torch.cat(state)
         state = state.cuda() if self.is_cuda else state
-        state = state.unsqueeze(1)
         probability = torch.tensor(probability, dtype=torch.float32)
         probability = probability.cuda() if self.is_cuda else probability
         value = torch.tensor(value, dtype=torch.float32)
