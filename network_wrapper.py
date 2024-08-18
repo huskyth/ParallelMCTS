@@ -27,11 +27,11 @@ class ChessNetWrapper:
         v, p = self.net(state)
         return v.detach().cpu().numpy(), p.detach().cpu().numpy()
 
-    def smooth_l1(self, input_tensor, target_tensor):
-        return F.smooth_l1_loss(input_tensor, target_tensor)
+    def mse(self, input_tensor, target_tensor):
+        return F.mse_loss(input_tensor, target_tensor)
 
-    def cross_entropy(self, p, p_target):
-        return F.cross_entropy(p, p_target)
+    def cross_entropy(self, p_target, predict):
+        return -torch.sum(p_target * predict) / p_target.size()[0]
 
     def train(self, train_sample, writer):
         self.net.train()
@@ -54,13 +54,14 @@ class ChessNetWrapper:
                 value_training = value[start:start + self.batch]
 
                 v_predict, p_predict = self.net(state_training)
-                value_loss = self.smooth_l1(v_predict, value_training)
+                value_loss = self.mse(v_predict, value_training)
                 probability_loss = self.cross_entropy(probability_training, p_predict)
                 loss = value_loss + probability_loss
                 self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
-                writer.add_float(loss.item(), "Loss")
+                writer.add_float(value_loss.item(), "Value Loss")
+                writer.add_float(probability_loss.item(), "Probability Loss")
 
     def save(self, key):
         torch.save({"state_dict": self.net.state_dict()}, str(MODEL_SAVE_PATH / key))
@@ -72,6 +73,7 @@ class ChessNetWrapper:
 
 if __name__ == '__main__':
     cn = ChessNetWrapper()
+    cn.cross_entropy(torch.randn(8, 72), torch.randn((8, 72)))
     a = [np.random.random((7, 7)), np.random.random(72), 1, 1]
     b = [np.random.random((7, 7)), np.random.random(72), -1, -1]
     c = [np.random.random((7, 7)), np.random.random(72), 1, -1]
