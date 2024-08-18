@@ -31,6 +31,7 @@ class Node:
         return best_idx, self.children[best_idx]
 
     def _update(self, value):
+        self.visual_loss -= 1
         self.visit += 1
         self.q += (value - self.q) / self.visit
 

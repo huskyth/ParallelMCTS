@@ -33,12 +33,12 @@ class ChessNetWrapper:
     def train(self, train_sample, writer):
         n = len(train_sample)
         state, probability, _, value = list(zip(*train_sample))
-        state = torch.tensor(state).float()
+        state = torch.tensor(state, dtype=torch.float32)
         state = state.cuda() if self.is_cuda else state
         state = state.unsqueeze(1)
-        probability = torch.tensor(probability).float()
+        probability = torch.tensor(probability, dtype=torch.float32)
         probability = probability.cuda() if self.is_cuda else probability
-        value = torch.tensor(value).float()
+        value = torch.tensor(value, dtype=torch.float32)
         value = value.cuda() if self.is_cuda else value
 
         batch_number = n // self.batch
