@@ -117,9 +117,9 @@ class Trainer:
         for epoch in range(self.epoch):
             self.writer.add_float(epoch, "Epoch")
             train_sample = self._collect()
-            self.train_sample.append(train_sample)
+            self.train_sample += train_sample
             self.network.save("old_version.pt")
-            if len(self.train_sample) >= 10:
+            if len(self.train_sample) >= 64:
                 np.random.shuffle(self.train_sample)
                 self.network.train(self.train_sample)
 
