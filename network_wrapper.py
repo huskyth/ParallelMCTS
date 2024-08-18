@@ -30,7 +30,7 @@ class ChessNetWrapper:
     def cross_entropy(self, p, p_target):
         return F.cross_entropy(p, p_target)
 
-    def train(self, train_sample):
+    def train(self, train_sample, writer):
         n = len(train_sample)
         state, probability, _, value = list(zip(*train_sample))
         state = torch.tensor(state).float()
@@ -43,6 +43,7 @@ class ChessNetWrapper:
 
         batch_number = n // self.batch
         for epoch in range(self.epoch):
+            print(f"Training {epoch}")
             for step in range(batch_number):
                 start = step * self.batch
                 state = state[start:start + self.batch, :, :, :]
@@ -56,6 +57,7 @@ class ChessNetWrapper:
                 self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
+                writer.add_float(loss.item(), "Loss")
 
     def save(self, key):
         torch.save({"state_dict": self.net.state_dict()}, str(MODEL_SAVE_PATH / key))
