@@ -5,7 +5,7 @@ from collections import deque
 
 import numpy as np
 
-from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT
+from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT, MODEL_SAVE_PATH
 from tensor_board_tool import MySummary
 
 path = str(ROOT_PATH / "chess")
@@ -17,6 +17,7 @@ from chess.wm_chess_gui import WMChessGUI
 from mcts.parallel_mcts import MCTS
 from network_wrapper import ChessNetWrapper
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing
 
 
 class Trainer:
@@ -35,6 +36,13 @@ class Trainer:
         self.train_sample = deque(maxlen=1024)
         self.wm_chess_gui = WMChessGUI(7, -1)
         self.writer = MySummary(use_wandb=True)
+
+    def _load(self):
+        multiprocessing.set_start_method("spawn")
+        print(f"process start method {multiprocessing.get_start_method()}")
+        if os.path.exists(str(MODEL_SAVE_PATH / "old_version.pt")):
+            print("load from old pth...")
+            self.network.load("old_version.pt")
 
     def _collect(self):
         return self._play()
@@ -102,6 +110,8 @@ class Trainer:
             new_player.update_tree(max_act)
             old_mcts.update_tree(max_act)
             current_player *= -1
+            if step >= 450:
+                return 0, 0, 1
 
         _, winner = state.is_end()
         assert winner is not None
@@ -113,6 +123,7 @@ class Trainer:
         return new_win, 1 - new_win, 0
 
     def learn(self):
+        self._load()
         if self.use_gui:
             t = threading.Thread(target=self.wm_chess_gui.loop)
             t.start()
