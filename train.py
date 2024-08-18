@@ -115,6 +115,7 @@ class Trainer:
             t = threading.Thread(target=self.wm_chess_gui.loop)
             t.start()
         for epoch in range(self.epoch):
+            self.writer.add_float(epoch, "Epoch")
             train_sample = self._collect()
             self.train_sample.append(train_sample)
             self.network.save("old_version.pt")
