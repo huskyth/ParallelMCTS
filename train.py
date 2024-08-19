@@ -28,7 +28,7 @@ class Trainer:
         self.dirichlet_rate = 0.1
         self.dirichlet_probability = 0.3
         self.contest_number = 10
-        self.use_gui = False
+        self.use_gui = True
         self.network = ChessNetWrapper()
         self.old_network = ChessNetWrapper()
         self.mcts = MCTS(self.network.predict)
