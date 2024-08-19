@@ -5,7 +5,7 @@ from collections import deque
 
 import numpy as np
 
-from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT, MODEL_SAVE_PATH
+from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT, MODEL_SAVE_PATH, MOVE_TO_INDEX_DICT
 from tensor_board_tool import MySummary
 
 path = str(ROOT_PATH / "chess")
@@ -58,8 +58,10 @@ class Trainer:
             step += 1
             is_greedy = step > self.greedy_times
             probability = self.mcts.get_action_probability(state=self.state, is_greedy=is_greedy)
+            legal_action = self.state.get_legal_moves(self.state.get_current_player())
+            legal_action = [MOVE_TO_INDEX_DICT[x] for x in legal_action]
             dirichlet_noise = self.dirichlet_rate * np.random.dirichlet(
-                self.dirichlet_probability * np.ones(np.count_nonzero(probability)))
+                self.dirichlet_probability * np.ones(len(legal_action)))
             probability = (1 - self.dirichlet_rate) * probability
             j = 0
             for i in range(len(probability)):
