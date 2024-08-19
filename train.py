@@ -68,7 +68,7 @@ class Trainer:
                 if probability[i] > 0:
                     probability[i] += dirichlet_noise[j]
                     j += 1
-
+            probability = probability / probability.sum()
             action = np.random.choice(len(probability), p=probability)
             if self.use_gui:
                 self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
