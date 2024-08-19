@@ -66,7 +66,6 @@ class Trainer:
             for i in range(len(legal_action)):
                 probability[legal_action[i]] += dirichlet_noise[i]
             probability = probability / probability.sum()
-            print(f"p = {probability}\nlegal_action = {legal_action}\n")
             action = np.random.choice(len(probability), p=probability)
             if self.use_gui:
                 self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
