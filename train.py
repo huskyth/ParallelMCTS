@@ -33,7 +33,7 @@ class Trainer:
         self.old_network = ChessNetWrapper()
         self.mcts = MCTS(self.network.predict)
         self.state = Chess()
-        self.train_sample = deque(maxlen=1024)
+        self.train_sample = deque(maxlen=10240)
         self.wm_chess_gui = WMChessGUI(7, -1)
         self.writer = MySummary(use_wandb=True)
 

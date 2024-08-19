@@ -51,20 +51,36 @@ class ChessNet(nn.Module):
         self.feature = nn.Sequential(
             *[ResidualBlock(1 if idx == 0 else self.channel, self.channel) for idx in range(5)])
 
-        self.value = nn.Linear(self.channel * 49, 1)
-        self.probability = nn.Linear(self.channel * 49, ACTION_SIZE)
+        self.value = nn.Linear(2 * 49, 1)
+
         self.tanh = nn.Tanh()
         self.log_softmax = nn.LogSoftmax(dim=1)
+
+        # policy head
+        self.p_conv = nn.Conv2d(self.channel, 4, kernel_size=1, padding=0, bias=False)
+        self.p_bn = nn.BatchNorm2d(num_features=4)
+        self.relu = nn.ReLU(inplace=True)
+        self.probability = nn.Linear(4 * 49, ACTION_SIZE)
+
+        # value head
+        self.v_conv = nn.Conv2d(self.channel, 2, kernel_size=1, padding=0, bias=False)
+        self.v_bn = nn.BatchNorm2d(num_features=2)
 
     def forward(self, state):
         assert len(state.shape) == 4
         batch, _, _, _ = state.shape
         state = self.feature(state)
-        state = state.view(batch, -1)
-        v = self.value(state)
-        v = self.tanh(v)
-        p = self.probability(state)
+
+        p = self.p_conv(state)
+        p = self.p_bn(p)
+        p = self.relu(p).view(batch, -1)
+        p = self.probability(p)
         p = self.log_softmax(p)
+
+        v = self.v_conv(state).view(batch, -1)
+        v = self.value(v)
+        v = self.tanh(v)
+
         return v, p
 
 

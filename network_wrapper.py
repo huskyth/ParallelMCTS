@@ -63,6 +63,14 @@ class ChessNetWrapper:
                 writer.add_float(value_loss.item(), "Value Loss")
                 writer.add_float(probability_loss.item(), "Probability Loss")
 
+                _, p_inference = self.predict(state_training)
+                select_move_predict = np.argmax(p_inference, axis=1)
+                select_move_target = np.argmax(probability_training.cpu().numpy(), axis=1)
+                success_rate = (select_move_target == select_move_predict).sum().item() / len(probability_training)
+                writer.add_float(success_rate.item(), "Success Rate")
+
+
+
     def save(self, key):
         torch.save({"state_dict": self.net.state_dict()}, str(MODEL_SAVE_PATH / key))
 
