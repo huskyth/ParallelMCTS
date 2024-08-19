@@ -10,7 +10,7 @@ class Node:
         self.children = {}
         self.parent = None
         self.visual_loss = 0
-        self.visual_loss_c = 1
+        self.visual_loss_c = 5
 
     def get_value(self):
         father_visit = self.parent.visit

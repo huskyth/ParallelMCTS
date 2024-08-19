@@ -67,7 +67,7 @@ class ChessNetWrapper:
                 select_move_predict = np.argmax(p_inference, axis=1)
                 select_move_target = np.argmax(probability_training.cpu().numpy(), axis=1)
                 success_rate = (select_move_target == select_move_predict).sum().item() / len(probability_training)
-                writer.add_float(success_rate.item(), "Success Rate")
+                writer.add_float(success_rate, "Success Rate")
 
 
 

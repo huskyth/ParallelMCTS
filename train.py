@@ -25,7 +25,7 @@ class Trainer:
         self.epoch = 100
         self.test_rate = 5
         self.greedy_times = 5
-        self.dirichlet_rate = 0.1
+        self.dirichlet_rate = 0.3
         self.dirichlet_probability = 0.3
         self.contest_number = 10
         self.use_gui = True
