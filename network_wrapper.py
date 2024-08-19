@@ -62,6 +62,7 @@ class ChessNetWrapper:
                 self.opt.step()
                 writer.add_float(value_loss.item(), "Value Loss")
                 writer.add_float(probability_loss.item(), "Probability Loss")
+                writer.add_float(loss.item(), "Loss")
 
                 _, p_inference = self.predict(state_training)
                 select_move_predict = np.argmax(p_inference, axis=1)

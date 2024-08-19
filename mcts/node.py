@@ -10,12 +10,11 @@ class Node:
         self.children = {}
         self.parent = None
         self.visual_loss = 0
-        self.visual_loss_c = 5
 
-    def get_value(self):
+    def get_value(self, visual_loss_c):
         father_visit = self.parent.visit
         return self.q + self.c * self.p * father_visit / (
-                1 + self.visit) ** 0.5 - self.visual_loss_c * self.visual_loss / (
+                1 + self.visit) ** 0.5 - visual_loss_c * self.visual_loss / (
                 1 + self.visit)
 
     def expand(self, probability):
@@ -31,9 +30,9 @@ class Node:
             if item.p == 0:
                 continue
             all_zero = False
-            if item.get_value() > best_u:
+            if item.get_value(self.visual_loss) > best_u:
                 best_idx = key
-                best_u = item.get_value()
+                best_u = item.get_value(self.visual_loss)
         if best_idx is None:
             with open(f"log_error_{time.time()}.txt", "a") as f:
                 f.write(str([x.p for x in self.children.items()]))

@@ -27,7 +27,7 @@ class Trainer:
         self.greedy_times = 5
         self.dirichlet_rate = 0.3
         self.dirichlet_probability = 0.3
-        self.contest_number = 10
+        self.contest_number = 8
         self.use_gui = True
         self.network = ChessNetWrapper()
         self.old_network = ChessNetWrapper()
@@ -121,6 +121,9 @@ class Trainer:
             current_player *= -1
             if step >= 450:
                 return 0, 0, 1
+
+        del network
+        del old_network
 
         _, winner = state.is_end()
         assert winner is not None
