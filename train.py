@@ -28,7 +28,7 @@ class Trainer:
         self.dirichlet_rate = 0.1
         self.dirichlet_probability = 0.3
         self.contest_number = 10
-        self.use_gui = True
+        self.use_gui = False
         self.network = ChessNetWrapper()
         self.old_network = ChessNetWrapper()
         self.mcts = MCTS(self.network.predict)
@@ -63,11 +63,8 @@ class Trainer:
             dirichlet_noise = self.dirichlet_rate * np.random.dirichlet(
                 self.dirichlet_probability * np.ones(len(legal_action)))
             probability = (1 - self.dirichlet_rate) * probability
-            j = 0
-            for i in range(len(probability)):
-                if probability[i] > 0:
-                    probability[i] += dirichlet_noise[j]
-                    j += 1
+            for i in range(len(legal_action)):
+                probability[legal_action[i]] += dirichlet_noise[i]
             probability = probability / probability.sum()
             print(f"p = {probability}\nlegal_action = {legal_action}\n")
             action = np.random.choice(len(probability), p=probability)
