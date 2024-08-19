@@ -58,6 +58,8 @@ class Trainer:
             step += 1
             is_greedy = step > self.greedy_times
             probability = self.mcts.get_action_probability(state=self.state, is_greedy=is_greedy)
+            train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
+
             legal_action = self.state.get_legal_moves(self.state.get_current_player())
             legal_action = [MOVE_TO_INDEX_DICT[x] for x in legal_action]
             dirichlet_noise = self.dirichlet_rate * np.random.dirichlet(
@@ -69,7 +71,6 @@ class Trainer:
             action = np.random.choice(len(probability), p=probability)
             if self.use_gui:
                 self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
-            train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
             self.state.do_action(action)
             self.mcts.update_tree(action)
 
