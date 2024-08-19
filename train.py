@@ -25,7 +25,7 @@ class Trainer:
         self.epoch = 100
         self.test_rate = 5
         self.greedy_times = 5
-        self.dirichlet_rate = 0.3
+        self.dirichlet_rate = 0.1
         self.dirichlet_probability = 0.3
         self.contest_number = 8
         self.use_gui = True
@@ -144,7 +144,7 @@ class Trainer:
             train_sample = self._collect()
             self.train_sample += train_sample
             self.network.save("old_version.pt")
-            if len(self.train_sample) >= 64:
+            if len(self.train_sample) >= 512:
                 np.random.shuffle(self.train_sample)
                 self.network.train(self.train_sample, self.writer)
 
