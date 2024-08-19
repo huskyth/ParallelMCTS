@@ -25,7 +25,7 @@ class Trainer:
         self.epoch = 100
         self.test_rate = 5
         self.greedy_times = 5
-        self.dirichlet_rate = 1 - 0.25
+        self.dirichlet_rate = 0.1
         self.dirichlet_probability = 0.3
         self.contest_number = 10
         self.use_gui = True
@@ -58,6 +58,15 @@ class Trainer:
             step += 1
             is_greedy = step > self.greedy_times
             probability = self.mcts.get_action_probability(state=self.state, is_greedy=is_greedy)
+            dirichlet_noise = self.dirichlet_rate * np.random.dirichlet(
+                self.dirichlet_probability * np.ones(np.count_nonzero(probability)))
+            probability = (1 - self.dirichlet_rate) * probability
+            j = 0
+            for i in range(len(probability)):
+                if probability[i] > 0:
+                    probability[i] += dirichlet_noise[j]
+                    j += 1
+
             action = np.random.choice(len(probability), p=probability)
             if self.use_gui:
                 self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
