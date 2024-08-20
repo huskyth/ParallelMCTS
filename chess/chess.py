@@ -1,7 +1,7 @@
 import numpy as np
 
 from chess_board import ChessBoard
-from common import from_array_to_input_tensor
+from common import from_array_to_input_tensor, ARRAY_TO_IMAGE
 import torch
 
 
@@ -24,7 +24,16 @@ class Chess(ChessBoard):
         return torch.cat([state0, state1], dim=1)
 
     def get_board(self):
-        return np.array(self.pointStatus)
+        numpy_array = np.array(self.pointStatus)
+        if isinstance(numpy_array, list):
+            numpy_array = np.array(numpy_array)
+        assert len(numpy_array) == 21
+        assert isinstance(numpy_array, np.ndarray)
+        input_tensor = np.zeros((7, 7))
+        for i, chessman in enumerate(numpy_array):
+            row, column = ARRAY_TO_IMAGE[i]
+            input_tensor[row, column] = chessman
+        return input_tensor
 
     def do_action(self, action):
         self.execute_move(action, self.current_player)

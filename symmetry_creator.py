@@ -86,7 +86,7 @@ def tb_(board, pi, current_player):
 
 
 def board_to_torch_state(board, player):
-    temp = from_array_to_input_tensor(board)
+    temp = torch.from_numpy(board).unsqueeze(0).unsqueeze(0)
     state0 = (temp > 0).float()
     state1 = (temp < 0).float()
     if player == -1:

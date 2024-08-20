@@ -58,7 +58,7 @@ class Trainer:
             tb_(board, pi, current_player)
         ret.append((new_board, new_pi, new_current_player, "tb"))
 
-        new_board_1, new_last_action_1, new_pi_1, new_current_player_1 = \
+        new_board_1, new_pi_1, new_current_player_1 = \
             lr(new_board, new_pi, new_current_player)
         ret.append((new_board_1, new_pi_1, new_current_player_1, "center"))
         return ret
