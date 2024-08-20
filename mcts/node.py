@@ -9,13 +9,13 @@ class Node:
         self.c = 5
         self.children = {}
         self.parent = None
-        self.visual_loss = 0
+        self.visual_loss = 3
 
     def get_value(self, visual_loss_c):
         father_visit = self.parent.visit
-        return self.q + self.c * self.p * father_visit / (
-                1 + self.visit) ** 0.5 - visual_loss_c * self.visual_loss / (
-                1 + self.visit)
+        v_l = 0 if self.visit <= 0 else visual_loss_c * self.visual_loss / self.visit
+        return self.q + self.c * self.p * (father_visit ** 0.5) / (
+                1 + self.visit) - v_l
 
     def expand(self, probability):
         for idx, v in enumerate(probability):
