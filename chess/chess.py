@@ -2,6 +2,7 @@ from chess_board import ChessBoard
 from common import from_array_to_input_tensor
 import torch
 
+
 class Chess(ChessBoard):
     def __init__(self):
         super().__init__()

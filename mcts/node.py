@@ -35,7 +35,7 @@ class Node:
                 best_u = item.get_value(self.visual_loss)
         if best_idx is None:
             with open(f"log_error_{time.time()}.txt", "a") as f:
-                f.write(str([x.p for x in self.children.items()]))
+                f.write(str([x.p for x in self.children.values()]))
         assert best_idx is not None, f"all_zero {all_zero}"
         self.children[best_idx].visual_loss += 1
         return best_idx, self.children[best_idx]
