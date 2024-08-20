@@ -1,3 +1,5 @@
+import numpy as np
+
 from chess_board import ChessBoard
 from common import from_array_to_input_tensor
 import torch
@@ -20,6 +22,9 @@ class Chess(ChessBoard):
         if self.current_player == -1:
             state0, state1 = state1, state0
         return torch.cat([state0, state1], dim=1)
+
+    def get_board(self):
+        return np.array(self.pointStatus)
 
     def do_action(self, action):
         self.execute_move(action, self.current_player)

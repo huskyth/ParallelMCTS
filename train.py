@@ -6,6 +6,7 @@ from collections import deque
 import numpy as np
 
 from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT, MODEL_SAVE_PATH, MOVE_TO_INDEX_DICT
+from symmetry_creator import lr, tb_, board_to_torch_state
 from tensor_board_tool import MySummary
 
 path = str(ROOT_PATH / "chess")
@@ -47,6 +48,21 @@ class Trainer:
     def _collect(self):
         return self._play()
 
+    def get_symmetries(self, board, pi, current_player):
+        ret = [(board, pi, current_player, "origin")]
+        new_board, new_pi, new_current_player = \
+            lr(board, pi, current_player)
+        ret.append((new_board, new_pi, new_current_player, "lr"))
+
+        new_board, new_pi, new_current_player = \
+            tb_(board, pi, current_player)
+        ret.append((new_board, new_pi, new_current_player, "tb"))
+
+        new_board_1, new_last_action_1, new_pi_1, new_current_player_1 = \
+            lr(new_board, new_pi, new_current_player)
+        ret.append((new_board_1, new_pi_1, new_current_player_1, "center"))
+        return ret
+
     def _play(self):
         step = 0
         train_sample = []
@@ -58,7 +74,12 @@ class Trainer:
             step += 1
             is_greedy = step > self.greedy_times
             probability = self.mcts.get_action_probability(state=self.state, is_greedy=is_greedy)
-            train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
+
+            temp = self.get_symmetries(self.state.get_board(), probability, self.state.get_current_player())
+            # TODO://如有问题，一起测试这里
+            for board, pi, current_player, _ in temp:
+                board = board_to_torch_state(board, current_player)
+                train_sample.append([board, pi, current_player])
 
             legal_action = self.state.get_legal_moves(self.state.get_current_player())
             legal_action = [MOVE_TO_INDEX_DICT[x] for x in legal_action]
