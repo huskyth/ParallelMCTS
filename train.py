@@ -1,6 +1,7 @@
 import os
 import sys
 import threading
+import time
 from collections import deque
 
 import numpy as np
@@ -196,6 +197,56 @@ class Trainer:
         filepath = str(MODEL_SAVE_PATH / filename)
         with open(filepath, 'rb') as f:
             self.train_sample = pickle.load(f)
+
+    def play_with_human(self, human_first=True, checkpoint_name="best.pt"):
+        t = threading.Thread(target=self.wm_chess_gui.loop)
+        t.start()
+
+        libtorch_best = ChessNetWrapper()
+        libtorch_best.load(checkpoint_name)
+        mcts_best = MCTS(libtorch_best.predict, 1600 * 6)
+
+        # create wm_chess game
+        human_color = self.wm_chess_gui.get_human_color()
+        state = Chess()
+
+        players = ["alpha", None, "human"] if human_color == 1 else ["human", None, "alpha"]
+        player_index = human_color if human_first else -human_color
+
+        self.wm_chess_gui.reset_status()
+
+        while True:
+            player = players[player_index + 1]
+
+            # select move
+            if player == "alpha":
+                prob = mcts_best.get_action_probability(state, True)
+                best_move = int(np.argmax(np.array(list(prob))))
+                self.wm_chess_gui.execute_move(player_index, INDEX_TO_MOVE_DICT[best_move])
+            else:
+                self.wm_chess_gui.set_is_human(True)
+                # wait human action
+                while self.wm_chess_gui.get_is_human():
+                    time.sleep(0.1)
+                best_move = self.wm_chess_gui.get_human_move()
+
+            # execute move
+            state.do_action(INDEX_TO_MOVE_DICT[best_move])
+
+            # check game status
+            ended, winner = state.is_end()
+            if ended is True:
+                win_string = "HUMAN WIN" if winner == human_color else "ALPHA ZERO WIN"
+                self.wm_chess_gui.draw_end_string(win_string)
+                break
+
+            # update tree search
+            mcts_best.update_tree(best_move)
+
+            # next player
+            player_index = -player_index
+
+        print(win_string)
 
 
 if __name__ == '__main__':
