@@ -58,6 +58,12 @@ ARRAY_TO_IMAGE = {
     20: (3, 3),
     16: (2, 3), 17: (3, 2), 18: (3, 4), 19: (4, 3)
 }
+IMAGE_TO_ARRAY = {ARRAY_TO_IMAGE[k]: k for k in ARRAY_TO_IMAGE}
+
+CHESSMAN_WIDTH = 20
+CHESSMAN_HEIGHT = 20
+SCREEN_WIDTH = 580
+SCREEN_HEIGHT = 580
 
 
 def from_array_to_input_tensor(numpy_array):
@@ -188,6 +194,57 @@ for from_point in range(21):
 for idx, move_tuple in enumerate(MOVE_LIST):
     MOVE_TO_INDEX_DICT[move_tuple] = idx
     INDEX_TO_MOVE_DICT[idx] = move_tuple
+
+
+def draw_circle(image, x, y, color):
+    cv2.circle(image, (int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)), int(CHESSMAN_HEIGHT // 2 * 1.5),
+               color, -1)
+
+
+def fix_xy(target):
+    x = GAME_MAP[target][0] * \
+        SCREEN_WIDTH - CHESSMAN_WIDTH * 0.5
+    y = GAME_MAP[target][1] * \
+        SCREEN_HEIGHT - CHESSMAN_HEIGHT * 1
+    return x, y
+
+
+def draw_chessmen(point_status, image, is_write, name):
+    image = copy.deepcopy(image)
+    for index, point in enumerate(point_status):
+        if point == 0:
+            continue
+        (x, y) = fix_xy(index)
+        if point == BLACK:
+            draw_circle(image, x, y, BLACK_COLOR)
+        elif point == WHITE:
+            draw_circle(image, x, y, (255, 255, 255))
+    if is_write:
+        write_image(name, image)
+    return image
+
+
+BACKGROUND = str(ROOT_PATH / 'chess/assets/watermelon.png')
+ANALYSIS_PATH = ROOT_PATH / "analysis"
+if not os.path.exists(str(ANALYSIS_PATH)):
+    create_directory(ANALYSIS_PATH)
+
+
+def draw_chessman_from_image(image_tensor, player, name):
+    left, right = image_tensor[0][0], image_tensor[0][1]
+    if player == -1:
+        left, right = right, left
+    right *= -1
+    temp = np.zeros(21)
+    state = left + right
+    for i in range(7):
+        for j in range(7):
+            if state[i][j] != 0:
+                temp[IMAGE_TO_ARRAY[(i, j)]] = state[i][j]
+
+    image = read_image(BACKGROUND)
+    draw_chessmen(temp, image, True, str(ANALYSIS_PATH / name))
+
 
 if __name__ == '__main__':
     n = len(MOVE_TO_INDEX_DICT)

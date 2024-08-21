@@ -20,7 +20,7 @@ class MCTS:
     def __init__(self, predict, simulate_time=None):
         self.root = Node(1)
         self.model_predict = predict
-        self.simulate_times = 1600 if simulate_time is None else simulate_time
+        self.simulate_times = 800 if simulate_time is None else simulate_time
         self.current_simulate = 0
         self.expanding_set = set()
         self.q = Queue(maxsize=1000)

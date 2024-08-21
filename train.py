@@ -6,7 +6,8 @@ from collections import deque
 
 import numpy as np
 
-from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT, MODEL_SAVE_PATH, MOVE_TO_INDEX_DICT
+from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT, MODEL_SAVE_PATH, MOVE_TO_INDEX_DICT, draw_chessmen, \
+    draw_chessman_from_image, ANALYSIS_PATH, create_directory
 from symmetry_creator import lr, tb_, board_to_torch_state
 from tensor_board_tool import MySummary
 
@@ -107,6 +108,9 @@ class Trainer:
                 item.append(1)
             else:
                 item.append(-1)
+
+
+
         return train_sample
 
     def contest(self, n):
