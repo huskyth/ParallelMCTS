@@ -19,6 +19,7 @@ from mcts.parallel_mcts import MCTS
 from network_wrapper import ChessNetWrapper
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
+import pickle
 
 
 class Trainer:
@@ -41,9 +42,11 @@ class Trainer:
     def _load(self):
         multiprocessing.set_start_method("spawn")
         print(f"process start method {multiprocessing.get_start_method()}")
-        if os.path.exists(str(MODEL_SAVE_PATH / "old_version.pt")):
+        if os.path.exists(str(MODEL_SAVE_PATH / "old_version.pt")) and os.path.exists(
+                str(MODEL_SAVE_PATH / "checkpoint.example")):
             print("load from old pth...")
             self.network.load("old_version.pt")
+            self.load_samples()
 
     def _collect(self):
         return self._play()
@@ -165,6 +168,7 @@ class Trainer:
             train_sample = self._collect()
             self.train_sample += train_sample
             self.network.save("old_version.pt")
+            self.save_samples()
             if len(self.train_sample) >= 512:
                 np.random.shuffle(self.train_sample)
                 self.network.train(self.train_sample, self.writer)
@@ -182,6 +186,16 @@ class Trainer:
                     self.network.save("best.pt")
                 else:
                     print("REJECT")
+
+    def save_samples(self, filename="checkpoint.example"):
+        filepath = str(MODEL_SAVE_PATH / filename)
+        with open(filepath, 'wb') as f:
+            pickle.dump(self.train_sample, f, -1)
+
+    def load_samples(self, filename="checkpoint.example"):
+        filepath = str(MODEL_SAVE_PATH / filename)
+        with open(filepath, 'rb') as f:
+            self.train_sample = pickle.load(f)
 
 
 if __name__ == '__main__':
