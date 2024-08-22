@@ -49,6 +49,8 @@ class Trainer:
             print("load from old pth...")
             self.network.load("old_version.pt")
             self.load_samples()
+        else:
+            self.network.load("best.pt")
 
     def _collect(self):
         return self._play()
@@ -112,7 +114,7 @@ class Trainer:
         return train_sample
 
     def contest(self, n):
-        self.old_network.load("old_version.pt")
+        self.old_network.load("best.pt")
         new_win, old_win, draws = 0, 0, 0
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as ppe:
             future_list = [
