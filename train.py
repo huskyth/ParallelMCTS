@@ -109,8 +109,6 @@ class Trainer:
             else:
                 item.append(-1)
 
-
-
         return train_sample
 
     def contest(self, n):
@@ -234,8 +232,22 @@ class Trainer:
                     time.sleep(0.1)
                 best_move = self.wm_chess_gui.get_human_move()
 
+            s = board_to_torch_state(state.get_board(), state.get_current_player())
+            v, p = mcts_best.model_predict(s)
+            print(f"before action, player = {state.get_current_player()}, v = {v}")
+
+            s = board_to_torch_state(state.get_board(), - state.get_current_player())
+            v, p = mcts_best.model_predict(s)
+            print(f"before action, player = {-state.get_current_player()}, v = {v}")
             # execute move
             state.do_action(INDEX_TO_MOVE_DICT[best_move])
+            s = board_to_torch_state(state.get_board(), state.get_current_player())
+            v, p = mcts_best.model_predict(s)
+            print(f"after action, player = {state.get_current_player()}, v = {v}")
+
+            s = board_to_torch_state(state.get_board(), - state.get_current_player())
+            v, p = mcts_best.model_predict(s)
+            print(f"after action, player = {-state.get_current_player()}, v = {v}\n\n")
 
             # check game status
             ended, winner = state.is_end()
