@@ -50,7 +50,7 @@ class Trainer:
             self.network.load("old_version.pt")
             self.load_samples()
         else:
-            self.network.load("best.pt")
+            self.network.save("best.pt")
 
     def _collect(self):
         return self._play()
