@@ -25,7 +25,7 @@ class ChessNetWrapper:
             state = state.unsqueeze(0).unsqueeze(0)
         state = state.cuda() if self.is_cuda else state
         v, p = self.net(state)
-        return v.detach().cpu().numpy(), p.detach().cpu().numpy()
+        return v.detach().cpu().numpy(), p.exp().detach().cpu().numpy()
 
     def mse(self, input_tensor, target_tensor):
         return F.mse_loss(input_tensor, target_tensor)

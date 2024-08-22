@@ -9,11 +9,11 @@ class Node:
         self.c = 5
         self.children = {}
         self.parent = None
-        self.visual_loss = 3
+        self.visual_loss = 0
 
     def get_value(self, visual_loss_c):
         father_visit = self.parent.visit
-        v_l = 0 if self.visit <= 0 else visual_loss_c * self.visual_loss / self.visit
+        v_l = visual_loss_c * self.visual_loss / (self.visit + 1)
         return self.q + self.c * self.p * (father_visit ** 0.5) / (
                 1 + self.visit) - v_l
 
@@ -23,16 +23,16 @@ class Node:
             temp.parent = self
             self.children[idx] = temp
 
-    def select(self):
+    def select(self, visual_loss_c):
         best_idx, best_u = None, -float("inf")
         all_zero = True
         for key, item in self.children.items():
             if item.p == 0:
                 continue
             all_zero = False
-            if item.get_value(self.visual_loss) > best_u:
+            if item.get_value(visual_loss_c) > best_u:
                 best_idx = key
-                best_u = item.get_value(self.visual_loss)
+                best_u = item.get_value(visual_loss_c)
         if best_idx is None:
             with open(f"log_error_{time.time()}.txt", "a") as f:
                 f.write(str([x.p for x in self.children.values()]))

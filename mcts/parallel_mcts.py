@@ -20,11 +20,12 @@ class MCTS:
     def __init__(self, predict, simulate_time=None):
         self.root = Node(1)
         self.model_predict = predict
-        self.simulate_times = 800 if simulate_time is None else simulate_time
+        self.simulate_times = 1600 if simulate_time is None else simulate_time
         self.current_simulate = 0
         self.expanding_set = set()
         self.q = Queue(maxsize=1000)
         self.loop = asyncio.get_event_loop()
+        self.visual_loss_c = 3
 
     async def _simulate(self, state):
         current_node = self.root
@@ -34,13 +35,14 @@ class MCTS:
             if current_node.is_leaf():
                 break
 
-            action, current_node = current_node.select()
+            action, current_node = current_node.select(self.visual_loss_c)
             state.do_action(action)
 
         is_end, winner = state.is_end()
         if is_end is True:
             assert winner is not None
             value = 1 if winner == state.get_current_player() else -1
+            current_node.update(-value)
         else:
             self.expanding_set.add(current_node)
             value, probability = await self.predict(state.get_torch_state())
@@ -55,9 +57,9 @@ class MCTS:
             probability /= probability.sum()
             # TODO: test it
             current_node.expand(probability)
+            current_node.update(-value)
             self.expanding_set.remove(current_node)
 
-        current_node.update(-value)
         self.current_simulate += 1
 
     async def push_queue(self, state):
