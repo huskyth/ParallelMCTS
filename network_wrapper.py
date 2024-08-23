@@ -15,7 +15,6 @@ class ChessNetWrapper:
         self.is_cuda = torch.cuda.is_available()
         self.net = self.net.cuda() if self.is_cuda else self.net
         self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-2)
-        self.epoch = 5
         self.batch = 512
 
     @torch.no_grad()
@@ -33,7 +32,7 @@ class ChessNetWrapper:
     def cross_entropy(self, p_target, predict):
         return -torch.sum(p_target * predict) / p_target.size()[0]
 
-    def train(self, train_sample, writer):
+    def train(self, train_sample, writer, epoch_numbers):
         self.net.train()
         n = len(train_sample)
         state, probability, _, value = list(zip(*train_sample))
@@ -45,7 +44,8 @@ class ChessNetWrapper:
         value = value.cuda() if self.is_cuda else value
 
         batch_number = n // self.batch
-        for epoch in range(self.epoch):
+        writer.add_float(epoch_numbers, "Training Times")
+        for epoch in range(epoch_numbers):
             print(f"Training {epoch}")
             for step in range(batch_number):
                 start = step * self.batch

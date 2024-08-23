@@ -32,6 +32,7 @@ class Trainer:
         self.dirichlet_rate = 0.1
         self.dirichlet_probability = 0.3
         self.contest_number = 8
+        self.batch_size = 512
         self.use_gui = True
         self.network = ChessNetWrapper()
         self.old_network = ChessNetWrapper()
@@ -174,9 +175,10 @@ class Trainer:
             self.train_sample += train_sample
             self.network.save("old_version.pt")
             self.save_samples()
-            if len(self.train_sample) >= 512:
+            epoch_numbers = 2 * (len(train_sample) + self.batch_size - 1) // self.batch_size
+            if len(self.train_sample) >= self.batch_size:
                 np.random.shuffle(self.train_sample)
-                self.network.train(self.train_sample, self.writer)
+                self.network.train(self.train_sample, self.writer, epoch_numbers)
 
             if (epoch + 1) % self.test_rate == 0:
                 new_win, old_win, draws = self.contest(self.contest_number)
