@@ -26,9 +26,12 @@ class MCTS:
         self.q = Queue(maxsize=1000)
         self.loop = asyncio.get_event_loop()
         self.visual_loss_c = 3
+        self.max_h = 0
 
-    async def _simulate(self, state):
+    async def _simulate(self, state, idx):
+
         current_node = self.root
+        temp = 0
         while True:
             while current_node in self.expanding_set:
                 await asyncio.sleep(1e-3)
@@ -37,6 +40,9 @@ class MCTS:
 
             action, current_node = current_node.select(self.visual_loss_c)
             state.do_action(action)
+            temp += 1
+        if self.max_h < temp:
+            self.max_h = temp
 
         is_end, winner = state.is_end()
         if is_end is True:
@@ -97,9 +103,10 @@ class MCTS:
     def get_action_probability(self, state, is_greedy):
         coroutine_list = []
         self.current_simulate = 0
+        self.max_h = 0
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
-            coroutine_list.append(self._simulate(state_copy))
+            coroutine_list.append(self._simulate(state_copy, i))
         coroutine_list += [self.handle()]
         self.loop.run_until_complete(asyncio.gather(*coroutine_list))
         probability = np.array([item.visit for item in self.root.children.values()])
