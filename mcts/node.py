@@ -37,7 +37,7 @@ class Node:
             with open(f"log_error_{time.time()}.txt", "a") as f:
                 f.write(str([x.p for x in self.children.values()]))
         assert best_idx is not None, f"all_zero {all_zero}"
-        self.children[best_idx].visual_loss += 0.00005
+        self.children[best_idx].visual_loss += 0.0001
         return best_idx, self.children[best_idx]
 
     def _update(self, value):
