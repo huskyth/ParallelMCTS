@@ -15,7 +15,7 @@ class ChessNetWrapper:
         self.net = ChessNet()
         self.is_cuda = torch.cuda.is_available()
         self.net = self.net.cuda() if self.is_cuda else self.net
-        self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-2)
+        self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-4)
         self.batch = 512
 
     @torch.no_grad()
@@ -70,11 +70,12 @@ class ChessNetWrapper:
             writer.add_float(success_rate, "Success Rate")
 
     def save(self, key):
-        torch.save({"state_dict": self.net.state_dict()}, str(MODEL_SAVE_PATH / key))
+        torch.save({"state_dict": self.net.state_dict(), 'opt': self.opt.state_dict()}, str(MODEL_SAVE_PATH / key))
 
     def load(self, key):
         model = torch.load(str(MODEL_SAVE_PATH / key))
         self.net.load_state_dict(model["state_dict"])
+        self.opt.load_state_dict(model['opt'])
 
 
 if __name__ == '__main__':

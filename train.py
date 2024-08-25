@@ -172,10 +172,12 @@ class Trainer:
         return new_win, 1 - new_win, 0
 
     def learn(self):
-        self._load()
+
         if self.use_gui:
             t = threading.Thread(target=self.wm_chess_gui.loop)
             t.start()
+
+        self._load()
         for epoch in range(self.epoch):
             self.writer.add_float(epoch, "Epoch")
             train_sample = self._collect(1 if epoch % 2 == 1 else -1)
