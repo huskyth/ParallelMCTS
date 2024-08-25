@@ -39,30 +39,30 @@ class Trainer:
         self.self_play_number = 8
         self.batch_size = 512
         self.use_gui = True
-        self.train_network = ChessNetWrapper()
-        self.old_network = ChessNetWrapper()
+        self.current_network = ChessNetWrapper()
+        self.best_network = ChessNetWrapper()
         self.state = Chess()
         self.train_sample = deque([], maxlen=20)
         self.writer = MySummary(use_wandb=not is_eval)
-        self.new_player = MCTS(self.train_network.predict)
-        self.old_mcts = MCTS(self.train_network.predict)
+        self.new_player = MCTS(self.current_network.predict)
+        self.old_mcts = MCTS(self.current_network.predict)
 
     def _load(self):
         multiprocessing.set_start_method("spawn")
         print(f"process start method {multiprocessing.get_start_method()}")
-        if os.path.exists(str(MODEL_SAVE_PATH / "old_version.pt")) and os.path.exists(
+        if os.path.exists(str(MODEL_SAVE_PATH / "checkpoint.pt")) and os.path.exists(
                 str(MODEL_SAVE_PATH / "checkpoint.example")):
             print("load from old pth...")
-            self.train_network.load("old_version.pt")
+            self.current_network.load()
             self.load_samples()
         else:
-            self.train_network.save()
+            self.current_network.save("best_checkpoint.pt")
 
     def _collect(self):
         temp = []
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as ppe:
             future_list = [
-                ppe.submit(Trainer._play, 1 if i % 2 == 0 else -1, self.train_network, i == 0) for i in
+                ppe.submit(Trainer._play, 1 if i % 2 == 0 else -1, self.current_network, i == 0) for i in
                 range(self.self_play_number)]
             for k, item in enumerate(future_list):
                 data = item.result()
@@ -142,59 +142,63 @@ class Trainer:
 
         return train_sample
 
-    def contest(self, n):
-        self.old_network.load("best.pt")
+    def contest(self):
+        self.best_network.load(key="best_checkpoint.pt")
         new_win, old_win, draws = 0, 0, 0
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as ppe:
             future_list = [
-                ppe.submit(Trainer._contest, 1 if i % 2 == 0 else -1, self.train_network, self.old_network, self.state,
-                           i) for i in range(n)]
+                ppe.submit(Trainer._contest, self.current_network, self.best_network, 1 if i % 2 == 0 else -1, i == 0)
+                for i in range(self.contest_number)]
             for item in as_completed(future_list):
-                n, o, d = item.result()
-                new_win += n
-                old_win += o
-                draws += d
+                winner = item.result()
+                if winner == 1:
+                    new_win += 1
+                elif winner == -1:
+                    old_win += 1
+                else:
+                    draws += 1
 
         return new_win, old_win, draws
 
     @staticmethod
-    def _contest(current_player, network, old_network, state, i):
-        random_state = np.random.RandomState(i)
-        new_player = MCTS(network.predict)
-        old_mcts = MCTS(old_network.predict)
-        new_player.update_tree(-1)
-        old_mcts.update_tree(-1)
+    def _contest(network1, network2, current_player, show):
+
+        player1 = MCTS(network1.predict)
+        player2 = MCTS(network2.predict)
+        player_list = [player2, None, player1]
+        state = Chess()
         state.reset(current_player)
-        player_list = [old_mcts, None, new_player]
+        play_index = current_player
+
+        if show:
+            Trainer.WM_CHESS_GUI.reset_status()
         step = 0
         while not state.is_end()[0]:
             step += 1
-            player = player_list[current_player + 1]
+            player = player_list[play_index + 1]
             probability_new = player.get_action_probability(state, True)
-            max_act = random_state.choice(len(probability_new), p=probability_new)
+            max_act = int(np.argmax(probability_new))
+            if show:
+                Trainer.WM_CHESS_GUI.execute_move(state.get_current_player(), INDEX_TO_MOVE_DICT[max_act])
             state.do_action(max_act)
-            new_player.update_tree(max_act)
-            old_mcts.update_tree(max_act)
-            current_player *= -1
+
+            player1.update_tree(max_act)
+            player2.update_tree(max_act)
+            play_index *= -1
             if step >= 450:
                 return 0, 0, 1
 
-        del network
-        del old_network
+        del network1
+        del network2
 
         _, winner = state.is_end()
-        assert winner is not None
-        if winner == 1:
-            new_win = 1
-        else:
-            new_win = 0
 
-        return new_win, 1 - new_win, 0
+        return winner
 
     def learn(self):
 
         if self.use_gui:
-            t = threading.Thread(target=self.wm_chess_gui.loop)
+            t = threading.Thread(target=Trainer.WM_CHESS_GUI.loop)
             t.start()
 
         self._load()
@@ -207,23 +211,25 @@ class Trainer:
             random.shuffle(train_data)
 
             epoch_numbers = 1.5 * (len(train_sample) + self.batch_size - 1) // self.batch_size
-            self.train_network.train(self.train_sample, self.writer, epoch_numbers, self.batch_size)
-            self.train_network.save()
+            self.current_network.train(self.train_sample, self.writer, epoch_numbers, self.batch_size)
+            self.current_network.save()
             self.save_samples()
 
             if (epoch + 1) % self.test_rate == 0:
-                new_win, old_win, draws = self.contest(self.contest_number)
-                all_ = new_win + old_win + draws
+                new_win, old_win, draws = self.contest()
+
                 self.writer.add_float(y=new_win, title="New player winning number")
                 self.writer.add_float(y=old_win, title="Old player winning number")
                 self.writer.add_float(y=draws, title="Draws number")
-                self.writer.add_float(y=new_win / self.contest_number, title="Winning rate")
 
-                if new_win / all_ > 0.6:
+                if (new_win + old_win) > 0 and new_win / (new_win + old_win) > 0.55:
+                    win_rate = float(new_win) / (new_win + old_win)
                     print("ACCEPT")
-                    self.train_network.save("best.pt")
+                    self.current_network.save("best.pt")
                 else:
+                    win_rate = -1 if new_win + old_win == 0 else new_win / (new_win + old_win)
                     print("REJECT")
+                self.writer.add_float(y=win_rate, title="Winning rate")
 
     def save_samples(self, filename="checkpoint.example"):
         filepath = str(MODEL_SAVE_PATH / filename)
@@ -235,7 +241,7 @@ class Trainer:
         with open(filepath, 'rb') as f:
             self.train_sample = pickle.load(f)
 
-    def play_with_human(self, human_first=True, checkpoint_name="old_version.pt"):
+    def play_with_human(self, human_first=True, checkpoint_name="best_checkpoint.pt"):
         t = threading.Thread(target=self.wm_chess_gui.loop)
         t.start()
 

@@ -72,7 +72,7 @@ class ChessNetWrapper:
     def save(self, key="checkpoint.pt"):
         torch.save({"state_dict": self.net.state_dict(), 'opt': self.opt.state_dict()}, str(MODEL_SAVE_PATH / key))
 
-    def load(self, key):
+    def load(self, key="checkpoint.pt"):
         model = torch.load(str(MODEL_SAVE_PATH / key))
         self.net.load_state_dict(model["state_dict"])
         self.opt.load_state_dict(model['opt'])
