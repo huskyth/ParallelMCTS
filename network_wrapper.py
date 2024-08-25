@@ -69,6 +69,11 @@ class ChessNetWrapper:
             success_rate = (select_move_target == select_move_predict).sum().item() / len(probability_training)
             writer.add_float(success_rate, "Success Rate")
 
+            entropy = -np.mean(
+                np.sum(p_inference * np.log(p_inference + 1e-10), axis=1)
+            )
+            writer.add_float(entropy, "Entropy")
+
     def save(self, key="checkpoint.pt"):
         torch.save({"state_dict": self.net.state_dict(), 'opt': self.opt.state_dict()}, str(MODEL_SAVE_PATH / key))
 
