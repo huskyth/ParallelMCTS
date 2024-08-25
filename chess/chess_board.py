@@ -18,6 +18,7 @@ class ChessBoard:
         self.init_point_status()
         self.init_game_map()
         self.is_simple = True
+        self.last_action = (-1, -1)
 
     def get_game_map(self):
         return self.gameMap
@@ -73,6 +74,7 @@ class ChessBoard:
         assert self.distance[from_int][to_int] == 1
         self.pointStatus[from_int] = 0
         self.pointStatus[to_int] = color
+        self.last_action = (from_int, to_int)
         bake_point_status = copy.deepcopy(self.pointStatus)
         self.pointStatus = shiftOutChessman(
             bake_point_status, self.distance)

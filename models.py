@@ -49,7 +49,7 @@ class ChessNet(nn.Module):
         super().__init__(*args, **kwargs)
         self.channel = 256
         self.feature = nn.Sequential(
-            *[ResidualBlock(2 if idx == 0 else self.channel, self.channel) for idx in range(5)])
+            *[ResidualBlock(3 if idx == 0 else self.channel, self.channel) for idx in range(5)])
 
         self.value = nn.Linear(2 * 49, 1)
 

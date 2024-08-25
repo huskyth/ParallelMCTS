@@ -21,7 +21,12 @@ class Chess(ChessBoard):
         state1 = (temp < 0).float()
         if self.current_player == -1:
             state0, state1 = state1, state0
-        return torch.cat([state0, state1], dim=1)
+        state2 = torch.zeros(state0.shape)
+        if self.last_action != (-1, -1):
+            first, second = self.last_action
+            first, second = ARRAY_TO_IMAGE[second]
+            state2[0][0][first][second] = 1
+        return torch.cat([state0, state1, state2], dim=1)
 
     def get_board(self):
         numpy_array = np.array(self.pointStatus)
@@ -42,9 +47,10 @@ class Chess(ChessBoard):
     def get_current_player(self):
         return self.current_player
 
-    def reset(self):
+    def reset(self, reset_player):
         self.init_point_status()
-        self.current_player = 1
+        self.current_player = reset_player
+        self.last_action = (-1, -1)
 
 
 if __name__ == '__main__':

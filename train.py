@@ -25,22 +25,23 @@ import pickle
 
 
 class Trainer:
-    def __init__(self):
+    def __init__(self, is_eval=False):
         self.epoch = 100
-        self.test_rate = 5
+        self.test_rate = 100
         self.greedy_times = 5
         self.dirichlet_rate = 0.1
         self.dirichlet_probability = 0.3
         self.contest_number = 8
         self.batch_size = 512
         self.use_gui = True
-        self.network = ChessNetWrapper()
+        self.train_network = ChessNetWrapper()
         self.old_network = ChessNetWrapper()
-        self.mcts = MCTS(self.network.predict)
         self.state = Chess()
         self.train_sample = deque(maxlen=10240)
         self.wm_chess_gui = WMChessGUI(7, -1)
-        self.writer = MySummary(use_wandb=True)
+        self.writer = MySummary(use_wandb=not is_eval)
+        self.new_player = MCTS(self.train_network.predict)
+        self.old_mcts = MCTS(self.train_network.predict)
 
     def _load(self):
         multiprocessing.set_start_method("spawn")
@@ -48,45 +49,50 @@ class Trainer:
         if os.path.exists(str(MODEL_SAVE_PATH / "old_version.pt")) and os.path.exists(
                 str(MODEL_SAVE_PATH / "checkpoint.example")):
             print("load from old pth...")
-            self.network.load("old_version.pt")
+            self.train_network.load("old_version.pt")
             self.load_samples()
         else:
-            self.network.save("best.pt")
+            self.train_network.save("best.pt")
 
-    def _collect(self):
-        return self._play()
+    def _collect(self, current_player):
+        return self._play(current_player)
 
-    def get_symmetries(self, board, pi, current_player):
-        ret = [(board, pi, current_player, "origin")]
-        new_board, new_pi, new_current_player = \
-            lr(board, pi, current_player)
-        ret.append((new_board, new_pi, new_current_player, "lr"))
+    def get_symmetries(self, board, pi, last_action, current_player):
+        ret = [(board, pi, last_action, current_player, "origin")]
+        new_board, new_last_action, new_pi, new_current_player = \
+            lr(board, last_action, pi, current_player)
+        ret.append((new_board, new_pi, new_last_action, new_current_player, "lr"))
 
-        new_board, new_pi, new_current_player = \
-            tb_(board, pi, current_player)
-        ret.append((new_board, new_pi, new_current_player, "tb"))
+        new_board, new_last_action, new_pi, new_current_player = \
+            tb_(board, last_action, pi, current_player)
+        ret.append((new_board, new_pi, new_last_action, new_current_player, "tb"))
 
-        new_board_1, new_pi_1, new_current_player_1 = \
-            lr(new_board, new_pi, new_current_player)
-        ret.append((new_board_1, new_pi_1, new_current_player_1, "center"))
+        new_board_1, new_last_action_1, new_pi_1, new_current_player_1 = \
+            lr(new_board, new_last_action, new_pi, new_current_player)
+        ret.append((new_board_1, new_pi_1, new_last_action_1, new_current_player_1, "center"))
         return ret
 
-    def _play(self):
+    def _play(self, current_player):
         step = 0
         train_sample = []
-        self.mcts.update_tree(-1)
-        self.state.reset()
+        self.new_player.update_tree(-1)
+        self.old_mcts.update_tree(-1)
+        player_list = [self.old_mcts, None, self.new_player]
+        self.state.reset(current_player)
         if self.use_gui:
             self.wm_chess_gui.reset_status()
         while not self.state.is_end()[0]:
             step += 1
-            is_greedy = step > self.greedy_times
-            probability = self.mcts.get_action_probability(state=self.state, is_greedy=is_greedy)
+            player = player_list[current_player + 1]
 
-            temp = self.get_symmetries(self.state.get_board(), probability, self.state.get_current_player())
+            is_greedy = step > self.greedy_times
+            probability = player.get_action_probability(state=self.state, is_greedy=is_greedy)
+            last_action = self.state.last_action
+            temp = self.get_symmetries(self.state.get_board(), probability, last_action,
+                                       self.state.get_current_player())
             # TODO://如有问题，一起测试这里
-            for board, pi, current_player, _ in temp:
-                board = board_to_torch_state(board, current_player)
+            for board, pi, last_action, current_player, _ in temp:
+                board = board_to_torch_state(board, current_player, last_action)
                 train_sample.append([board, pi, current_player])
 
             legal_action = self.state.get_legal_moves(self.state.get_current_player())
@@ -101,7 +107,9 @@ class Trainer:
             if self.use_gui:
                 self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
             self.state.do_action(action)
-            self.mcts.update_tree(action)
+            self.new_player.update_tree(action)
+            self.old_mcts.update_tree(action)
+            current_player *= -1
 
         self.writer.add_float(y=step, title="Training episode length")
         _, winner = self.state.is_end()
@@ -119,7 +127,7 @@ class Trainer:
         new_win, old_win, draws = 0, 0, 0
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as ppe:
             future_list = [
-                ppe.submit(Trainer._contest, 1 if i % 2 == 0 else -1, self.network, self.old_network, self.state,
+                ppe.submit(Trainer._contest, 1 if i % 2 == 0 else -1, self.train_network, self.old_network, self.state,
                            i) for i in range(n)]
             for item in as_completed(future_list):
                 n, o, d = item.result()
@@ -132,12 +140,11 @@ class Trainer:
     @staticmethod
     def _contest(current_player, network, old_network, state, i):
         random_state = np.random.RandomState(i)
-        start_player = current_player
         new_player = MCTS(network.predict)
         old_mcts = MCTS(old_network.predict)
         new_player.update_tree(-1)
         old_mcts.update_tree(-1)
-        state.reset()
+        state.reset(current_player)
         player_list = [old_mcts, None, new_player]
         step = 0
         while not state.is_end()[0]:
@@ -158,9 +165,9 @@ class Trainer:
         _, winner = state.is_end()
         assert winner is not None
         if winner == 1:
-            new_win = 1 if start_player == 1 else 0
+            new_win = 1
         else:
-            new_win = 1 if start_player == -1 else 0
+            new_win = 0
 
         return new_win, 1 - new_win, 0
 
@@ -171,14 +178,13 @@ class Trainer:
             t.start()
         for epoch in range(self.epoch):
             self.writer.add_float(epoch, "Epoch")
-            train_sample = self._collect()
+            train_sample = self._collect(1 if epoch % 2 == 1 else -1)
             self.train_sample += train_sample
-            self.network.save("old_version.pt")
+            self.train_network.save("old_version.pt")
             self.save_samples()
-            epoch_numbers = 2 * (len(train_sample) + self.batch_size - 1) // self.batch_size
+            epoch_numbers = 5
             if len(self.train_sample) >= self.batch_size:
-                np.random.shuffle(self.train_sample)
-                self.network.train(self.train_sample, self.writer, epoch_numbers)
+                self.train_network.train(self.train_sample, self.writer, epoch_numbers, self.batch_size)
 
             if (epoch + 1) % self.test_rate == 0:
                 new_win, old_win, draws = self.contest(self.contest_number)
@@ -190,7 +196,7 @@ class Trainer:
 
                 if new_win / all_ > 0.6:
                     print("ACCEPT")
-                    self.network.save("best.pt")
+                    self.train_network.save("best.pt")
                 else:
                     print("REJECT")
 
@@ -204,7 +210,7 @@ class Trainer:
         with open(filepath, 'rb') as f:
             self.train_sample = pickle.load(f)
 
-    def play_with_human(self, human_first=True, checkpoint_name="best.pt"):
+    def play_with_human(self, human_first=True, checkpoint_name="old_version.pt"):
         t = threading.Thread(target=self.wm_chess_gui.loop)
         t.start()
 
@@ -236,22 +242,24 @@ class Trainer:
                     time.sleep(0.1)
                 best_move = self.wm_chess_gui.get_human_move()
 
-            s = board_to_torch_state(state.get_board(), state.get_current_player())
+            last_action = state.last_action
+            s = board_to_torch_state(state.get_board(), state.get_current_player(), last_action)
             v, p = mcts_best.model_predict(s)
-            print(f"before action, player = {state.get_current_player()}, v = {v}")
+            # TODO://To Check get_torch_state and board_to_torch_state is equal
+            print(f"before action, player = {state.get_current_player()}, v = {v}, last_action = {last_action}")
 
-            s = board_to_torch_state(state.get_board(), - state.get_current_player())
+            s = board_to_torch_state(state.get_board(), - state.get_current_player(), last_action)
             v, p = mcts_best.model_predict(s)
-            print(f"before action, player = {-state.get_current_player()}, v = {v}")
+            print(f"before action, player = {-state.get_current_player()}, v = {v}, last_action = {last_action}")
             # execute move
             state.do_action(INDEX_TO_MOVE_DICT[best_move])
-            s = board_to_torch_state(state.get_board(), state.get_current_player())
+            s = board_to_torch_state(state.get_board(), state.get_current_player(), last_action)
             v, p = mcts_best.model_predict(s)
-            print(f"after action, player = {state.get_current_player()}, v = {v}")
+            print(f"after action, player = {state.get_current_player()}, v = {v}, last_action = {last_action}")
 
-            s = board_to_torch_state(state.get_board(), - state.get_current_player())
+            s = board_to_torch_state(state.get_board(), - state.get_current_player(), last_action)
             v, p = mcts_best.model_predict(s)
-            print(f"after action, player = {-state.get_current_player()}, v = {v}\n\n")
+            print(f"after action, player = {-state.get_current_player()}, v = {v}, last_action = {last_action}\n\n")
 
             # check game status
             ended, winner = state.is_end()

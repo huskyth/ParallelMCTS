@@ -13,7 +13,7 @@ class Node:
 
     def get_value(self, visual_loss_c):
         father_visit = self.parent.visit
-        v_l = visual_loss_c * self.visual_loss / (self.visit + 1)
+        v_l = 0
         return self.q + self.c * self.p * (father_visit ** 0.5) / (
                 1 + self.visit) - v_l
 
@@ -37,7 +37,7 @@ class Node:
             with open(f"log_error_{time.time()}.txt", "a") as f:
                 f.write(str([x.p for x in self.children.values()]))
         assert best_idx is not None, f"all_zero {all_zero}"
-        self.children[best_idx].visual_loss += 0.0001
+        self.children[best_idx].visual_loss += 0.001
         return best_idx, self.children[best_idx]
 
     def _update(self, value):

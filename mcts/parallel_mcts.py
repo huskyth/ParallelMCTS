@@ -28,13 +28,10 @@ class MCTS:
         self.visual_loss_c = 3
         self.max_h = 0
 
-    async def _simulate(self, state, idx):
-
+    def _simulate(self, state, idx):
         current_node = self.root
         temp = 0
         while True:
-            while current_node in self.expanding_set:
-                await asyncio.sleep(1e-3)
             if current_node.is_leaf():
                 break
 
@@ -51,7 +48,8 @@ class MCTS:
             current_node.update(-value)
         else:
             self.expanding_set.add(current_node)
-            value, probability = await self.predict(state.get_torch_state())
+            value, probability = self.predict(state.get_torch_state())
+            probability = probability[0]
             available_action = state.get_legal_moves(state.get_current_player())
 
             available_ = set()
@@ -86,9 +84,9 @@ class MCTS:
             for v_item, p_item, future_item in zip(v, p, item_list):
                 future_item.future.set_result((v_item.item(), p_item))
 
-    async def predict(self, state):
-        future = await self.push_queue(state)
-        return await future.future
+    def predict(self, state):
+        v, p = self.model_predict(state)
+        return v, p
 
     def update_tree(self, move):
         if move not in self.root.children:
@@ -106,9 +104,7 @@ class MCTS:
         self.max_h = 0
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
-            coroutine_list.append(self._simulate(state_copy, i))
-        coroutine_list += [self.handle()]
-        self.loop.run_until_complete(asyncio.gather(*coroutine_list))
+            self._simulate(state_copy, i)
         probability = np.array([item.visit for item in self.root.children.values()])
 
         if is_greedy:

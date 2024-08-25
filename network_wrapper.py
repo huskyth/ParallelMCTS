@@ -1,3 +1,4 @@
+import random
 from collections import deque
 
 import numpy as np
@@ -32,7 +33,8 @@ class ChessNetWrapper:
     def cross_entropy(self, p_target, predict):
         return -torch.sum(p_target * predict) / p_target.size()[0]
 
-    def train(self, train_sample, writer, epoch_numbers):
+    def train(self, train_sample, writer, epoch_numbers, batch_size):
+        train_sample = random.sample(train_sample, batch_size)
         self.net.train()
         n = len(train_sample)
         state, probability, _, value = list(zip(*train_sample))
@@ -43,32 +45,29 @@ class ChessNetWrapper:
         value = torch.tensor(value, dtype=torch.float32).unsqueeze(1)
         value = value.cuda() if self.is_cuda else value
 
-        batch_number = n // self.batch
         writer.add_float(epoch_numbers, "Training Times")
         for epoch in range(epoch_numbers):
             print(f"Training {epoch}")
-            for step in range(batch_number):
-                start = step * self.batch
-                state_training = state[start:start + self.batch, :, :, :]
-                probability_training = probability[start:start + self.batch, :]
-                value_training = value[start:start + self.batch]
+            state_training = state
+            probability_training = probability
+            value_training = value
 
-                v_predict, p_predict = self.net(state_training)
-                value_loss = self.mse(v_predict, value_training)
-                probability_loss = self.cross_entropy(probability_training, p_predict)
-                loss = value_loss + probability_loss
-                self.opt.zero_grad()
-                loss.backward()
-                self.opt.step()
-                writer.add_float(value_loss.item(), "Value Loss")
-                writer.add_float(probability_loss.item(), "Probability Loss")
-                writer.add_float(loss.item(), "Loss")
+            v_predict, p_predict = self.net(state_training)
+            value_loss = self.mse(v_predict, value_training)
+            probability_loss = self.cross_entropy(probability_training, p_predict)
+            loss = value_loss + probability_loss
+            self.opt.zero_grad()
+            loss.backward()
+            self.opt.step()
+            writer.add_float(value_loss.item(), "Value Loss")
+            writer.add_float(probability_loss.item(), "Probability Loss")
+            writer.add_float(loss.item(), "Loss")
 
-                _, p_inference = self.predict(state_training)
-                select_move_predict = np.argmax(p_inference, axis=1)
-                select_move_target = np.argmax(probability_training.cpu().numpy(), axis=1)
-                success_rate = (select_move_target == select_move_predict).sum().item() / len(probability_training)
-                writer.add_float(success_rate, "Success Rate")
+            _, p_inference = self.predict(state_training)
+            select_move_predict = np.argmax(p_inference, axis=1)
+            select_move_target = np.argmax(probability_training.cpu().numpy(), axis=1)
+            success_rate = (select_move_target == select_move_predict).sum().item() / len(probability_training)
+            writer.add_float(success_rate, "Success Rate")
 
     def save(self, key):
         torch.save({"state_dict": self.net.state_dict()}, str(MODEL_SAVE_PATH / key))
