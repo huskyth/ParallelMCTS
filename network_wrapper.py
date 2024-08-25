@@ -34,7 +34,11 @@ class ChessNetWrapper:
         return -torch.sum(p_target * predict) / p_target.size()[0]
 
     def train(self, train_sample, writer, epoch_numbers, batch_size):
-        train_sample = random.sample(train_sample, batch_size)
+        if batch_size < len(train_sample):
+            train_sample = random.sample(train_sample, batch_size)
+        else:
+            print("not random sample")
+
         self.net.train()
         n = len(train_sample)
         state, probability, _, value = list(zip(*train_sample))

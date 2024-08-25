@@ -87,7 +87,10 @@ class Trainer:
 
     @staticmethod
     def _play(current_player, network, show):
-
+        if show:
+            t = threading.Thread(target=Trainer.WM_CHESS_GUI.loop)
+            t.daemon = True
+            t.start()
         train_sample = []
         player_1 = MCTS(network.predict)
         player_2 = MCTS(network.predict)
@@ -131,7 +134,7 @@ class Trainer:
             player_1.update_tree(action)
             player_2.update_tree(action)
             play_index *= -1
-
+        print(f"{current_player} ended")
         _, winner = state.is_end()
         assert winner is not None
         for item in train_sample:
@@ -162,7 +165,9 @@ class Trainer:
 
     @staticmethod
     def _contest(network1, network2, current_player, show):
-
+        if show:
+            t = threading.Thread(target=Trainer.WM_CHESS_GUI.loop)
+            t.start()
         player1 = MCTS(network1.predict)
         player2 = MCTS(network2.predict)
         player_list = [player2, None, player1]
@@ -197,9 +202,9 @@ class Trainer:
 
     def learn(self):
 
-        if self.use_gui:
-            t = threading.Thread(target=Trainer.WM_CHESS_GUI.loop)
-            t.start()
+        # if self.use_gui:
+        #     t = threading.Thread(target=Trainer.WM_CHESS_GUI.loop)
+        #     t.start()
 
         self._load()
         for epoch in range(self.epoch):
@@ -211,7 +216,7 @@ class Trainer:
             random.shuffle(train_data)
 
             epoch_numbers = 1.5 * (len(train_sample) + self.batch_size - 1) // self.batch_size
-            self.current_network.train(self.train_sample, self.writer, epoch_numbers, self.batch_size)
+            self.current_network.train(train_data, self.writer, int(epoch_numbers), self.batch_size)
             self.current_network.save()
             self.save_samples()
 
