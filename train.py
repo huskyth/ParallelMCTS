@@ -167,6 +167,7 @@ class Trainer:
     def _contest(network1, network2, current_player, show):
         if show:
             t = threading.Thread(target=Trainer.WM_CHESS_GUI.loop)
+            t.daemon = True
             t.start()
         player1 = MCTS(network1.predict)
         player2 = MCTS(network2.predict)
