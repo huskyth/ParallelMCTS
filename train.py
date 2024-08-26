@@ -262,6 +262,8 @@ class Trainer:
         players = ["alpha", None, "human"] if human_color == 1 else ["human", None, "alpha"]
         player_index = human_color if human_first else -human_color
 
+        state.reset(player_index)
+
         Trainer.WM_CHESS_GUI.reset_status()
 
         while True:
