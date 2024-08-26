@@ -248,7 +248,7 @@ class Trainer:
             self.train_sample = pickle.load(f)
 
     def play_with_human(self, human_first=True, checkpoint_name="best_checkpoint.pt"):
-        t = threading.Thread(target=self.wm_chess_gui.loop)
+        t = threading.Thread(target=Trainer.WM_CHESS_GUI.loop)
         t.start()
 
         libtorch_best = ChessNetWrapper()
@@ -256,13 +256,13 @@ class Trainer:
         mcts_best = MCTS(libtorch_best.predict, 1600 * 6)
 
         # create wm_chess game
-        human_color = self.wm_chess_gui.get_human_color()
+        human_color = Trainer.WM_CHESS_GUI.get_human_color()
         state = Chess()
 
         players = ["alpha", None, "human"] if human_color == 1 else ["human", None, "alpha"]
         player_index = human_color if human_first else -human_color
 
-        self.wm_chess_gui.reset_status()
+        Trainer.WM_CHESS_GUI.reset_status()
 
         while True:
             player = players[player_index + 1]
@@ -271,13 +271,13 @@ class Trainer:
             if player == "alpha":
                 prob = mcts_best.get_action_probability(state, True)
                 best_move = int(np.argmax(np.array(list(prob))))
-                self.wm_chess_gui.execute_move(player_index, INDEX_TO_MOVE_DICT[best_move])
+                Trainer.WM_CHESS_GUI.execute_move(player_index, INDEX_TO_MOVE_DICT[best_move])
             else:
-                self.wm_chess_gui.set_is_human(True)
+                Trainer.WM_CHESS_GUI.set_is_human(True)
                 # wait human action
-                while self.wm_chess_gui.get_is_human():
+                while Trainer.WM_CHESS_GUI.get_is_human():
                     time.sleep(0.1)
-                best_move = self.wm_chess_gui.get_human_move()
+                best_move = Trainer.WM_CHESS_GUI.get_human_move()
 
             last_action = state.last_action
             s = board_to_torch_state(state.get_board(), state.get_current_player(), last_action)
@@ -290,6 +290,8 @@ class Trainer:
             print(f"before action, player = {-state.get_current_player()}, v = {v}, last_action = {last_action}")
             # execute move
             state.do_action(INDEX_TO_MOVE_DICT[best_move])
+
+            last_action = state.last_action
             s = board_to_torch_state(state.get_board(), state.get_current_player(), last_action)
             v, p = mcts_best.model_predict(s)
             print(f"after action, player = {state.get_current_player()}, v = {v}, last_action = {last_action}")
@@ -302,7 +304,7 @@ class Trainer:
             ended, winner = state.is_end()
             if ended is True:
                 win_string = "HUMAN WIN" if winner == human_color else "ALPHA ZERO WIN"
-                self.wm_chess_gui.draw_end_string(win_string)
+                Trainer.WM_CHESS_GUI.draw_end_string(win_string)
                 break
 
             # update tree search
