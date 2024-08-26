@@ -209,7 +209,7 @@ def fix_xy(target):
     return x, y
 
 
-def draw_chessmen(point_status, image, is_write, name):
+def draw_chessmen(point_status, image, is_write, name, is_show=False):
     image = copy.deepcopy(image)
     for index, point in enumerate(point_status):
         if point == 0:
@@ -219,6 +219,9 @@ def draw_chessmen(point_status, image, is_write, name):
             draw_circle(image, x, y, BLACK_COLOR)
         elif point == WHITE:
             draw_circle(image, x, y, (255, 255, 255))
+    if is_show:
+        cv2.imshow(name, image)
+        cv2.waitKey(0)
     if is_write:
         write_image(name, image)
     return image
@@ -230,7 +233,7 @@ if not os.path.exists(str(ANALYSIS_PATH)):
     create_directory(ANALYSIS_PATH)
 
 
-def draw_chessman_from_image(image_tensor, player, name):
+def draw_chessman_from_image(image_tensor, player, name, is_write=False, is_show=False):
     left, right = image_tensor[0][0], image_tensor[0][1]
     if player == -1:
         left, right = right, left
@@ -243,7 +246,7 @@ def draw_chessman_from_image(image_tensor, player, name):
                 temp[IMAGE_TO_ARRAY[(i, j)]] = state[i][j]
 
     image = read_image(BACKGROUND)
-    draw_chessmen(temp, image, True, str(ANALYSIS_PATH / name))
+    draw_chessmen(temp, image, is_write=is_write, name=str(ANALYSIS_PATH / name), is_show=is_show)
 
 
 if __name__ == '__main__':
