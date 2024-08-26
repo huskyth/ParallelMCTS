@@ -45,6 +45,8 @@ class WMChessGUI:
         # reset status
         self.reset_status()
 
+        self.is_running = True
+
     def __del__(self):
         # close window
         self.is_running = False
@@ -100,6 +102,9 @@ class WMChessGUI:
         self.board = shiftOutChessman(
             bake_point_status, DISTANCE)
         self.k += 1
+
+    def stop(self):
+        self.is_running = False
 
     # main loop
     def loop(self):

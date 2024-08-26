@@ -142,7 +142,8 @@ class Trainer:
                 item.append(1)
             else:
                 item.append(-1)
-
+        if show:
+            Trainer.WM_CHESS_GUI.stop()
         return train_sample
 
     def contest(self):
@@ -198,7 +199,8 @@ class Trainer:
         del network2
 
         _, winner = state.is_end()
-
+        if show:
+            Trainer.WM_CHESS_GUI.stop()
         return winner
 
     def learn(self):
