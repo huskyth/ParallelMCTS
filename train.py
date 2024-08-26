@@ -231,7 +231,7 @@ class Trainer:
                 if (new_win + old_win) > 0 and new_win / (new_win + old_win) > 0.55:
                     win_rate = float(new_win) / (new_win + old_win)
                     print("ACCEPT")
-                    self.current_network.save("best.pt")
+                    self.current_network.save("best_checkpoint.pt")
                 else:
                     win_rate = -1 if new_win + old_win == 0 else new_win / (new_win + old_win)
                     print("REJECT")
@@ -247,7 +247,7 @@ class Trainer:
         with open(filepath, 'rb') as f:
             self.train_sample = pickle.load(f)
 
-    def play_with_human(self, human_first=True, checkpoint_name="best_checkpoint.pt"):
+    def play_with_human(self, human_first=True, checkpoint_name="checkpoint.pt"):
         t = threading.Thread(target=Trainer.WM_CHESS_GUI.loop)
         t.start()
 
