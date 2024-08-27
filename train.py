@@ -30,7 +30,7 @@ class Trainer:
     WM_CHESS_GUI = WMChessGUI(7, -1)
 
     def __init__(self, is_eval=False):
-        self.epoch = 100
+        self.epoch = 10000
         self.test_rate = 20
         self.greedy_times = 5
         self.dirichlet_rate = 0.1
@@ -38,7 +38,6 @@ class Trainer:
         self.contest_number = 8
         self.self_play_number = 8
         self.batch_size = 512
-        self.use_gui = True
         self.current_network = ChessNetWrapper()
         self.best_network = ChessNetWrapper()
         self.state = Chess()
@@ -67,6 +66,7 @@ class Trainer:
             for k, item in enumerate(future_list):
                 data = item.result()
                 temp += data
+        print("return temp")
         return temp
 
     @staticmethod
@@ -144,6 +144,7 @@ class Trainer:
                 item.append(-1)
         if show:
             Trainer.WM_CHESS_GUI.stop()
+            t.join()
         return train_sample
 
     def contest(self):
@@ -201,14 +202,10 @@ class Trainer:
         _, winner = state.is_end()
         if show:
             Trainer.WM_CHESS_GUI.stop()
+            t.join()
         return winner
 
     def learn(self):
-
-        # if self.use_gui:
-        #     t = threading.Thread(target=Trainer.WM_CHESS_GUI.loop)
-        #     t.start()
-
         self._load()
         for epoch in range(self.epoch):
             self.writer.add_float(epoch, "Epoch")
