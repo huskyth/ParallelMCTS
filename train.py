@@ -66,7 +66,7 @@ class Trainer:
             for k, item in enumerate(future_list):
                 data = item.result()
                 temp += data
-        print("return temp")
+        print(f"return temp length {len(temp)}")
         return temp
 
     @staticmethod
@@ -162,7 +162,7 @@ class Trainer:
                     old_win += 1
                 else:
                     draws += 1
-
+        print(f"return contest")
         return new_win, old_win, draws
 
     @staticmethod
