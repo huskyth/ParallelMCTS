@@ -249,6 +249,7 @@ def draw_chessman_from_image(image_tensor, player, name, is_write=False, is_show
     draw_chessmen(temp, image, is_write=is_write, name=str(ANALYSIS_PATH / name), is_show=is_show)
 
 
+MAX_STEPS = 500
 if __name__ == '__main__':
     n = len(MOVE_TO_INDEX_DICT)
     data = np.random.normal(0, 1, n)

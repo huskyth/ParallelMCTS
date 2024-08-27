@@ -2,7 +2,7 @@ import copy
 
 import numpy as np
 import asyncio
-from chess.common import MOVE_TO_INDEX_DICT
+from chess.common import MOVE_TO_INDEX_DICT, MAX_STEPS
 from mcts.node import Node
 from asyncio import Queue
 import torch
@@ -30,18 +30,18 @@ class MCTS:
 
     async def _simulate(self, state, idx):
         current_node = self.root
-        temp = 0
+        counter = 0
         while True:
             while current_node in self.expanding_set:
                 await asyncio.sleep(1e-3)
-            if current_node.is_leaf():
+            if current_node.is_leaf() or counter > MAX_STEPS:
                 break
 
             action, current_node = current_node.select(self.visual_loss_c)
             state.do_action(action)
-            temp += 1
-        if self.max_h < temp:
-            self.max_h = temp
+            counter += 1
+        if self.max_h < counter:
+            self.max_h = counter
 
         is_end, winner = state.is_end()
         if is_end is True:
@@ -49,21 +49,25 @@ class MCTS:
             value = 1 if winner == state.get_current_player() else -1
             current_node.update(-value)
         else:
-            self.expanding_set.add(current_node)
-            value, probability = await self.predict(state.get_torch_state())
-            available_action = state.get_legal_moves(state.get_current_player())
+            if counter > MAX_STEPS:
+                print(f"COUNT LARGE THAN {MAX_STEPS}")
+                current_node.update(0)
+            else:
+                self.expanding_set.add(current_node)
+                value, probability = await self.predict(state.get_torch_state())
+                available_action = state.get_legal_moves(state.get_current_player())
 
-            available_ = set()
-            for move in available_action:
-                available_.add(MOVE_TO_INDEX_DICT[move])
-            for idx, p in enumerate(probability):
-                if idx not in available_:
-                    probability[idx] = 0
-            probability /= probability.sum()
-            # TODO: test it
-            current_node.expand(probability)
-            current_node.update(-value)
-            self.expanding_set.remove(current_node)
+                available_ = set()
+                for move in available_action:
+                    available_.add(MOVE_TO_INDEX_DICT[move])
+                for idx, p in enumerate(probability):
+                    if idx not in available_:
+                        probability[idx] = 0
+                probability /= probability.sum()
+                # TODO: test it
+                current_node.expand(probability)
+                current_node.update(-value)
+                self.expanding_set.remove(current_node)
 
         self.current_simulate += 1
 

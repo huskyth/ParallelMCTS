@@ -9,7 +9,7 @@ from functools import reduce
 import numpy as np
 
 from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT, MODEL_SAVE_PATH, MOVE_TO_INDEX_DICT, draw_chessmen, \
-    draw_chessman_from_image, ANALYSIS_PATH, create_directory
+    draw_chessman_from_image, ANALYSIS_PATH, create_directory, MAX_STEPS
 from symmetry_creator import lr, tb_, board_to_torch_state
 from tensor_board_tool import MySummary
 
@@ -193,7 +193,7 @@ class Trainer:
             player1.update_tree(max_act)
             player2.update_tree(max_act)
             play_index *= -1
-            if step >= 450:
+            if step >= MAX_STEPS:
                 return 0, 0, 1
 
         del network1
