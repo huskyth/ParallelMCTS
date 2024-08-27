@@ -30,7 +30,7 @@ class Trainer:
     WM_CHESS_GUI = WMChessGUI(7, -1)
 
     def __init__(self, is_eval=False):
-        self.epoch = 100
+        self.epoch = 1000
         self.test_rate = 20
         self.greedy_times = 5
         self.dirichlet_rate = 0.1
@@ -67,6 +67,7 @@ class Trainer:
             for k, item in enumerate(future_list):
                 data = item.result()
                 temp += data
+        print(f"return temp length {len(temp)}")
         return temp
 
     @staticmethod
@@ -144,6 +145,7 @@ class Trainer:
                 item.append(-1)
         if show:
             Trainer.WM_CHESS_GUI.stop()
+            t.join()
         return train_sample
 
     def contest(self):
@@ -161,7 +163,7 @@ class Trainer:
                     old_win += 1
                 else:
                     draws += 1
-
+        print(f"return contest")
         return new_win, old_win, draws
 
     @staticmethod
@@ -201,6 +203,7 @@ class Trainer:
         _, winner = state.is_end()
         if show:
             Trainer.WM_CHESS_GUI.stop()
+            t.join()
         return winner
 
     def learn(self):
