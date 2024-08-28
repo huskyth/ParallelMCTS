@@ -59,6 +59,7 @@ class Trainer:
 
     def _collect(self):
         temp = []
+        start = time.time()
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as ppe:
             future_list = [
                 ppe.submit(Trainer._play, 1 if i % 2 == 0 else -1, self.current_network, i == 0) for i in
@@ -66,7 +67,10 @@ class Trainer:
             for k, item in enumerate(future_list):
                 data = item.result()
                 temp += data
-        print(f"return temp length {len(temp)}")
+        delta = time.time() - start
+        self.writer.add_float(int(delta), f"{self.self_play_number} times collect time(s)")
+
+        print(f"return temp length {len(temp)}, {delta}")
         return temp
 
     @staticmethod
