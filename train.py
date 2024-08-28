@@ -147,6 +147,24 @@ class Trainer:
             t.join()
         return train_sample
 
+    def pk(self):
+        self.best_network.load(key="best_checkpoint.pt")
+        self.current_network.load()
+        new_win, old_win, draws = 0, 0, 0
+        with ProcessPoolExecutor(max_workers=os.cpu_count()) as ppe:
+            future_list = [
+                ppe.submit(Trainer._contest, self.current_network, self.best_network, 1 if i % 2 == 0 else -1, i == 0)
+                for i in range(self.contest_number)]
+            for item in as_completed(future_list):
+                winner = item.result()
+                if winner == 1:
+                    new_win += 1
+                elif winner == -1:
+                    old_win += 1
+                else:
+                    draws += 1
+        print(f"return contest, new_win {new_win}, old_win {old_win}, draws {draws}")
+
     def contest(self):
         self.best_network.load(key="best_checkpoint.pt")
         new_win, old_win, draws = 0, 0, 0
