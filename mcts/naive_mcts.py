@@ -19,7 +19,7 @@ class MCTS:
         current_node = self.root
         counter = 0
         while True:
-            if current_node.is_leaf() or counter > MAX_STEPS:
+            if current_node.is_leaf():
                 break
 
             action, current_node = current_node.select()
@@ -34,24 +34,20 @@ class MCTS:
             value = 1 if winner == state.get_current_player() else -1
             current_node.update(-value)
         else:
-            if counter > MAX_STEPS:
-                print(f"COUNT LARGE THAN {MAX_STEPS}")
-                current_node.update(0)
-            else:
-                value, probability = self.predict(state.get_torch_state())
-                probability = probability[0]
-                available_action = state.get_legal_moves(state.get_current_player())
+            value, probability = self.predict(state.get_torch_state())
+            probability = probability[0]
+            available_action = state.get_legal_moves(state.get_current_player())
 
-                available_ = set()
-                for move in available_action:
-                    available_.add(MOVE_TO_INDEX_DICT[move])
-                for idx, p in enumerate(probability):
-                    if idx not in available_:
-                        probability[idx] = 0
-                probability /= probability.sum()
-                # TODO: test it
-                current_node.expand(probability)
-                current_node.update(-value)
+            available_ = set()
+            for move in available_action:
+                available_.add(MOVE_TO_INDEX_DICT[move])
+            for idx, p in enumerate(probability):
+                if idx not in available_:
+                    probability[idx] = 0
+            probability /= probability.sum()
+            # TODO: test it
+            current_node.expand(probability)
+            current_node.update(-value)
 
     def predict(self, state):
         return self.model_predict(state)
@@ -66,13 +62,14 @@ class MCTS:
             else:
                 self.root = Node(1)
 
-    def get_action_probability(self, state, is_greedy):
+    def get_action_probability(self, state, is_greedy, is_show=False):
         self.max_h = 0
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
             self._simulate(state_copy, i)
         probability = np.array([item.visit for item in self.root.children.values()])
-
+        if is_show:
+            print(f"max height of tree is {self.max_h}")
         if is_greedy:
             max_visit = np.max(probability)
             probability = np.where(probability == max_visit, 1, 0)

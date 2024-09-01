@@ -1,5 +1,7 @@
 import time
 
+import numpy as np
+
 
 class Node:
     def __init__(self, p):
@@ -16,7 +18,14 @@ class Node:
                 1 + self.visit)
 
     def expand(self, probability):
+
+        dirichlet_noise = 0.25 * np.random.dirichlet(0.3 * np.ones(len(np.nonzero(probability)[0])))
+        probability *= 0.75
+        j = 0
         for idx, v in enumerate(probability):
+            if v > 0:
+                v = dirichlet_noise[j] + v
+                j += 1
             temp = Node(v)
             temp.parent = self
             self.children[idx] = temp
@@ -38,7 +47,6 @@ class Node:
         return best_idx, self.children[best_idx]
 
     def _update(self, value):
-        self.visual_loss -= 1
         self.visit += 1
         self.q += (value - self.q) / self.visit
 

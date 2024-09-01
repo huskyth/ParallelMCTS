@@ -10,6 +10,7 @@ import numpy as np
 
 from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT, MODEL_SAVE_PATH, MOVE_TO_INDEX_DICT, draw_chessmen, \
     draw_chessman_from_image, ANALYSIS_PATH, create_directory, MAX_STEPS
+from mcts.naive_mcts import MCTS
 from symmetry_creator import lr, tb_, board_to_torch_state
 from tensor_board_tool import MySummary
 
@@ -19,7 +20,7 @@ if path not in sys.path:
 
 from chess.chess import Chess
 from chess.wm_chess_gui import WMChessGUI
-from mcts.parallel_mcts import MCTS
+
 from network_wrapper import ChessNetWrapper
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
@@ -31,7 +32,7 @@ class Trainer:
 
     def __init__(self, is_eval=False):
         self.epoch = 10000
-        self.test_rate = 20
+        self.test_rate = 60
         self.greedy_times = 5
         self.dirichlet_rate = 0.1
         self.dirichlet_probability = 0.3
@@ -45,9 +46,10 @@ class Trainer:
         self.writer = MySummary(use_wandb=not is_eval)
         self.new_player = MCTS(self.current_network.predict)
         self.old_mcts = MCTS(self.current_network.predict)
+        multiprocessing.set_start_method("spawn")
 
     def _load(self):
-        multiprocessing.set_start_method("spawn")
+
         print(f"process start method {multiprocessing.get_start_method()}")
         if os.path.exists(str(MODEL_SAVE_PATH / "checkpoint.pt")) and os.path.exists(
                 str(MODEL_SAVE_PATH / "checkpoint.example")):
@@ -112,7 +114,7 @@ class Trainer:
             player = player_list[play_index + 1]
 
             is_greedy = step > 5
-            probability = player.get_action_probability(state=state, is_greedy=is_greedy)
+            probability = player.get_action_probability(state=state, is_greedy=is_greedy, is_show=show)
             last_action = state.last_action
             temp = Trainer.get_symmetries(state.get_board(), probability, last_action,
                                           state.get_current_player())
@@ -124,9 +126,9 @@ class Trainer:
             legal_action = state.get_legal_moves(state.get_current_player())
             legal_action = [MOVE_TO_INDEX_DICT[x] for x in legal_action]
 
-            dirichlet_noise = 0.1 * np.random.dirichlet(0.3 * np.ones(len(legal_action)))
+            dirichlet_noise = 0.25 * np.random.dirichlet(0.3 * np.ones(len(legal_action)))
 
-            probability = 0.9 * probability
+            probability = 0.75 * probability
             for i in range(len(legal_action)):
                 probability[legal_action[i]] += dirichlet_noise[i]
             probability = probability / probability.sum()
@@ -206,7 +208,7 @@ class Trainer:
         while not state.is_end()[0]:
             step += 1
             player = player_list[play_index + 1]
-            probability_new = player.get_action_probability(state, True)
+            probability_new = player.get_action_probability(state, True, show)
             max_act = int(np.argmax(probability_new))
             if show:
                 Trainer.WM_CHESS_GUI.execute_move(state.get_current_player(), INDEX_TO_MOVE_DICT[max_act])
@@ -292,7 +294,7 @@ class Trainer:
 
             # select move
             if player == "alpha":
-                prob = mcts_best.get_action_probability(state, True)
+                prob = mcts_best.get_action_probability(state, True, True)
                 best_move = int(np.argmax(np.array(list(prob))))
                 Trainer.WM_CHESS_GUI.execute_move(player_index, INDEX_TO_MOVE_DICT[best_move])
             else:
