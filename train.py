@@ -210,7 +210,7 @@ class Trainer:
         with open(filepath, 'rb') as f:
             self.train_sample = pickle.load(f)
 
-    def play_with_human(self, human_first=True, checkpoint_name="old_version.pt"):
+    def play_with_human(self, human_first=True, checkpoint_name="checkpoint.pt"):
         t = threading.Thread(target=self.wm_chess_gui.loop)
         t.start()
 
