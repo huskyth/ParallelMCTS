@@ -112,6 +112,13 @@ class MCTS:
             probability = np.where(probability == max_visit, 1, 0)
 
         visit_list = probability / probability.sum()
+
+        # TODO:// to test
+        q_list = [self.root.children[key].q for key in self.root.children]
+        q_tensor = torch.tensor(q_list)
+        value = (visit_list * q_tensor).sum()
+        print(f"Current player {state.get_current_player()}'s STATE VALUE is {value}")
+
         return visit_list
 
 
