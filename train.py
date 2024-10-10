@@ -246,20 +246,15 @@ class Trainer:
             s = board_to_torch_state(state.get_board(), state.get_current_player(), last_action)
             v, p = mcts_best.model_predict(s)
             # TODO://To Check get_torch_state and board_to_torch_state is equal
-            print(f"before action, player = {state.get_current_player()}, v = {v}, last_action = {last_action}")
+            print(f"Before execute move, player = {state.get_current_player()}, v = {v}, last_action = {last_action}")
 
-            s = board_to_torch_state(state.get_board(), - state.get_current_player(), last_action)
-            v, p = mcts_best.model_predict(s)
-            print(f"before action, player = {-state.get_current_player()}, v = {v}, last_action = {last_action}")
             # execute move
             state.do_action(INDEX_TO_MOVE_DICT[best_move])
+
+            last_action = state.last_action
             s = board_to_torch_state(state.get_board(), state.get_current_player(), last_action)
             v, p = mcts_best.model_predict(s)
-            print(f"after action, player = {state.get_current_player()}, v = {v}, last_action = {last_action}")
-
-            s = board_to_torch_state(state.get_board(), - state.get_current_player(), last_action)
-            v, p = mcts_best.model_predict(s)
-            print(f"after action, player = {-state.get_current_player()}, v = {v}, last_action = {last_action}\n\n")
+            print(f"After execute move, player = {state.get_current_player()}, v = {v}, last_action = {last_action}\n\n")
 
             # check game status
             ended, winner = state.is_end()
