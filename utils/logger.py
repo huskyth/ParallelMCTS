@@ -1,9 +1,8 @@
 import sys
 import time
-from pathlib import Path
+from constants import ROOT_PATH
 
-ROOT_PATH = Path(__file__).parent.parent
-log_path = Path(ROOT_PATH / "logs")
+log_path = ROOT_PATH / "logs"
 if not log_path.exists():
     log_path.mkdir()
 

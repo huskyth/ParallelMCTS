@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
+import threading
 
 import pygame
 import os
@@ -19,8 +20,9 @@ CHESSMAN_HEIGHT = 20
 
 
 class WMChessGUI:
-    def __init__(self, n, human_color=1, fps=3):
+    def __init__(self, n, human_color=1, fps=3, is_show=False):
 
+        self.is_show = is_show
         # screen
         self.board = None
         self.width = 580
@@ -63,6 +65,7 @@ class WMChessGUI:
 
     # reset status
     def reset_status(self):
+        if not self.is_show: return
         self.init_point_status()
         self.k = 1  # step number
 
@@ -88,6 +91,7 @@ class WMChessGUI:
 
     # execute move
     def execute_move(self, color, move):
+        if not self.is_show: return
         from_int, to_int = move
         print(f"exec {from_int} to {to_int}")
         assert color == WHITE or color == BLACK
@@ -101,8 +105,16 @@ class WMChessGUI:
             bake_point_status, DISTANCE)
         self.k += 1
 
+    def start(self):
+        if not self.is_show: return
+
+        t = threading.Thread(target=self.loop)
+        t.start()
+
     # main loop
     def loop(self):
+        if not self.is_show: return
+
         # set running
         self.is_running = True
 

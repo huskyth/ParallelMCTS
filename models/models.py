@@ -1,7 +1,4 @@
-import torch
 import torch.nn as nn
-
-from constants import ACTION_SIZE
 
 
 def conv3x3(in_channels, out_channels, stride=1):
@@ -45,14 +42,14 @@ class ResidualBlock(nn.Module):
 
 
 class ChessNet(nn.Module):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
         self.channel = 256
         self.feature = nn.Sequential(
             *[ResidualBlock(1 if idx == 0 else self.channel, self.channel) for idx in range(5)])
 
         self.value = nn.Linear(self.channel * 49, 1)
-        self.probability = nn.Linear(self.channel * 49, ACTION_SIZE)
+        self.probability = nn.Linear(self.channel * 49, 72)
         self.tanh = nn.Tanh()
         self.log_softmax = nn.LogSoftmax()
 

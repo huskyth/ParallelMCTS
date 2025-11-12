@@ -65,9 +65,3 @@ class MCTS:
 
         visit_list = probability / probability.sum()
         return visit_list
-
-
-if __name__ == '__main__':
-    m = MCTS(None)
-    y = m.get_action_probability(None, False)
-    print(y)
