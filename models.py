@@ -66,11 +66,3 @@ class ChessNet(nn.Module):
         p = self.probability(state)
         p = self.log_softmax(p)
         return v, p
-
-
-if __name__ == '__main__':
-    state_ = torch.randn(2, 1, 7, 7)
-    m = ChessNet()
-    v, p = m(state_)
-    print(v.shape)
-    print(p.shape)

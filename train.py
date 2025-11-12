@@ -40,21 +40,30 @@ class Trainer:
     def _play(self):
         step = 0
         train_sample = []
+
         self.mcts.update_tree(-1)
         self.state.reset()
+
         if self.use_gui:
             self.wm_chess_gui.reset_status()
+
         while not self.state.is_end()[0]:
             step += 1
+
             is_greedy = step < self.greedy_times
             probability = self.mcts.get_action_probability(state=self.state, is_greedy=is_greedy)
+
             action = np.random.choice(len(probability), p=probability)
+
             if self.use_gui:
                 self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
+
             train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
             self.state.do_action(action)
             self.mcts.update_tree(action)
+
         self.writer.add_float(y=step, title="Training episode length")
+
         _, winner = self.state.is_end()
         assert winner is not None
         for item in train_sample:
@@ -99,13 +108,18 @@ class Trainer:
         return new_win, old_win, draws
 
     def learn(self):
+
         if self.use_gui:
             t = threading.Thread(target=self.wm_chess_gui.loop)
             t.start()
+
         for epoch in range(self.epoch):
+
             train_sample = self._collect()
+
             self.train_sample.append(train_sample)
             self.network.save("old_version.pt")
+
             if len(self.train_sample) >= 10:
                 np.random.shuffle(self.train_sample)
                 self.network.train(self.train_sample)
@@ -119,10 +133,3 @@ class Trainer:
                     self.network.save("best.pt")
                 else:
                     print("REJECT")
-
-
-if __name__ == '__main__':
-    temp = [0.1, 0.2, 0.3, 0.4]
-    temp = np.array(temp)
-    y = np.random.choice(len(temp), p=temp)
-    print(y)

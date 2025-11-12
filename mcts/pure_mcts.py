@@ -3,7 +3,6 @@ import copy
 import numpy as np
 
 from chess.common import MOVE_TO_INDEX_DICT
-from constants import ACTION_SIZE
 from mcts.node import Node
 
 
@@ -52,6 +51,7 @@ class MCTS:
                 self.root = Node(1)
 
     def get_action_probability(self, state, is_greedy):
+
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
             self._simulate(state_copy)
