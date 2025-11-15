@@ -13,7 +13,11 @@ class Chess(ChessBoard):
         return is_end, winner
 
     def get_torch_state(self):
-        return from_array_to_input_tensor(self.pointStatus) * self.current_player
+        """
+            得到棋盘的张量
+            :return:
+        """
+        return from_array_to_input_tensor(self.pointStatus, self.current_player)
 
     def do_action(self, action):
         self.execute_move(action, self.current_player)

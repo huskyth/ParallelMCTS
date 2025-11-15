@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -45,21 +46,38 @@ class ChessNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.channel = 256
-        self.feature = nn.Sequential(
-            *[ResidualBlock(1 if idx == 0 else self.channel, self.channel) for idx in range(5)])
+        self.feature = nn.Sequential(ResidualBlock(2, self.channel))
 
         self.value = nn.Linear(self.channel * 49, 1)
         self.probability = nn.Linear(self.channel * 49, 72)
         self.tanh = nn.Tanh()
-        self.log_softmax = nn.LogSoftmax()
+        self.log_softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, state):
-        assert len(state.shape) == 4
-        batch, _, _, _ = state.shape
+        for _ in range(4 - len(state.shape)):
+            state = state.unsqueeze(0)
+
+        if len(state.shape) != 4:
+            raise Exception(f'state must be 4 dim, but {len(state.shape)} dim')
+
+        batch, _, _, end = state.shape
+
+        if end == 2:
+            state = torch.permute(state, (0, 3, 1, 2))
+
         state = self.feature(state)
-        state = state.view(batch, -1)
+        state = state.reshape(batch, -1)
+
         v = self.value(state)
         v = self.tanh(v)
         p = self.probability(state)
         p = self.log_softmax(p)
+
         return v, p
+
+
+if __name__ == '__main__':
+    md = ChessNet()
+    tens = torch.randn(7, 7, 2)
+    y = md(tens)
+    print(y[0].shape, y[1].shape, y[0])

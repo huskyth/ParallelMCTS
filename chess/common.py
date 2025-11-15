@@ -60,15 +60,27 @@ ARRAY_TO_IMAGE = {
 }
 
 
-def from_array_to_input_tensor(numpy_array):
-    if isinstance(numpy_array, list):
-        numpy_array = np.array(numpy_array)
-    assert len(numpy_array) == 21
-    assert isinstance(numpy_array, numpy.ndarray)
-    input_tensor = torch.zeros((7, 7))
-    for i, chessman in enumerate(numpy_array):
+def from_array_to_input_tensor(point_status, current_player):
+    """
+        :param point_status:
+        :param current_player:
+        :return: 返回(7, 7, 2)的张量，第三个维度的第一个维度为棋子，第三个维度的第二个为棋手
+    """
+    if current_player not in [-1, 1]:
+        raise Exception('current_player must be -1 or 1')
+
+    if not isinstance(point_status, numpy.ndarray) and not isinstance(point_status, list):
+        raise Exception(f'point_status must be list or numpy.ndarray, type {type(point_status)}')
+
+    if len(point_status) != 21:
+        raise Exception('point_status length must be 21')
+
+    input_tensor = torch.zeros((7, 7, 2))
+    for i, chessman in enumerate(point_status):
         row, column = ARRAY_TO_IMAGE[i]
-        input_tensor[row, column] = chessman
+        input_tensor[row, column, 0] = chessman
+
+    input_tensor[:, :, 1] = current_player
     return input_tensor
 
 
@@ -188,10 +200,11 @@ for idx, move_tuple in enumerate(MOVE_LIST):
     INDEX_TO_MOVE_DICT[idx] = move_tuple
 
 if __name__ == '__main__':
-    n = len(MOVE_TO_INDEX_DICT)
-    data = np.random.normal(0, 1, n)
-    x = np.arange(0, 72, 1)
-    bar_show(x, data)
-    max_action = np.argmax(data)
-    print(max_action, data[max_action])
-    print(INDEX_TO_MOVE_DICT[max_action])
+    from pprint import pprint
+
+    ary = 21 * [0]
+    ary[10] = 1
+    data = from_array_to_input_tensor(ary, -1).data
+
+    pprint(data[:, :, 0])
+    pprint(data[:, :, 1])
