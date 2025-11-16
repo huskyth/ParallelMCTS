@@ -2,7 +2,7 @@ import sys
 from collections import deque
 import swanlab
 import numpy as np
-
+import torch
 from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT
 
 path = str(ROOT_PATH / "chess")
@@ -62,9 +62,9 @@ class Trainer:
         assert winner is not None
         for item in train_sample:
             if item[-1] == winner:
-                item.append(1)
+                item.append(torch.tensor(1.0))
             else:
-                item.append(-1)
+                item.append(torch.tensor(-1.0))
         return train_sample
 
     def _contest(self, n):
