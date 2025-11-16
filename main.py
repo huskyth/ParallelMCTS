@@ -14,3 +14,4 @@ if __name__ == '__main__':
         t.learn()
     except Exception as err:
         print(err)
+        raise err
