@@ -27,27 +27,29 @@ class MCTS:
             value = 1 if winner == state.get_current_player() else -1
         else:
             value, probability = self.predict(state.get_torch_state())
-            probability = probability[0]
             available_action = state.get_legal_moves(state.get_current_player())
             available_ = set()
             for move in available_action:
                 available_.add(MOVE_TO_INDEX_DICT[move])
+
             for idx, p in enumerate(probability):
                 if idx not in available_:
                     probability[idx] = 0
+
             probability /= probability.sum()
-            # TODO: test it
             current_node.expand(probability)
         current_node.update(-value)
 
     def update_tree(self, move):
         if move not in self.root.children:
+            print(f"move {move} not in root children")
             self.root = Node(1)
         else:
             if self.root.children[move].p > 0:
                 self.root = self.root.children[move]
                 self.root.parent = None
             else:
+                print("p is 0")
                 self.root = Node(1)
 
     def get_action_probability(self, state, is_greedy):
@@ -62,6 +64,6 @@ class MCTS:
             max_visit = np.max(probability)
             probability = np.where(probability == max_visit, 1, 0)
             return probability
-
         visit_list = probability / probability.sum()
+
         return visit_list

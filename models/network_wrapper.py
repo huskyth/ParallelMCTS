@@ -23,7 +23,7 @@ class ChessNetWrapper:
     @torch.no_grad()
     def predict(self, state):
         v, p = self.net(state)
-        return v.detach().cpu().numpy(), p.detach().cpu().numpy()
+        return v.detach().cpu().numpy(), p.detach().cpu().numpy()[0]
 
     def smooth_l1(self, input_tensor, target_tensor):
         return F.smooth_l1_loss(input_tensor, target_tensor)

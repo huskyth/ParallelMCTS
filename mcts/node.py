@@ -18,11 +18,15 @@ class Node:
             self.children[idx] = temp
 
     def select(self):
-        best_idx, best_u = 0, -float("inf")
+        best_idx, best_u = -1, -float("inf")
         for key, item in self.children.items():
             if item.get_value() > best_u:
                 best_idx = key
                 best_u = item.get_value()
+
+        if best_idx == -1 or best_u == -float("inf"):
+            raise Exception("No child node to select")
+
         return best_idx, self.children[best_idx]
 
     def _update(self, value):
