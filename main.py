@@ -1,7 +1,7 @@
-from train import Trainer
+from trainer.train import Trainer
 from utils.logger import Logger
 from datetime import datetime
-from train_config import TrainConfig
+from trainer.train_config import TrainConfig
 import sys
 
 sys.stdout = Logger()
