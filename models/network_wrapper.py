@@ -71,9 +71,18 @@ class ChessNetWrapper:
                 loss.backward()
                 self.opt.step()
 
-    def save(self, key):
-        torch.save({"state_dict": self.net.state_dict()}, str(MODEL_SAVE_PATH / key))
+    def save(self, epoch, key="latest.pt"):
+        checkpoint = {
+            'epoch': epoch,
+            'state_dict': self.net.state_dict(),
+            'optimizer': self.opt.state_dict(),
+        }
+        torch.save(checkpoint, str(MODEL_SAVE_PATH / key))
+        print(f"{key} 模型已经保存")
 
     def load(self, key):
         model = torch.load(str(MODEL_SAVE_PATH / key))
         self.net.load_state_dict(model["state_dict"])
+        self.opt.load_state_dict(model["optimizer"])
+        print(f"{key} 模型已经加载")
+        return model["epoch"]

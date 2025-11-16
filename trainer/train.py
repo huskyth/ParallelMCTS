@@ -68,51 +68,66 @@ class Trainer:
         return train_sample
 
     def _contest(self, n):
+
         new_player = MCTS(self.network.predict)
         old_mcts = MCTS(self.random_network.predict)
+
         new_win, old_win, draws = 0, 0, 0
         for i in range(n):
             new_player.update_tree(-1)
             old_mcts.update_tree(-1)
             self.state.reset()
             player_list = [old_mcts, None, new_player]
-            step = 0
-            current_player = 1
+            current_player = 1 if i % 2 == 0 else -1
+            start_player = current_player
             while not self.state.is_end()[0]:
-                step += 1
                 player = player_list[current_player + 1]
                 probability_new = player.get_action_probability(self.state, True)
                 max_act = np.argmax(probability_new).item()
                 self.state.do_action(max_act)
+
                 new_player.update_tree(max_act)
                 old_mcts.update_tree(max_act)
                 current_player *= -1
-            self.writer.add_float(y=step, title="Testing episode length")
             _, winner = self.state.is_end()
             assert winner is not None
             if winner == 1:
-                new_win += 1
+                if start_player == 1:
+                    new_win += 1
+                else:
+                    old_win += 1
             else:
-                old_win += 1
+                if start_player == 1:
+                    old_win += 1
+                else:
+                    new_win += 1
         draws = n - new_win - old_win
-        self.writer.add_float(y=new_win, title="New player winning number")
-        self.writer.add_float(y=old_win, title="Old player winning number")
-        self.writer.add_float(y=new_win / n, title="Winning rate")
         return new_win, old_win, draws
 
-    def learn(self):
+    def _try_load(self):
+        try:
+            epoch = self.network.load("latest.pt")
+        except Exception as e:
+            print(e)
+            epoch = 0
 
+        return epoch
+
+    def learn(self):
+        start_epoch = self._try_load()
         self.wm_chess_gui.start()
 
-        for epoch in range(self.train_config.epoch):
+        for epoch in range(start_epoch, self.train_config.epoch):
 
             train_sample = self._collect()
 
-            self.train_sample.append(train_sample)
+            self.train_sample.extend(train_sample)
 
-            if len(self.train_sample) >= 10:
+            if len(self.train_sample) >= 50:
+                print(f"start training... size of train_sample: {len(self.train_sample)}")
                 np.random.shuffle(self.train_sample)
                 self.network.train(self.train_sample)
+                self.network.save(epoch)
 
             if (epoch + 1) % self.train_config.test_rate == 0:
                 new_win, old_win, draws = self._contest(2)
@@ -122,6 +137,6 @@ class Trainer:
                 })
                 if new_win / all_ > self.best_win_rate:
                     print(f"🍤 ACCEPT, {new_win / all_} model saved")
-                    self.network.save("best.pt")
+                    self.network.save(epoch, key="best.pt")
                 else:
                     print("🐑 REJECT")
