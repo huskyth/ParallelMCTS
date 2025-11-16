@@ -39,7 +39,6 @@ class ChessNetWrapper:
 
         state = torch.stack(state).float()
         state = state.cuda() if self.is_cuda else state
-        state = state.unsqueeze(1)
 
         probability = torch.tensor(probability).float()
         probability = probability.cuda() if self.is_cuda else probability
@@ -48,7 +47,8 @@ class ChessNetWrapper:
         value = value.cuda() if self.is_cuda else value
 
         if state.shape != (n, 7, 7, 2) or probability.shape != (n, 72) or value.shape != (n, 1):
-            raise ValueError("state, probability, value shape error")
+            raise ValueError(
+                f"state, probability, value shape error, shape is {state.shape}, {probability.shape}, {value.shape}")
 
         batch_number = n // self.batch
         for epoch in range(self.epoch):
