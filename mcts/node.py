@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class Node:
     def __init__(self, p):
         self.p = p
@@ -18,14 +21,11 @@ class Node:
             self.children[idx] = temp
 
     def select(self):
-        best_idx, best_u = -1, -float("inf")
-        for key, item in self.children.items():
-            if item.get_value() > best_u:
-                best_idx = key
-                best_u = item.get_value()
-
-        if best_idx == -1 or best_u == -float("inf"):
-            raise Exception("No child node to select")
+        childrens = [item for _, item in self.children.items()]
+        values = [item.get_value() for item in childrens]
+        value_sum = sum([np.e ** value for value in values])
+        probability = [np.e ** value / value_sum for value in values]
+        best_idx = np.random.choice(len(probability), 1, p=probability)[0]
 
         return best_idx, self.children[best_idx]
 
@@ -40,7 +40,3 @@ class Node:
 
     def is_leaf(self):
         return self.children == {}
-
-
-if __name__ == '__main__':
-    pass
