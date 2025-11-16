@@ -12,7 +12,10 @@ class Node:
 
     def get_value(self):
         father_visit = self.parent.visit
-        return self.q + self.c * self.p * father_visit / (1 + self.visit) ** 0.5
+        value = self.q + self.c * self.p * father_visit / (1 + self.visit) ** 0.5
+        if isinstance(value, np.ndarray):
+            value = value.item()
+        return value
 
     def expand(self, probability):
         for idx, v in enumerate(probability):
@@ -21,11 +24,12 @@ class Node:
             self.children[idx] = temp
 
     def select(self):
-        childrens = [item for _, item in self.children.items()]
+        childrens = [item for _, item in self.children.items() if item.p > 0]
+        move_idx = [idx for idx, item in self.children.items() if item.p > 0]
         values = [item.get_value() for item in childrens]
         value_sum = sum([np.e ** value for value in values])
         probability = [np.e ** value / value_sum for value in values]
-        best_idx = np.random.choice(len(probability), 1, p=probability)[0]
+        best_idx = move_idx[np.random.choice(len(probability), 1, p=probability)[0]]
 
         return best_idx, self.children[best_idx]
 
