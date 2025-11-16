@@ -11,7 +11,7 @@ if not MODEL_SAVE_PATH.exists():
 
 
 class ChessNetWrapper:
-    def __init__(self):
+    def __init__(self, swlab):
         self.net = ChessNet()
 
         self.is_cuda = torch.cuda.is_available()
@@ -19,6 +19,8 @@ class ChessNetWrapper:
 
         self.epoch = 10
         self.batch = 1
+
+        self.swlab = swlab
 
     @torch.no_grad()
     def predict(self, state):
@@ -48,7 +50,6 @@ class ChessNetWrapper:
         batch_number = n // self.batch
         for epoch in range(self.epoch):
             for step in range(batch_number):
-
                 start = step * self.batch
                 state = state[start:start + self.batch, :, :, :]
                 probability = probability[start:start + self.batch, :]
@@ -57,6 +58,12 @@ class ChessNetWrapper:
                 v_predict, p_predict = self.net(state)
                 value_loss = self.smooth_l1(v_predict, value)
                 probability_loss = self.cross_entropy(probability, p_predict)
+
+                entropy_p = (-torch.e ** p_predict * p_predict).sum(axis=1).mean().item().detach().cpu()
+
+                self.swlab.log(
+                    {"value_loss": value_loss.item(), "probability_loss": probability_loss.item(), "entropy_p":
+                        entropy_p})
 
                 loss = value_loss + probability_loss
 

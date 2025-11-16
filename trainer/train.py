@@ -18,11 +18,12 @@ from models.network_wrapper import ChessNetWrapper
 
 class Trainer:
     def __init__(self, use_gui=False, train_config=None):
-
+        swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
+        self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
         self.train_config = train_config
 
-        self.network = ChessNetWrapper()
-        self.old_network = ChessNetWrapper()
+        self.network = ChessNetWrapper(self.swanlab)
+        self.random_network = ChessNetWrapper(self.swanlab)
 
         self.mcts = MCTS(self.network.predict)
 
@@ -31,8 +32,7 @@ class Trainer:
         self.train_sample = deque(maxlen=1000)
         self.wm_chess_gui = WMChessGUI(7, -1, is_show=use_gui)
 
-        swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
-        self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
+        self.best_win_rate = 0
 
     def _collect(self):
         return self._play()
@@ -69,8 +69,7 @@ class Trainer:
 
     def _contest(self, n):
         new_player = MCTS(self.network.predict)
-        self.old_network.load("old_version.pt")
-        old_mcts = MCTS(self.old_network.predict)
+        old_mcts = MCTS(self.random_network.predict)
         new_win, old_win, draws = 0, 0, 0
         for i in range(n):
             new_player.update_tree(-1)
@@ -110,18 +109,19 @@ class Trainer:
             train_sample = self._collect()
 
             self.train_sample.append(train_sample)
-            self.network.save("old_version.pt")
 
             if len(self.train_sample) >= 10:
                 np.random.shuffle(self.train_sample)
                 self.network.train(self.train_sample)
 
             if (epoch + 1) % self.train_config.test_rate == 0:
-                new_win, old_win, draws = self._contest(10)
+                new_win, old_win, draws = self._contest(2)
                 all_ = new_win + old_win + draws
-
-                if new_win / all_ > 0.6:
-                    print("ACCEPT")
+                self.swanlab.log({
+                    "win_new": new_win, "win_random": old_win, "draws": draws
+                })
+                if new_win / all_ > self.best_win_rate:
+                    print(f"🍤 ACCEPT, {new_win / all_} model saved")
                     self.network.save("best.pt")
                 else:
-                    print("REJECT")
+                    print("🐑 REJECT")
