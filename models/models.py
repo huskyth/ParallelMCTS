@@ -79,5 +79,8 @@ class ChessNet(nn.Module):
 if __name__ == '__main__':
     md = ChessNet()
     tens = torch.randn(7, 7, 2)
+    tens = tens.cuda()
+
+    print(tens.device)
     y = md(tens)
     print(y[0].shape, y[1].shape, y[0])

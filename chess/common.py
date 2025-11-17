@@ -66,6 +66,7 @@ def from_array_to_input_tensor(point_status, current_player):
         :param current_player:
         :return: 返回(7, 7, 2)的张量，第三个维度的第一个维度为棋子，第三个维度的第二个为棋手
     """
+    is_cuda = True if torch.cuda.is_available() else False
     if current_player not in [-1, 1]:
         raise Exception('current_player must be -1 or 1')
 
@@ -81,7 +82,8 @@ def from_array_to_input_tensor(point_status, current_player):
         input_tensor[row, column, 0] = chessman
 
     input_tensor[:, :, 1] = current_player
-    return input_tensor
+
+    return input_tensor.cuda() if is_cuda else input_tensor
 
 
 def write_image(name, image):

@@ -15,6 +15,9 @@ class ChessNetWrapper:
         self.net = ChessNet()
 
         self.is_cuda = torch.cuda.is_available()
+        if self.is_cuda:
+            self.net.cuda()
+
         self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-2)
 
         self.epoch = 10
