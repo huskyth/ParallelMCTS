@@ -123,7 +123,7 @@ class Trainer:
 
             self.train_sample.extend(train_sample)
 
-            if len(self.train_sample) >= 50:
+            if len(self.train_sample) >= 10:
                 print(f"start training... size of train_sample: {len(self.train_sample)}")
                 np.random.shuffle(self.train_sample)
                 self.network.train(self.train_sample)
@@ -140,3 +140,14 @@ class Trainer:
                     self.network.save(epoch, key="best.pt")
                 else:
                     print("🐑 REJECT")
+
+
+if __name__ == '__main__':
+    temp = []
+    s = Chess().get_torch_state()
+    p = np.array([0] * 72)
+    for i in range(60):
+        temp.append([s, p, 1, torch.tensor(1)])
+    dp = deque(maxlen=1000)
+    dp.extend(temp)
+    ChessNetWrapper(None).train(dp)

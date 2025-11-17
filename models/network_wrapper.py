@@ -57,15 +57,14 @@ class ChessNetWrapper:
         for epoch in range(self.epoch):
             for step in range(batch_number):
                 start = step * self.batch
-                state = state[start:start + self.batch, :, :, :]
-                probability = probability[start:start + self.batch, :]
-                value = value[start:start + self.batch]
+                state_batch = state[start:start + self.batch, :, :, :]
+                probability_batch = probability[start:start + self.batch, :]
+                value_batch = value[start:start + self.batch]
+                v_predict, p_predict = self.net(state_batch)
+                value_loss = self.smooth_l1(v_predict, value_batch)
+                probability_loss = self.cross_entropy(probability_batch, p_predict)
 
-                v_predict, p_predict = self.net(state)
-                value_loss = self.smooth_l1(v_predict, value)
-                probability_loss = self.cross_entropy(probability, p_predict)
-
-                entropy_p = (-torch.e ** p_predict * p_predict).sum(axis=1).mean().item().detach().cpu()
+                entropy_p = (-torch.e ** p_predict * p_predict).sum(axis=1).mean().item()
 
                 self.swlab.log(
                     {"value_loss": value_loss.item(), "probability_loss": probability_loss.item(), "entropy_p":

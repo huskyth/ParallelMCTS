@@ -77,8 +77,8 @@ class ChessNet(nn.Module):
 
 
 if __name__ == '__main__':
-    md = ChessNet()
-    tens = torch.randn(7, 7, 2)
+    md = ChessNet().cuda()
+    tens = torch.randn(5, 7, 7, 2)
     tens = tens.cuda()
 
     print(tens.device)
