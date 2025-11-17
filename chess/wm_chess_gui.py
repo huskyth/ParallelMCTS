@@ -90,10 +90,10 @@ class WMChessGUI:
         return self.human_color
 
     # execute move
-    def execute_move(self, color, move):
+    def execute_move(self, color, move, info=None):
         if not self.is_show: return
         from_int, to_int = move
-        print(f"exec {from_int} to {to_int}")
+        print(f"🌿 exec {from_int} to {to_int}")
         assert color == WHITE or color == BLACK
         assert self.board[from_int] == color
         assert self.board[to_int] == 0

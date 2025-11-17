@@ -3,6 +3,7 @@ from utils.logger import Logger
 from datetime import datetime
 from trainer.train_config import TrainConfig
 import sys
+import traceback
 
 sys.stdout = Logger()
 
@@ -14,4 +15,5 @@ if __name__ == '__main__':
         t.learn()
     except Exception as err:
         print(err)
+        print(traceback.format_exc())
         raise err

@@ -21,7 +21,7 @@ class ChessNetWrapper:
         self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-2)
 
         self.epoch = 10
-        self.batch = 1
+        self.batch = 4
 
         self.swlab = swlab
 
@@ -62,7 +62,10 @@ class ChessNetWrapper:
                 value_batch = value[start:start + self.batch]
                 v_predict, p_predict = self.net(state_batch)
                 value_loss = self.smooth_l1(v_predict, value_batch)
-                probability_loss = self.cross_entropy(probability_batch, p_predict)
+
+                target = torch.argmax(probability_batch, dim=1)
+
+                probability_loss = self.cross_entropy(p_predict, target)
 
                 entropy_p = (-torch.e ** p_predict * p_predict).sum(axis=1).mean().item()
 

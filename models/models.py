@@ -77,10 +77,21 @@ class ChessNet(nn.Module):
 
 
 if __name__ == '__main__':
-    md = ChessNet().cuda()
-    tens = torch.randn(5, 7, 7, 2)
-    tens = tens.cuda()
+    # md = ChessNet().cuda()
+    # tens = torch.randn(1, 7, 7, 2)
+    # tens = tens.cuda()
+    #
+    # y = md(tens)
+    # print(y[1].shape, (y[1] / y[1].sum(keepdims=True,dim=1))[0])
+    # import torch.nn.functional as F
+    #
+    input = torch.randn(3, 5, requires_grad=True)
+    target = torch.randint(5, (3,), dtype=torch.int64)
+    print(input.shape, target.shape)
+    # loss = F.cross_entropy(input, target)
+    # print(loss)
 
-    print(tens.device)
-    y = md(tens)
-    print(y[0].shape, y[1].shape, y[0])
+    p = torch.randn(5, 72)
+    print(p.shape)
+
+    print(torch.argmax(p, dim=1).shape == (5, ))

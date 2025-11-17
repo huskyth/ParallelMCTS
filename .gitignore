@@ -165,3 +165,4 @@ wandb_log
 summary_log
 
 logs
+checkpoints
