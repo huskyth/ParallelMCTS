@@ -180,8 +180,9 @@ class WMChessGUI:
                                     self.chosen_chessman] = self.chosen_chessman_color
                             self.chessman_in_hand = False
                 else:
-                    self.mcts_player()
-                    self.is_human = True
+                    if self.mcts_player:
+                        self.mcts_player()
+                        self.is_human = True
 
                 # draw
                 self._draw_background()
