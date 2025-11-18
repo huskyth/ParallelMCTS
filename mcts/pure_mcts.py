@@ -7,23 +7,31 @@ from mcts.node import Node
 
 
 class MCTS:
-    def __init__(self, predict, mode='train'):
+    def __init__(self, predict, mode='train', swanlab=None):
         self.root = Node(1)
         self.predict = predict
         self.simulate_times = 1600 if mode == 'train' else 1600 * 2
         self.mode = mode
+        self.swanlab = swanlab
+        self.max_depth = -1
+        self.simulate_success_rate = 0
 
     def _simulate(self, state):
+        max_depth = 0
         current_node = self.root
         while True:
             if current_node.is_leaf():
                 break
-
+            max_depth += 1
             action, current_node = current_node.select()
             state.do_action(action)
 
+        if max_depth > self.max_depth:
+            self.max_depth = max_depth
+
         is_end, winner = state.is_end()
         if is_end is True:
+            self.simulate_success_rate += 1
             assert winner is not None
             value = 1 if winner == state.get_current_player() else -1
         else:
@@ -62,6 +70,11 @@ class MCTS:
             state_copy = copy.deepcopy(state)
             self._simulate(state_copy)
 
+        self.swanlab.log({
+            "max_depth": self.max_depth, "simulate_has_result_rate": self.simulate_success_rate / self.simulate_times
+        })
+        self.max_depth = -1
+        self.simulate_success_rate = 0
         probability = np.array([item.visit for item in self.root.children.values()])
 
         if is_greedy:

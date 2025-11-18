@@ -28,7 +28,7 @@ class Trainer:
         self.network = ChessNetWrapper(self.swanlab)
         self.random_network = ChessNetWrapper(self.swanlab)
 
-        self.mcts = MCTS(self.network.predict)
+        self.mcts = MCTS(self.network.predict, swanlab=self.swanlab)
 
         self.state = Chess()
 
