@@ -73,6 +73,9 @@ class ChessNetWrapper:
                     {"value_loss": value_loss.item(), "probability_loss": probability_loss.item(), "entropy_p":
                         entropy_p})
 
+                if torch.isclose(entropy_p.item(), torch.tensor(0.0)):
+                    print(f"🐰 为什么熵为0，看看张量：{p_predict}")
+
                 loss = value_loss + probability_loss
 
                 self.opt.zero_grad()

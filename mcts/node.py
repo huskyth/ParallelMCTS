@@ -29,11 +29,10 @@ class Node:
         values = [item.get_value() for item in childrens]
         value_sum = sum([np.e ** value for value in values])
         probability = [np.e ** value / value_sum for value in values]
-        best_idx = move_idx[np.random.choice(len(probability), 1, p=probability)[0]]
-
         if len(childrens) == 0:
-            print(f"✨ 出现了问题，子节点的概率如下：\n\n {[self.children[key].p for key in self.children]} \n\n")
+            print(f"✨ select 中出现了问题，子节点的概率如下：\n\n {[self.children[key].p for key in self.children]} \n\n")
 
+        best_idx = move_idx[np.random.choice(len(probability), 1, p=probability)[0]]
         return best_idx, self.children[best_idx]
 
     def _update(self, value):

@@ -37,6 +37,9 @@ class MCTS:
                     probability[idx] = 0
 
             probability /= probability.sum()
+
+            if probability.sum() == 0:
+                print(f"✨ _simulate 中出现了问题，子节点的概率如下：\n\n {probability} \n\n")
             current_node.expand(probability)
         current_node.update(-value)
 
