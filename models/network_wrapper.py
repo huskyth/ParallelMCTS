@@ -65,7 +65,7 @@ class ChessNetWrapper:
 
                 target = torch.argmax(probability_batch, dim=1)
 
-                probability_loss = self.cross_entropy(p_predict, target)
+                probability_loss = self.cross_entropy(torch.e ** p_predict, target)
 
                 entropy_p = (-torch.e ** p_predict * p_predict).sum(axis=1).mean().item()
 
