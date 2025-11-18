@@ -7,10 +7,11 @@ from mcts.node import Node
 
 
 class MCTS:
-    def __init__(self, predict):
+    def __init__(self, predict, mode='train'):
         self.root = Node(1)
         self.predict = predict
-        self.simulate_times = 1600
+        self.simulate_times = 1600 if mode == 'train' else 1600 * 2
+        self.mode = mode
 
     def _simulate(self, state):
         current_node = self.root

@@ -39,7 +39,7 @@ class Trainer:
         if mode == 'play':
             epoch = self.network.load("best.pt")
             print(f"load {epoch} checkpoint tp play")
-            self.pc_player = MCTS(self.network.predict)
+            self.pc_player = MCTS(self.network.predict, mode='test')
             self.wm_chess_gui = WMChessGUI(7, -1, is_show=use_gui, mcts_player=self.step, play_state=self.state)
             self.wm_chess_gui.set_is_human(True)
             self.wm_chess_gui.start()
@@ -92,13 +92,14 @@ class Trainer:
 
         new_win, old_win, draws = 0, 0, 0
         for i in range(n):
-            print(f"🌟 start {i}th contest")
             new_player.update_tree(-1)
             old_mcts.update_tree(-1)
             self.state.reset()
             player_list = [old_mcts, None, new_player]
             current_player = 1 if i % 2 == 0 else -1
             start_player = current_player
+            print(f"🌟 start {i}th contest, first hand is {start_player}")
+
             while not self.state.is_end()[0]:
                 player = player_list[current_player + 1]
                 probability_new = player.get_action_probability(self.state, True)
@@ -170,11 +171,15 @@ class Trainer:
 
 
 if __name__ == '__main__':
-    temp = []
-    s = Chess().get_torch_state()
-    p = np.array([0] * 72)
-    for i in range(60):
-        temp.append([s, p, 1, torch.tensor(1)])
-    dp = deque(maxlen=1000)
-    dp.extend(temp)
-    ChessNetWrapper(None).train(dp)
+    # temp = []
+    # s = Chess().get_torch_state()
+    # p = np.array([0] * 72)
+    # for i in range(60):
+    #     temp.append([s, p, 1, torch.tensor(1)])
+    # dp = deque(maxlen=1000)
+    # dp.extend(temp)
+    # ChessNetWrapper(None).train(dp)
+
+    temp = ChessNetWrapper(None)
+    temp.load("best.pt")
+    print(md)

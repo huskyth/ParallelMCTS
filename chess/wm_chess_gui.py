@@ -173,8 +173,6 @@ class WMChessGUI:
                                 self.set_is_human(False)
                                 if self.play_state:
                                     self.play_state.do_action(self.human_move)
-                                import time
-                                time.sleep(1)
                             else:
                                 self.board[
                                     self.chosen_chessman] = self.chosen_chessman_color

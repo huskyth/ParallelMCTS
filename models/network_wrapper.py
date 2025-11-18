@@ -10,6 +10,14 @@ if not MODEL_SAVE_PATH.exists():
     MODEL_SAVE_PATH.mkdir()
 
 
+def grad_hook(grad):
+    # 计算梯度范数（L2范数）
+    grad_norm = grad.norm().item()
+    # 统计非零梯度比例
+    non_zero_ratio = torch.count_nonzero(grad).item() / grad.numel()
+    print(f"梯度范数: {grad_norm:.6f} | 非零比例: {non_zero_ratio:.2%}")
+
+
 class ChessNetWrapper:
     def __init__(self, swlab):
         self.net = ChessNet()
@@ -24,6 +32,11 @@ class ChessNetWrapper:
         self.batch = 4
 
         self.swlab = swlab
+
+        # 为每个参数注册钩子
+        for name, param in self.net.named_parameters():
+            if param.requires_grad:
+                param.register_hook(grad_hook)
 
     @torch.no_grad()
     def predict(self, state):
@@ -97,3 +110,5 @@ class ChessNetWrapper:
         self.opt.load_state_dict(model["optimizer"])
         print(f"{key} 模型已经加载")
         return model["epoch"]
+
+
