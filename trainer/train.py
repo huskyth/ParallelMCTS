@@ -17,9 +17,12 @@ from models.network_wrapper import ChessNetWrapper
 
 
 class Trainer:
-    def __init__(self, use_gui=False, train_config=None):
-        swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
-        self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
+    def __init__(self, use_gui=False, train_config=None, use_swanlab=True, mode='train'):
+        if use_swanlab:
+            swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
+            self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
+        else:
+            self.swanlab = None
         self.train_config = train_config
 
         self.network = ChessNetWrapper(self.swanlab)
@@ -30,9 +33,24 @@ class Trainer:
         self.state = Chess()
 
         self.train_sample = deque(maxlen=1000)
-        self.wm_chess_gui = WMChessGUI(7, -1, is_show=use_gui)
 
         self.best_win_rate = 0
+
+        if mode == 'play':
+            epoch = self.network.load("best.pt")
+            print(f"load {epoch} checkpoint tp play")
+            self.pc_player = MCTS(self.network.predict)
+            self.wm_chess_gui = WMChessGUI(7, -1, is_show=use_gui, mcts_player=self.step, play_state=self.state)
+            self.wm_chess_gui.set_is_human(True)
+            self.wm_chess_gui.start()
+            self.state.reset(-1)
+        elif mode == 'train':
+            self.wm_chess_gui = WMChessGUI(7, -1, is_show=use_gui)
+        elif mode == 'test':
+            self.wm_chess_gui = None
+            self.network.load("best.pt")
+            self.random_network = ChessNetWrapper(None)
+            self._contest(6)
 
     def _collect(self):
         return self._play()
@@ -74,6 +92,7 @@ class Trainer:
 
         new_win, old_win, draws = 0, 0, 0
         for i in range(n):
+            print(f"🌟 start {i}th contest")
             new_player.update_tree(-1)
             old_mcts.update_tree(-1)
             self.state.reset()
@@ -102,6 +121,7 @@ class Trainer:
                 else:
                     new_win += 1
         draws = n - new_win - old_win
+        print(f"🍑 Winning rate is {new_win / n}")
         return new_win, old_win, draws
 
     def _try_load(self):
@@ -140,6 +160,13 @@ class Trainer:
                     self.network.save(epoch, key="best.pt")
                 else:
                     print("🐑 REJECT")
+
+    def step(self):
+        self.pc_player.update_tree(-1)
+        probability_new = self.pc_player.get_action_probability(self.state, True)
+        max_act = np.argmax(probability_new).item()
+        self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[max_act])
+        self.state.do_action(max_act)
 
 
 if __name__ == '__main__':

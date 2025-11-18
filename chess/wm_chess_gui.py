@@ -20,7 +20,7 @@ CHESSMAN_HEIGHT = 20
 
 
 class WMChessGUI:
-    def __init__(self, n, human_color=1, fps=3, is_show=False):
+    def __init__(self, n, human_color=1, fps=3, is_show=False, mcts_player=None, play_state=None):
 
         self.is_show = is_show
         # screen
@@ -46,6 +46,9 @@ class WMChessGUI:
 
         # reset status
         self.reset_status()
+
+        self.mcts_player = mcts_player
+        self.play_state = play_state
 
     def __del__(self):
         # close window
@@ -146,33 +149,43 @@ class WMChessGUI:
                     self.is_running = False
 
                 # human play
-                if self.is_human and event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_x, mouse_y = pygame.mouse.get_pos()
-                    chessman = self._chosen_chessman(mouse_x, mouse_y)
-                    if chessman is None:
-                        continue
-                    if not self.chessman_in_hand:
-                        if self.board[chessman] == self.human_color:
-                            self.chosen_chessman_color = self.board[chessman]
-                            self.chessman_in_hand = True
-                            self.chosen_chessman = chessman
+                if self.is_human:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        print("🌿 Mouse button down")
+                        mouse_x, mouse_y = pygame.mouse.get_pos()
+                        chessman = self._chosen_chessman(mouse_x, mouse_y)
+                        if chessman is None:
+                            continue
+                        if not self.chessman_in_hand:
+                            if self.board[chessman] == self.human_color:
+                                self.chosen_chessman_color = self.board[chessman]
+                                self.chessman_in_hand = True
+                                self.chosen_chessman = chessman
+                                print(f"🌿 chessman in hand human_color is {self.human_color}")
 
-                    else:
-                        if self.board[chessman] == 0 and \
-                                DISTANCE[self.chosen_chessman][chessman] == 1:
-
-                            self.human_move = (self.chosen_chessman, chessman)
-                            self.execute_move(self.human_color, self.human_move)
-                            self.human_move = MOVE_TO_INDEX_DICT[self.human_move]
-                            self.set_is_human(False)
                         else:
-                            self.board[
-                                self.chosen_chessman] = self.chosen_chessman_color
-                        self.chessman_in_hand = False
+                            if self.board[chessman] == 0 and \
+                                    DISTANCE[self.chosen_chessman][chessman] == 1:
 
-            # draw
-            self._draw_background()
-            self._draw_chessman()
+                                self.human_move = (self.chosen_chessman, chessman)
+                                self.execute_move(self.human_color, self.human_move)
+                                self.human_move = MOVE_TO_INDEX_DICT[self.human_move]
+                                self.set_is_human(False)
+                                if self.play_state:
+                                    self.play_state.do_action(self.human_move)
+                                import time
+                                time.sleep(1)
+                            else:
+                                self.board[
+                                    self.chosen_chessman] = self.chosen_chessman_color
+                            self.chessman_in_hand = False
+                else:
+                    self.mcts_player()
+                    self.is_human = True
+
+                # draw
+                self._draw_background()
+                self._draw_chessman()
 
             # refresh
             pygame.display.flip()
@@ -181,6 +194,7 @@ class WMChessGUI:
         x, y = x / (SCREEN_WIDTH + 0.0), y / (SCREEN_HEIGHT + 0.0)
         for point in range(21):
             if abs(x - GAME_MAP[point][0]) < 0.05 and abs(y - GAME_MAP[point][1]) < 0.05:
+                print(f"🌿 choose {point}")
                 return point
         return None
 

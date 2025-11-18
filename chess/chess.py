@@ -3,9 +3,9 @@ from chess.common import from_array_to_input_tensor
 
 
 class Chess(ChessBoard):
-    def __init__(self):
+    def __init__(self, start_player=1):
         super().__init__()
-        self.current_player = 1
+        self.current_player = start_player
 
     def is_end(self):
         winner = self.check_winner()
@@ -26,6 +26,6 @@ class Chess(ChessBoard):
     def get_current_player(self):
         return self.current_player
 
-    def reset(self):
+    def reset(self, start_player=1):
         self.init_point_status()
-        self.current_player = 1
+        self.current_player = start_player
