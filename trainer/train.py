@@ -164,7 +164,7 @@ class Trainer:
                 self.network.save(epoch)
 
             if (epoch + 1) % self.train_config.test_rate == 0:
-                new_win, old_win, draws = self._contest(2)
+                new_win, old_win, draws = self._contest(10)
                 all_ = new_win + old_win + draws
                 self.swanlab.log({
                     "win_new": new_win, "win_random": old_win, "draws": draws

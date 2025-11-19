@@ -1,5 +1,21 @@
+import os
+
+import cv2
+
 from chess.chess_board import ChessBoard
-from chess.common import from_array_to_input_tensor
+from chess.common import from_array_to_input_tensor, GAME_MAP
+
+from constants import ROOT_PATH
+
+debug_path = ROOT_PATH / "debug"
+if not debug_path.exists():
+    debug_path.mkdir()
+SCREEN_WIDTH = 580
+SCREEN_HEIGHT = 580
+CHESSMAN_WIDTH = 20
+CHESSMAN_HEIGHT = 20
+BLACK = 1
+WHITE = -1
 
 
 class Chess(ChessBoard):
@@ -11,6 +27,30 @@ class Chess(ChessBoard):
         winner = self.check_winner()
         is_end = winner is not None
         return is_end, winner
+
+    @staticmethod
+    def _fix_xy(target):
+        x = GAME_MAP[target][0] * \
+            SCREEN_WIDTH - CHESSMAN_WIDTH * 0.5
+        y = GAME_MAP[target][1] * \
+            SCREEN_HEIGHT - CHESSMAN_HEIGHT * 1
+        return x, y
+
+    def dump(self, key):
+        image = cv2.imread(str(ROOT_PATH / "chess/assets/watermelon.png"))
+        for index, point in enumerate(self.pointStatus):
+            if point == 0:
+                continue
+            (x, y) = Chess._fix_xy(index)
+            if point == BLACK:
+                cv2.circle(img=image, color=(0.0, 0.0, 0.0),
+                           center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
+                           radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
+            elif point == WHITE:
+                cv2.circle(img=image, color=(255.0, 0.0, 0.0),
+                           center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
+                           radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
+        cv2.imwrite(str(debug_path) + os.sep + key + '.png', image)
 
     def get_torch_state(self):
         """
