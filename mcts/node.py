@@ -23,7 +23,7 @@ class Node:
             temp.parent = self
             self.children[idx] = temp
 
-    def select(self):
+    def select(self, mode):
         childrens = [item for _, item in self.children.items() if item.p > 0]
         move_idx = [idx for idx, item in self.children.items() if item.p > 0]
         values = [item.get_value() for item in childrens]
@@ -32,6 +32,11 @@ class Node:
         if len(childrens) == 0:
             print(f"✨ select 中出现了问题，子节点的概率如下：\n\n {[self.children[key].p for key in self.children]} \n\n")
 
+        if mode == "train":
+            from utils.math_tool import dirichlet_noise
+            probability = dirichlet_noise(probability, alpha=0.03, epison=0.3)
+
+        # best_idx = move_idx[np.argmax(probability)]
         best_idx = move_idx[np.random.choice(len(probability), 1, p=probability)[0]]
         return best_idx, self.children[best_idx]
 

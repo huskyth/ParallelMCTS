@@ -4,6 +4,7 @@ import swanlab
 import numpy as np
 import torch
 from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT
+from utils.math_tool import dirichlet_noise
 
 path = str(ROOT_PATH / "chess")
 if path not in sys.path:
@@ -28,7 +29,7 @@ class Trainer:
         self.network = ChessNetWrapper(self.swanlab)
         self.random_network = ChessNetWrapper(self.swanlab)
 
-        self.mcts = MCTS(self.network.predict, swanlab=self.swanlab)
+        self.mcts = MCTS(self.network.predict, swanlab=self.swanlab, mode='train')
 
         self.state = Chess()
 
@@ -66,9 +67,11 @@ class Trainer:
 
         while not self.state.is_end()[0]:
             probability = self.mcts.get_action_probability(state=self.state, is_greedy=False)
-
-            action = np.random.choice(len(probability), p=probability)
-
+            ava_py_idx = [idx for idx, p in enumerate(probability) if p > 0]
+            ava_py = [p for idx, p in enumerate(probability) if p > 0]
+            ava_py_noise = dirichlet_noise(ava_py)
+            action_idx = np.random.choice(len(ava_py_noise), p=ava_py_noise)
+            action = ava_py_idx[action_idx]
             self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
 
             train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
@@ -87,9 +90,9 @@ class Trainer:
 
     def _contest(self, n):
 
-        new_player = MCTS(self.network.predict)
-        old_mcts = MCTS(self.random_network.predict)
-
+        new_player = MCTS(self.network.predict, mode='test')
+        old_mcts = MCTS(self.random_network.predict, mode='test')
+        max_turn = 100
         new_win, old_win, draws = 0, 0, 0
         for i in range(n):
             new_player.update_tree(-1)
@@ -99,30 +102,40 @@ class Trainer:
             current_player = 1 if i % 2 == 0 else -1
             start_player = current_player
             print(f"🌟 start {i}th contest, first hand is {start_player}")
-
-            while not self.state.is_end()[0]:
+            length_of_turn = 0
+            while not self.state.is_end()[0] and length_of_turn < max_turn:
+                length_of_turn += 1
                 player = player_list[current_player + 1]
                 probability_new = player.get_action_probability(self.state, True)
                 max_act = np.argmax(probability_new).item()
                 self.state.do_action(max_act)
 
-                new_player.update_tree(max_act)
-                old_mcts.update_tree(max_act)
+                if player is new_player:
+                    new_player.update_tree(max_act)
+                    old_mcts.update_tree(-1)
+
+                if player is old_mcts:
+                    old_mcts.update_tree(max_act)
+                    new_player.update_tree(-1)
                 current_player *= -1
             _, winner = self.state.is_end()
-            assert winner is not None
+            self.swanlab.log({
+                "contest_length": length_of_turn
+            })
             if winner == 1:
                 if start_player == 1:
                     new_win += 1
                 else:
                     old_win += 1
-            else:
+            elif winner == -1:
                 if start_player == 1:
                     old_win += 1
                 else:
                     new_win += 1
-        draws = n - new_win - old_win
-        print(f"🍑 Winning rate is {new_win / n}")
+            else:
+                draws += 1
+
+        print(f"🍑 Winning rate is {new_win / n}, draws is {draws}, old win is {old_win}, new win is {new_win}")
         return new_win, old_win, draws
 
     def _try_load(self):

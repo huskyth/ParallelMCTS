@@ -46,7 +46,10 @@ class ChessNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.channel = 256
-        self.feature = nn.Sequential(ResidualBlock(2, self.channel))
+        self.cnn_layer_num = 1
+        self.feature = nn.Sequential(
+            *([ResidualBlock(2, self.channel)] + [ResidualBlock(self.channel, self.channel) for i in
+                                                  range(self.cnn_layer_num - 1)]))
 
         self.value = nn.Linear(self.channel * 49, 1)
         self.probability = nn.Linear(self.channel * 49, 72)
@@ -94,4 +97,4 @@ if __name__ == '__main__':
     p = torch.randn(5, 72)
     print(p.shape)
 
-    print(torch.argmax(p, dim=1).shape == (5, ))
+    print(torch.argmax(p, dim=1).shape == (5,))
