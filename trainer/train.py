@@ -6,19 +6,15 @@ import torch
 from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT
 from utils.math_tool import dirichlet_noise
 
-path = str(ROOT_PATH / "chess")
-if path not in sys.path:
-    sys.path.append(path)
-else:
-    print("path already in")
 from chess.chess import Chess
 from chess.wm_chess_gui import WMChessGUI
 from mcts.pure_mcts import MCTS
 from models.network_wrapper import ChessNetWrapper
+from utils.concurrent_tool import ConcurrentProcess
 
 
 class Trainer:
-    def __init__(self, use_gui=False, train_config=None, use_swanlab=True, mode='train'):
+    def __init__(self, train_config=None, use_swanlab=True, mode='train'):
         if use_swanlab:
             swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
             self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
@@ -36,50 +32,53 @@ class Trainer:
         self.train_sample = deque(maxlen=1000)
 
         self.best_win_rate = 0
+        self.self_play_parallel_num = 5
+        self.self_play_processor = ConcurrentProcess(self.self_play_parallel_num)
+        self.contest_parallel_num = 5
+        self.contest_processor = ConcurrentProcess(self.contest_parallel_num)
 
         if mode == 'play':
             epoch = self.network.load("best.pt")
             print(f"load {epoch} checkpoint tp play")
             self.pc_player = MCTS(self.network.predict, mode='test')
-            self.wm_chess_gui = WMChessGUI(7, -1, is_show=use_gui, mcts_player=self.step, play_state=self.state)
+            self.wm_chess_gui = WMChessGUI(7, -1, is_show=True, mcts_player=self.step, play_state=self.state)
             self.wm_chess_gui.set_is_human(True)
             self.wm_chess_gui.start()
             self.state.reset(-1)
-        elif mode == 'train':
-            self.wm_chess_gui = WMChessGUI(7, -1, is_show=use_gui)
         elif mode == 'test':
             self.wm_chess_gui = None
             self.network.load("best.pt")
             self.random_network = ChessNetWrapper(None)
-            self._contest(6)
+            result = self._contest()
+            print(f"本次测试的报告为新模型胜率为{result[0] / sum(result)}")
 
     def _collect(self):
-        return self._play()
+        param = [(self.mcts, self.state) for i in range(self.self_play_parallel_num)]
+        self.self_play_processor.process(self._play, param)
+        result = self.self_play_processor.result
+        return [dim1 for dim2 in result for dim1 in dim2]
 
-    def _play(self):
+    @staticmethod
+    def _play(mcts, state):
         train_sample = []
 
-        self.mcts.update_tree(-1)
-        self.state.reset()
+        mcts.update_tree(-1)
+        state.reset()
 
-        self.wm_chess_gui.reset_status()
-
-        while not self.state.is_end()[0]:
-            probability = self.mcts.get_action_probability(state=self.state, is_greedy=False)
+        while not state.is_end()[0]:
+            probability = mcts.get_action_probability(state=state, is_greedy=False)
             ava_py_idx = [idx for idx, p in enumerate(probability) if p > 0]
             ava_py = [p for idx, p in enumerate(probability) if p > 0]
             ava_py_noise = dirichlet_noise(ava_py)
             action_idx = np.random.choice(len(ava_py_noise), p=ava_py_noise)
             action = ava_py_idx[action_idx]
 
-            self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
+            train_sample.append([state.get_torch_state(), probability, state.get_current_player()])
 
-            train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
+            state.do_action(action)
+            mcts.update_tree(action)
 
-            self.state.do_action(action)
-            self.mcts.update_tree(action)
-
-        _, winner = self.state.is_end()
+        _, winner = state.is_end()
         assert winner is not None
         for item in train_sample:
             if item[-1] == winner:
@@ -88,47 +87,59 @@ class Trainer:
                 item.append(torch.tensor(-1.0))
         return train_sample
 
-    def _contest(self, n):
-
+    def _contest(self):
+        param = []
         new_player = MCTS(self.network.predict, mode='test')
         old_mcts = MCTS(self.random_network.predict, mode='test')
+        for i in range(self.contest_parallel_num):
+            param.append((self.state, new_player, old_mcts, i))
+        self.contest_processor.process(self._contest_one_time, param)
+        ret = self.contest_processor.result
         new_win, old_win, draws = 0, 0, 0
-        for i in range(n):
-            new_player.update_tree(-1)
-            old_mcts.update_tree(-1)
-            self.state.reset()
-            player_list = [old_mcts, None, new_player]
-            current_player = 1 if i % 2 == 0 else -1
-            start_player = current_player
-            print(f"🌟 start {i}th contest, first hand is {start_player}")
-            length_of_turn = 0
-            while not self.state.is_end()[0]:
-                length_of_turn += 1
-                player = player_list[current_player + 1]
-                probability_new = player.get_action_probability(self.state, True)
-                max_act = np.argmax(probability_new).item()
-                self.state.do_action(max_act)
-                old_mcts.update_tree(-1)
-                new_player.update_tree(-1)
-                current_player *= -1
-            _, winner = self.state.is_end()
-            self.swanlab.log({
-                "contest_length": length_of_turn
-            })
-            if winner == 1:
-                if start_player == 1:
-                    new_win += 1
-                else:
-                    old_win += 1
-            elif winner == -1:
-                if start_player == 1:
-                    old_win += 1
-                else:
-                    new_win += 1
-        draws = n - new_win - old_win
+        for item in ret:
+            new_win_, old_win_, draws_, length_of_turn_ = item
+            new_win += new_win_
+            old_win += old_win_
+            draws += draws_
+            print(f"♬ 本局进行了{length_of_turn_}轮")
 
-        print(f"🍑 Winning rate is {new_win / n}, draws is {draws}, old win is {old_win}, new win is {new_win}")
         return new_win, old_win, draws
+
+    @staticmethod
+    def _contest_one_time(state, new_player, old_mcts, i):
+
+        new_win, old_win, draws = 0, 0, 0
+        new_player.update_tree(-1)
+        old_mcts.update_tree(-1)
+        state.reset()
+        player_list = [old_mcts, None, new_player]
+        current_player = 1 if i % 2 == 0 else -1
+        start_player = current_player
+        print(f"🌟 start {i}th contest, first hand is {start_player}")
+        length_of_turn = 0
+        while not state.is_end()[0]:
+            length_of_turn += 1
+            player = player_list[current_player + 1]
+            probability_new = player.get_action_probability(state, True)
+            max_act = np.argmax(probability_new).item()
+            state.do_action(max_act)
+            old_mcts.update_tree(-1)
+            new_player.update_tree(-1)
+            current_player *= -1
+        _, winner = state.is_end()
+        if winner == 1:
+            if start_player == 1:
+                new_win += 1
+            else:
+                old_win += 1
+        elif winner == -1:
+            if start_player == 1:
+                old_win += 1
+            else:
+                new_win += 1
+
+        print(f"🍑 draws is {draws}, old win is {old_win}, new win is {new_win}")
+        return new_win, old_win, draws, length_of_turn
 
     def _try_load(self):
         try:
@@ -156,7 +167,7 @@ class Trainer:
                 self.network.save(epoch)
 
             if (epoch + 1) % self.train_config.test_rate == 0:
-                new_win, old_win, draws = self._contest(10)
+                new_win, old_win, draws = self._contest()
                 all_ = new_win + old_win + draws
                 self.swanlab.log({
                     "win_new": new_win, "win_random": old_win, "draws": draws

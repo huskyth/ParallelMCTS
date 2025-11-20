@@ -6,10 +6,10 @@ import pygame
 import os
 import numpy as np
 
-from common import shiftOutChessman, DISTANCE, GAME_MAP
+from .common import shiftOutChessman, DISTANCE, GAME_MAP
 import copy
 
-from common import MOVE_TO_INDEX_DICT
+from .common import MOVE_TO_INDEX_DICT
 
 BLACK = 1
 WHITE = -1
