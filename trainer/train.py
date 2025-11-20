@@ -29,7 +29,7 @@ class Trainer:
         self.network = ChessNetWrapper(self.swanlab)
         self.random_network = ChessNetWrapper(self.swanlab)
 
-        self.mcts = MCTS(self.network.predict, swanlab=self.swanlab, mode='train')
+        self.mcts = MCTS(self.network.predict, mode='train')
 
         self.state = Chess()
 
@@ -60,7 +60,6 @@ class Trainer:
         train_sample = []
 
         self.mcts.update_tree(-1)
-
         self.state.reset()
 
         self.wm_chess_gui.reset_status()
@@ -72,6 +71,7 @@ class Trainer:
             ava_py_noise = dirichlet_noise(ava_py)
             action_idx = np.random.choice(len(ava_py_noise), p=ava_py_noise)
             action = ava_py_idx[action_idx]
+
             self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[action])
 
             train_sample.append([self.state.get_torch_state(), probability, self.state.get_current_player()])
@@ -92,7 +92,6 @@ class Trainer:
 
         new_player = MCTS(self.network.predict, mode='test')
         old_mcts = MCTS(self.random_network.predict, mode='test')
-        max_turn = 100
         new_win, old_win, draws = 0, 0, 0
         for i in range(n):
             new_player.update_tree(-1)
@@ -103,20 +102,14 @@ class Trainer:
             start_player = current_player
             print(f"🌟 start {i}th contest, first hand is {start_player}")
             length_of_turn = 0
-            while not self.state.is_end()[0] and length_of_turn < max_turn:
+            while not self.state.is_end()[0]:
                 length_of_turn += 1
                 player = player_list[current_player + 1]
                 probability_new = player.get_action_probability(self.state, True)
                 max_act = np.argmax(probability_new).item()
                 self.state.do_action(max_act)
-
-                if player is new_player:
-                    new_player.update_tree(max_act)
-                    old_mcts.update_tree(-1)
-
-                if player is old_mcts:
-                    old_mcts.update_tree(max_act)
-                    new_player.update_tree(-1)
+                old_mcts.update_tree(-1)
+                new_player.update_tree(-1)
                 current_player *= -1
             _, winner = self.state.is_end()
             self.swanlab.log({
@@ -132,8 +125,7 @@ class Trainer:
                     old_win += 1
                 else:
                     new_win += 1
-            else:
-                draws += 1
+        draws = n - new_win - old_win
 
         print(f"🍑 Winning rate is {new_win / n}, draws is {draws}, old win is {old_win}, new win is {new_win}")
         return new_win, old_win, draws
@@ -157,7 +149,7 @@ class Trainer:
 
             self.train_sample.extend(train_sample)
 
-            if len(self.train_sample) >= 10:
+            if len(self.train_sample) >= 100:
                 print(f"start training... size of train_sample: {len(self.train_sample)}")
                 np.random.shuffle(self.train_sample)
                 self.network.train(self.train_sample)
@@ -170,7 +162,7 @@ class Trainer:
                     "win_new": new_win, "win_random": old_win, "draws": draws
                 })
                 if new_win / all_ > self.best_win_rate:
-                    print(f"🍤 ACCEPT, {new_win / all_} model saved")
+                    print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved")
                     self.network.save(epoch, key="best.pt")
                 else:
                     print("🐑 REJECT")

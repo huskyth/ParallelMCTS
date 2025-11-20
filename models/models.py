@@ -46,7 +46,7 @@ class ChessNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.channel = 256
-        self.cnn_layer_num = 1
+        self.cnn_layer_num = 2
         self.feature = nn.Sequential(
             *([ResidualBlock(2, self.channel)] + [ResidualBlock(self.channel, self.channel) for i in
                                                   range(self.cnn_layer_num - 1)]))

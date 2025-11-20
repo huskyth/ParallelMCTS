@@ -66,8 +66,10 @@ class ChessNetWrapper:
             raise ValueError(
                 f"state, probability, value shape error, shape is {state.shape}, {probability.shape}, {value.shape}")
 
+        epoch = min(max(n // 100 + 1, 3), 10)
+        print("🏠 Training epoch: ", epoch)
         batch_number = n // self.batch
-        for epoch in range(self.epoch):
+        for epoch in range(epoch):
             for step in range(batch_number):
                 start = step * self.batch
                 state_batch = state[start:start + self.batch, :, :, :]
