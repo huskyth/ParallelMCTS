@@ -14,7 +14,7 @@ from utils.concurrent_tool import ConcurrentProcess
 
 
 class Trainer:
-    def __init__(self, train_config=None, use_swanlab=True, mode='train'):
+    def __init__(self, train_config=None, use_swanlab=True, mode='train', number_of_self_play=5, number_of_contest=5):
         if use_swanlab:
             swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
             self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
@@ -32,9 +32,9 @@ class Trainer:
         self.train_sample = deque(maxlen=1000)
 
         self.best_win_rate = 0
-        self.self_play_parallel_num = 5
+        self.self_play_parallel_num = number_of_self_play
         self.self_play_processor = ConcurrentProcess(self.self_play_parallel_num)
-        self.contest_parallel_num = 5
+        self.contest_parallel_num = number_of_contest
         self.contest_processor = ConcurrentProcess(self.contest_parallel_num)
 
         if mode == 'play':
