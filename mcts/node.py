@@ -36,6 +36,10 @@ class Node:
             from utils.math_tool import dirichlet_noise
             probability = dirichlet_noise(probability, alpha=0.03, epison=0.3)
 
+        import torch
+        if not torch.isclose(torch.tensor(sum(probability)).float(), torch.tensor(1.0).float()):
+            raise ValueError(f"probability must sum to 1, {probability} sum to {sum(probability)}")
+
         # best_idx = move_idx[np.argmax(probability)]
         best_idx = move_idx[np.random.choice(len(probability), 1, p=probability)[0]]
         return best_idx, self.children[best_idx]
