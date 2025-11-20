@@ -166,7 +166,8 @@ class Trainer:
                 np.random.shuffle(self.train_sample)
                 stat = self.network.train(self.train_sample)
                 self.network.save(epoch)
-                self.swanlab.log(stat)
+                for sta in stat:
+                    self.swanlab.log(sta)
 
             if (epoch + 1) % self.train_config.test_rate == 0:
                 new_win, old_win, draws = self._contest()

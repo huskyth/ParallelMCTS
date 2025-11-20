@@ -5,10 +5,11 @@ from trainer.train_config import TrainConfig
 import sys
 import traceback
 import argparse
-
+import torch
 sys.stdout = Logger()
 
 if __name__ == '__main__':
+    torch.multiprocessing.set_start_method('spawn')
     parser = argparse.ArgumentParser()
     parser.add_argument('--number_of_self_play', type=int, default=5)
     parser.add_argument('--number_of_contest', type=int, default=5)

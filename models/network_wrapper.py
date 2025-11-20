@@ -67,7 +67,11 @@ class ChessNetWrapper:
         epoch = min(max(n // 100 + 1, 3), 10)
         print("🏠 Training epoch: ", epoch)
         batch_number = n // self.batch
+        return_dict = []
         for epoch in range(epoch):
+            value_loss_avg = 0
+            probability_loss_avg = 0
+            entropy_p_avg = 0
             for step in range(batch_number):
                 start = step * self.batch
                 state_batch = state[start:start + self.batch, :, :, :]
@@ -82,8 +86,9 @@ class ChessNetWrapper:
 
                 entropy_p = (-torch.e ** p_predict * p_predict).sum(axis=1).mean().item()
 
-                stat = {"value_loss": value_loss.item(), "probability_loss": probability_loss.item(), "entropy_p":
-                    entropy_p}
+                value_loss_avg = (value_loss_avg * step + value_loss.item()) / (1 + step)
+                probability_loss_avg = (probability_loss_avg * step + probability_loss.item()) / (1 + step)
+                entropy_p_avg = (entropy_p_avg * step + entropy_p) / (1 + step)
 
                 if torch.isclose(torch.tensor(entropy_p), torch.tensor(0.0)):
                     print(f"🐰 为什么熵为0，看看张量：{p_predict}")
@@ -94,7 +99,12 @@ class ChessNetWrapper:
                 loss.backward()
                 self.opt.step()
 
-                return stat
+            return_dict.append({
+                {"value_loss_avg": value_loss_avg, "probability_loss_avg": probability_loss_avg, "entropy_p_avg":
+                    entropy_p_avg}
+            })
+
+        return return_dict
 
     def save(self, epoch, key="latest.pt"):
         checkpoint = {

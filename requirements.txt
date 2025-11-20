@@ -2,5 +2,4 @@ swanlab
 opencv-python
 numpy
 matplotlib
-torch
 pygame
