@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
-
 from constants import ROOT_PATH
 from models.models import ChessNet
 
@@ -100,8 +99,8 @@ class ChessNetWrapper:
                 self.opt.step()
 
             return_dict.append({
-                {"value_loss_avg": value_loss_avg, "probability_loss_avg": probability_loss_avg, "entropy_p_avg":
-                    entropy_p_avg}
+                "value_loss_avg": value_loss_avg, "probability_loss_avg": probability_loss_avg, "entropy_p_avg":
+                    entropy_p_avg
             })
 
         return return_dict

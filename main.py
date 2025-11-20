@@ -6,6 +6,8 @@ import sys
 import traceback
 import argparse
 import torch
+torch.multiprocessing.set_sharing_strategy('file_system')
+
 sys.stdout = Logger()
 
 if __name__ == '__main__':
