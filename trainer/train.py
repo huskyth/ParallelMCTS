@@ -22,8 +22,8 @@ class Trainer:
             self.swanlab = None
         self.train_config = train_config
 
-        self.network = ChessNetWrapper(self.swanlab)
-        self.random_network = ChessNetWrapper(self.swanlab)
+        self.network = ChessNetWrapper()
+        self.random_network = ChessNetWrapper()
 
         self.mcts = MCTS(self.network.predict, mode='train')
 
@@ -53,13 +53,15 @@ class Trainer:
             print(f"本次测试的报告为新模型胜率为{result[0] / sum(result)}")
 
     def _collect(self):
-        param = [(self.mcts, self.state) for i in range(self.self_play_parallel_num)]
+
+        param = [(self.mcts, self.state, i) for i in range(self.self_play_parallel_num)]
         self.self_play_processor.process(self._play, param)
         result = self.self_play_processor.result
         return [dim1 for dim2 in result for dim1 in dim2]
 
     @staticmethod
-    def _play(mcts, state):
+    def _play(mcts, state, i):
+        print(f"😊 开始第{i}次自我Play")
         train_sample = []
 
         mcts.update_tree(-1)
@@ -152,7 +154,6 @@ class Trainer:
 
     def learn(self):
         start_epoch = self._try_load()
-        self.wm_chess_gui.start()
 
         for epoch in range(start_epoch, self.train_config.epoch):
 
@@ -163,8 +164,9 @@ class Trainer:
             if len(self.train_sample) >= 100:
                 print(f"start training... size of train_sample: {len(self.train_sample)}")
                 np.random.shuffle(self.train_sample)
-                self.network.train(self.train_sample)
+                stat = self.network.train(self.train_sample)
                 self.network.save(epoch)
+                self.swanlab.log(stat)
 
             if (epoch + 1) % self.train_config.test_rate == 0:
                 new_win, old_win, draws = self._contest()

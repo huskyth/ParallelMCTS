@@ -10,7 +10,7 @@ sys.stdout = Logger()
 if __name__ == '__main__':
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     tn_cfg = TrainConfig()
-    t = Trainer(train_config=tn_cfg, use_gui=False)
+    t = Trainer(train_config=tn_cfg)
     try:
         t.learn()
     except Exception as err:

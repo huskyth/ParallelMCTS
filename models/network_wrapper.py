@@ -19,7 +19,7 @@ def grad_hook(grad):
 
 
 class ChessNetWrapper:
-    def __init__(self, swlab):
+    def __init__(self):
         self.net = ChessNet()
 
         self.is_cuda = torch.cuda.is_available()
@@ -30,8 +30,6 @@ class ChessNetWrapper:
 
         self.epoch = 10
         self.batch = 4
-
-        self.swlab = swlab
 
         # 为每个参数注册钩子
         for name, param in self.net.named_parameters():
@@ -84,9 +82,8 @@ class ChessNetWrapper:
 
                 entropy_p = (-torch.e ** p_predict * p_predict).sum(axis=1).mean().item()
 
-                self.swlab.log(
-                    {"value_loss": value_loss.item(), "probability_loss": probability_loss.item(), "entropy_p":
-                        entropy_p})
+                stat = {"value_loss": value_loss.item(), "probability_loss": probability_loss.item(), "entropy_p":
+                    entropy_p}
 
                 if torch.isclose(torch.tensor(entropy_p), torch.tensor(0.0)):
                     print(f"🐰 为什么熵为0，看看张量：{p_predict}")
@@ -96,6 +93,8 @@ class ChessNetWrapper:
                 self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
+
+                return stat
 
     def save(self, epoch, key="latest.pt"):
         checkpoint = {
@@ -112,5 +111,3 @@ class ChessNetWrapper:
         self.opt.load_state_dict(model["optimizer"])
         print(f"{key} 模型已经加载")
         return model["epoch"]
-
-

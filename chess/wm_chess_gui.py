@@ -4,6 +4,8 @@ import threading
 
 import pygame
 import os
+
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import numpy as np
 
 from .common import shiftOutChessman, DISTANCE, GAME_MAP
