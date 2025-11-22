@@ -5,7 +5,7 @@ from models.wrapper import Wrapper
 
 
 class ChessNetWrapper(Wrapper):
-    MODEL_SAVE_PATH = ROOT_PATH / "WMChess" / "checkpoints"
+    MODEL_SAVE_PATH = ROOT_PATH / "checkpoints" / "WMChess"
     if not MODEL_SAVE_PATH.exists():
         MODEL_SAVE_PATH.mkdir()
 

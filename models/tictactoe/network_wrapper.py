@@ -4,7 +4,7 @@ from models.wrapper import Wrapper
 
 
 class TictactoeNetWrapper(Wrapper):
-    MODEL_SAVE_PATH = ROOT_PATH / "tictactoe" / "checkpoints"
+    MODEL_SAVE_PATH = ROOT_PATH / "checkpoints" / "tictactoe"
     if not MODEL_SAVE_PATH.exists():
         MODEL_SAVE_PATH.mkdir()
 
