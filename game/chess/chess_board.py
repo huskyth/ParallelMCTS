@@ -2,6 +2,7 @@ import copy
 import numpy as np
 from game.chess.common import GAME_MAP, LENGTH_OF_BOARD, BLACK, WHITE, DISTANCE, get_neighbours, shiftOutChessman, \
     INDEX_TO_MOVE_DICT
+from game.abstract_state import AbstractState
 
 
 class ChessBoard:

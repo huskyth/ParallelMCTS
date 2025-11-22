@@ -1,5 +1,9 @@
 from copy import deepcopy
 
+import torch
+
+from game.abstract_state import AbstractState
+
 X, O, EMPTY = 'X', 'O', None
 BOARD_SIZE = 3
 player2sign = {1: X, -1: O}
@@ -80,7 +84,22 @@ class Board:  # must contain (win,draw,player,board,valid actions,move) for mcts
         return actions
 
 
-class TicTacToe:
+class TicTacToe(AbstractState):
+    def get_current_player(self) -> int:
+        pass
+
+    def do_action(self, action: int) -> None:
+        pass
+
+    def is_end(self) -> (bool, int):
+        pass
+
+    def get_torch_state(self) -> torch.Tensor:
+        pass
+
+    def get_legal_moves(self) -> list:
+        pass
+
     def __init__(self, board=Board()):
         self.state = board
         self.board = self.state.board
