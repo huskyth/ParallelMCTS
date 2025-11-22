@@ -7,14 +7,17 @@ from game.abstract_state import AbstractState
 X, O, EMPTY = 'X', 'O', None
 BOARD_SIZE = 3
 player2sign = {1: X, -1: O}
+sign2value = {X: 1, O: -1, EMPTY: 0}
 
 
 # Tic Tac Toe board class
 class Board:  # must contain (win,draw,player,board,valid actions,move) for mcts
     # create constructor (init board class instance)
-    def __init__(self, board=[[EMPTY for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]):
+    def __init__(self, board=None):
         # define players
         self.player = 1  # 1 for first player; -1 for second player
+        if not board:
+            board = [[EMPTY for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
         self.board = deepcopy(board)
 
     # make move
@@ -85,27 +88,57 @@ class Board:  # must contain (win,draw,player,board,valid actions,move) for mcts
 
 
 class TicTacToe(AbstractState):
+    @property
+    def move_to_index(self) -> dict:
+        return self._move_to_index
+
+    @property
+    def index_to_move(self) -> dict:
+        return self._index_to_move
+
+    def reset(self, start_player=1) -> None:
+        self.state = Board()
+        self.board = self.state.board
+        self.winner = self.check_winner()
+        self.state.player = start_player
+        self.player = self.state.player
+        self.left = 9
+
     def get_current_player(self) -> int:
-        pass
+        return self.player
 
     def do_action(self, action: int) -> None:
-        pass
+        row, col = action // 3, action % 3
+        self.move((row, col))
 
     def is_end(self) -> (bool, int):
-        pass
+        return self.winner is not None, self.winner
 
     def get_torch_state(self) -> torch.Tensor:
-        pass
+        board = deepcopy(self.board)
+        for i in range(BOARD_SIZE):
+            for j in range(BOARD_SIZE):
+                board[i][j] = sign2value[board[i][j]]
+        state = torch.tensor(board, dtype=torch.float32)[:, :, None]
+        player = torch.ones(BOARD_SIZE, BOARD_SIZE, 1) * self.player
+        state = torch.cat([state, player], dim=2)
+        return state.float()
 
     def get_legal_moves(self) -> list:
-        pass
+        return self.available_actions()
 
-    def __init__(self, board=Board()):
-        self.state = board
+    def __init__(self, board=None):
+        self.state = board if board else Board()
         self.board = self.state.board
         self.winner = self.check_winner()
         self.player = self.state.player
         self.left = 9
+        self._index_to_move = {
+            i * 3 + j: (i, j) for i in range(BOARD_SIZE) for j in range(BOARD_SIZE)
+        }
+        self._move_to_index = {
+            (i, j): i * 3 + j for i in range(BOARD_SIZE) for j in range(BOARD_SIZE)
+        }
 
     def available_actions(self):
         return self.state.generate_actions()
@@ -158,3 +191,8 @@ class TicTacToe(AbstractState):
         self.player = -self.player
         if self.winner is None and self.left == 0:
             self.winner = 0
+
+
+if __name__ == '__main__':
+    game = TicTacToe()
+    print(game.get_torch_state()[:,:,1])

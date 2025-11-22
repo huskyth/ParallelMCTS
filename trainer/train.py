@@ -60,10 +60,13 @@ class Trainer:
         _, winner = state.is_end()
         assert winner is not None
         for item in train_sample:
-            if item[-1] == winner:
+            if winner == 0:
+                item.append(torch.tensor(0.0))
+            elif item[-1] == winner:
                 item.append(torch.tensor(1.0))
             else:
                 item.append(torch.tensor(-1.0))
+
         return train_sample
 
     def _contest(self):

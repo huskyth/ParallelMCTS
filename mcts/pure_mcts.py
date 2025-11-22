@@ -2,7 +2,6 @@ import copy
 
 import numpy as np
 
-from game.chess.common import MOVE_TO_INDEX_DICT, INDEX_TO_MOVE_DICT
 from mcts.node import Node
 
 
@@ -45,7 +44,7 @@ class MCTS:
             available_action = state.get_legal_moves(state.get_current_player())
             available_ = set()
             for move in available_action:
-                available_.add(MOVE_TO_INDEX_DICT[move])
+                available_.add(state.move_to_index[move])
 
             for idx, p in enumerate(probability):
                 if idx not in available_:
@@ -81,7 +80,7 @@ class MCTS:
         ava_moves = state.get_legal_moves(state.get_current_player())
         ava_num = len(ava_moves)
         for idx, key in enumerate(self.root.children):
-            move = INDEX_TO_MOVE_DICT[idx]
+            move = state.index_to_move[idx]
             item = self.root.children[key]
             if item.visit > 0 and move in ava_moves:
                 explore_rate += 1

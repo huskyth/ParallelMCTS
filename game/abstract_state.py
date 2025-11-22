@@ -25,4 +25,21 @@ class AbstractState(ABC):
 
     @abstractmethod
     def get_legal_moves(self) -> list:
+        """
+        :return:    返回值为一个数组，数组每个元素为一个元组包括二维的数字
+        """
+        pass
+
+    @abstractmethod
+    def reset(self, start_player=1) -> None:
+        pass
+
+    @property
+    @abstractmethod
+    def move_to_index(self) -> dict:
+        pass
+
+    @property
+    @abstractmethod
+    def index_to_move(self) -> dict:
         pass
