@@ -2,7 +2,7 @@ import copy
 
 import numpy as np
 
-from chess.common import MOVE_TO_INDEX_DICT, INDEX_TO_MOVE_DICT
+from game.chess.common import MOVE_TO_INDEX_DICT, INDEX_TO_MOVE_DICT
 from mcts.node import Node
 
 

@@ -2,8 +2,8 @@ import os
 
 import cv2
 
-from chess.chess_board import ChessBoard
-from chess.common import from_array_to_input_tensor, GAME_MAP
+from game.chess.chess_board import ChessBoard
+from game.chess.common import from_array_to_input_tensor, GAME_MAP
 
 from constants import ROOT_PATH
 

@@ -1,20 +1,16 @@
-import sys
 from collections import deque
 import swanlab
 import numpy as np
 import torch
-from chess.common import ROOT_PATH, INDEX_TO_MOVE_DICT
+from game.chess.common import ROOT_PATH
 from utils.math_tool import dirichlet_noise
 
-from chess.chess import Chess
-from chess.wm_chess_gui import WMChessGUI
-from mcts.pure_mcts import MCTS
-from models.network_wrapper import ChessNetWrapper
 from utils.concurrent_tool import ConcurrentProcess
 
 
 class Trainer:
-    def __init__(self, train_config=None, use_swanlab=True, mode='train', number_of_self_play=5, number_of_contest=5):
+    def __init__(self, train_config=None, use_swanlab=True, mode='train', number_of_self_play=5, number_of_contest=5,
+                 abstract_game=None):
         if use_swanlab:
             swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
             self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
@@ -22,12 +18,7 @@ class Trainer:
             self.swanlab = None
         self.train_config = train_config
 
-        self.network = ChessNetWrapper()
-        self.random_network = ChessNetWrapper()
-
-        self.mcts = MCTS(self.network.predict, mode='train')
-
-        self.state = Chess()
+        self.abstract_game = abstract_game
 
         self.train_sample = deque(maxlen=1000)
 
@@ -37,24 +28,10 @@ class Trainer:
         self.contest_parallel_num = number_of_contest
         self.contest_processor = ConcurrentProcess(self.contest_parallel_num)
 
-        if mode == 'play':
-            epoch = self.network.load("best.pt")
-            print(f"load {epoch} checkpoint tp play")
-            self.pc_player = MCTS(self.network.predict, mode='test')
-            self.wm_chess_gui = WMChessGUI(7, -1, is_show=True, mcts_player=self.step, play_state=self.state)
-            self.wm_chess_gui.set_is_human(True)
-            self.wm_chess_gui.start()
-            self.state.reset(-1)
-        elif mode == 'test':
-            self.wm_chess_gui = None
-            self.network.load("best.pt")
-            self.random_network = ChessNetWrapper(None)
-            result = self._contest()
-            print(f"本次测试的报告为新模型胜率为{result[0] / sum(result)}")
-
     def _collect(self):
-
-        param = [(self.mcts, self.state, i) for i in range(self.self_play_parallel_num)]
+        mcts = self.abstract_game.mcts
+        state = self.abstract_game.state
+        param = [(mcts, state, i) for i in range(self.self_play_parallel_num)]
         self.self_play_processor.process(self._play, param)
         result = self.self_play_processor.result
         return [dim1 for dim2 in result for dim1 in dim2]
@@ -91,10 +68,11 @@ class Trainer:
 
     def _contest(self):
         param = []
-        new_player = MCTS(self.network.predict, mode='test')
-        old_mcts = MCTS(self.random_network.predict, mode='test')
+        new_player = self.abstract_game.mcts
+        old_mcts = self.abstract_game.random_mcts
+        state = self.abstract_game.state
         for i in range(self.contest_parallel_num):
-            param.append((self.state, new_player, old_mcts, i))
+            param.append((state, new_player, old_mcts, i))
         self.contest_processor.process(self._contest_one_time, param)
         ret = self.contest_processor.result
         new_win, old_win, draws = 0, 0, 0
@@ -143,17 +121,8 @@ class Trainer:
         print(f"🍑 draws is {draws}, old win is {old_win}, new win is {new_win}")
         return new_win, old_win, draws, length_of_turn
 
-    def _try_load(self):
-        try:
-            epoch = self.network.load("latest.pt")
-        except Exception as e:
-            print(e)
-            epoch = 0
-
-        return epoch
-
     def learn(self):
-        start_epoch = self._try_load()
+        start_epoch = self.abstract_game.start_epoch
 
         for epoch in range(start_epoch, self.train_config.epoch):
 
@@ -164,8 +133,8 @@ class Trainer:
             if len(self.train_sample) >= 100:
                 print(f"start training... size of train_sample: {len(self.train_sample)}")
                 np.random.shuffle(self.train_sample)
-                stat = self.network.train(self.train_sample)
-                self.network.save(epoch)
+                stat = self.abstract_game.network.train(self.train_sample)
+                self.abstract_game.network.save(epoch)
                 for sta in stat:
                     self.swanlab.log(sta)
 
@@ -177,28 +146,6 @@ class Trainer:
                 })
                 if new_win / all_ > self.best_win_rate:
                     print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved")
-                    self.network.save(epoch, key="best.pt")
+                    self.abstract_game.network.save(epoch, key="best.pt")
                 else:
                     print("🐑 REJECT")
-
-    def step(self):
-        self.pc_player.update_tree(-1)
-        probability_new = self.pc_player.get_action_probability(self.state, True)
-        max_act = np.argmax(probability_new).item()
-        self.wm_chess_gui.execute_move(self.state.get_current_player(), INDEX_TO_MOVE_DICT[max_act])
-        self.state.do_action(max_act)
-
-
-if __name__ == '__main__':
-    # temp = []
-    # s = Chess().get_torch_state()
-    # p = np.array([0] * 72)
-    # for i in range(60):
-    #     temp.append([s, p, 1, torch.tensor(1)])
-    # dp = deque(maxlen=1000)
-    # dp.extend(temp)
-    # ChessNetWrapper(None).train(dp)
-
-    temp = ChessNetWrapper(None)
-    temp.load("best.pt")
-    print(md)

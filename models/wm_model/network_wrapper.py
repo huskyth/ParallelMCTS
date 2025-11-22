@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch.optim import Adam
 from constants import ROOT_PATH
-from models.models import ChessNet
+from models.wm_model.models import ChessNet
 
 MODEL_SAVE_PATH = ROOT_PATH / "checkpoints"
 if not MODEL_SAVE_PATH.exists():
@@ -120,3 +120,12 @@ class ChessNetWrapper:
         self.opt.load_state_dict(model["optimizer"])
         print(f"{key} 模型已经加载")
         return model["epoch"]
+
+    def try_load(self):
+        try:
+            epoch = self.load("latest.pt")
+        except Exception as e:
+            print(e)
+            epoch = 0
+
+        return epoch
