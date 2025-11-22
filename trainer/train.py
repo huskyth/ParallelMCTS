@@ -2,7 +2,7 @@ from collections import deque
 import swanlab
 import numpy as np
 import torch
-from game.chess.common import ROOT_PATH
+from constants import ROOT_PATH
 from utils.math_tool import dirichlet_noise
 
 from utils.concurrent_tool import ConcurrentProcess

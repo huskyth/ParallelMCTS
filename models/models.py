@@ -2,6 +2,14 @@ import torch
 import torch.nn as nn
 
 
+def grad_hook(grad):
+    # 计算梯度范数（L2范数）
+    grad_norm = grad.norm().item()
+    # 统计非零梯度比例
+    non_zero_ratio = torch.count_nonzero(grad).item() / grad.numel()
+    print(f"梯度范数: {grad_norm:.6f} | 非零比例: {non_zero_ratio:.2%}")
+
+
 def conv3x3(in_channels, out_channels, stride=1):
     # 3x3 convolution
     return nn.Conv2d(in_channels, out_channels, kernel_size=3,
@@ -42,19 +50,26 @@ class ResidualBlock(nn.Module):
         return out
 
 
-class ChessNet(nn.Module):
-    def __init__(self):
+class GameNet(nn.Module):
+    def __init__(self, input_channel, input_size, action_size):
         super().__init__()
+        self.action_size = action_size
+        self.input_size = input_size
         self.channel = 256
         self.cnn_layer_num = 2
         self.feature = nn.Sequential(
-            *([ResidualBlock(2, self.channel)] + [ResidualBlock(self.channel, self.channel) for i in
-                                                  range(self.cnn_layer_num - 1)]))
+            *([ResidualBlock(input_channel, self.channel)] + [ResidualBlock(self.channel, self.channel) for i in
+                                                              range(self.cnn_layer_num - 1)]))
 
-        self.value = nn.Linear(self.channel * 49, 1)
-        self.probability = nn.Linear(self.channel * 49, 72)
+        self.value = nn.Linear(self.channel * input_size * input_size, 1)
+        self.probability = nn.Linear(self.channel * input_size * input_size, action_size)
         self.tanh = nn.Tanh()
         self.log_softmax = nn.LogSoftmax(dim=1)
+
+        # 为每个参数注册钩子
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                param.register_hook(grad_hook)
 
     def forward(self, state):
         for _ in range(4 - len(state.shape)):

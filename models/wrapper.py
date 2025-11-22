@@ -1,17 +1,56 @@
 import torch
-from constants import ROOT_PATH
-from models.models import GameNet
-from models.wrapper import Wrapper
+import torch.nn.functional as F
+from torch.optim import Adam
 
 
-class ChessNetWrapper(Wrapper):
-    MODEL_SAVE_PATH = ROOT_PATH / "WMChess" / "checkpoints"
-    if not MODEL_SAVE_PATH.exists():
-        MODEL_SAVE_PATH.mkdir()
+class Wrapper:
+    batch = 4
 
-    def __init__(self):
-        self.net = GameNet(2, 7, 72)
-        super().__init__(self.net)
+    def __init__(self, net):
+
+        self.is_cuda = torch.cuda.is_available()
+        self.net = net
+        if self.is_cuda:
+            self.net.cuda()
+        self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-2)
+
+    def save(self, epoch, key="latest.pt"):
+        checkpoint = {
+            'epoch': epoch,
+            'state_dict': self.net.state_dict(),
+            'optimizer': self.opt.state_dict(),
+        }
+        torch.save(checkpoint, str(self.MODEL_SAVE_PATH / key))
+        print(f"{key} 模型已经保存")
+
+    def load(self, key):
+        model = torch.load(str(self.MODEL_SAVE_PATH / key))
+        self.net.load_state_dict(model["state_dict"])
+        self.opt.load_state_dict(model["optimizer"])
+        print(f"{key} 模型已经加载")
+        return model["epoch"]
+
+    def try_load(self):
+        try:
+            epoch = self.load("latest.pt")
+        except Exception as e:
+            print(e)
+            epoch = 0
+
+        return epoch
+
+    @staticmethod
+    def smooth_l1(input_tensor, target_tensor):
+        return F.smooth_l1_loss(input_tensor, target_tensor)
+
+    @staticmethod
+    def cross_entropy(p, p_target):
+        return F.cross_entropy(p, p_target)
+
+    @torch.no_grad()
+    def predict(self, state):
+        v, p = self.net(state)
+        return v.detach().cpu().numpy(), p.detach().cpu().numpy()[0]
 
     def train(self, train_sample):
         n = len(train_sample)
@@ -26,7 +65,8 @@ class ChessNetWrapper(Wrapper):
         value = torch.stack(value)[:, None].float()
         value = value.cuda() if self.is_cuda else value
 
-        if state.shape != (n, 7, 7, 2) or probability.shape != (n, 72) or value.shape != (n, 1):
+        if state.shape != (n, self.net.input_size, self.net.input_size, 2) or probability.shape != (
+                n, self.net.action_size) or value.shape != (n, 1):
             raise ValueError(
                 f"state, probability, value shape error, shape is {state.shape}, {probability.shape}, {value.shape}")
 
