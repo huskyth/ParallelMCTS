@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import init
 
 
 def grad_hook(grad):
@@ -69,6 +70,10 @@ class GameNet(nn.Module):
         # 为每个参数注册钩子
         for name, param in self.named_parameters():
             if param.requires_grad:
+                if "conv" in name:
+                    init.kaiming_normal_(param.data)
+                if "bias" in name:
+                    init.zeros_(param.data)
                 param.register_hook(grad_hook)
 
     def forward(self, state):
