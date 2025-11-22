@@ -24,7 +24,7 @@ class AbstractState(ABC):
         pass
 
     @abstractmethod
-    def get_legal_moves(self) -> list:
+    def get_legal_moves(self, player: int) -> list:
         """
         :return:    返回值为一个数组，数组每个元素为一个元组包括二维的数字
         """

@@ -124,7 +124,7 @@ class TicTacToe(AbstractState):
         state = torch.cat([state, player], dim=2)
         return state.float()
 
-    def get_legal_moves(self) -> list:
+    def get_legal_moves(self, player) -> list:
         return self.available_actions()
 
     def __init__(self, board=None):

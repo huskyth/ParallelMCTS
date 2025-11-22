@@ -41,6 +41,8 @@ class Node:
             raise ValueError(f"probability must sum to 1, {probability} sum to {sum(probability)}")
 
         # best_idx = move_idx[np.argmax(probability)]
+        probability = np.array(probability)
+        probability /= probability.sum()
         best_idx = move_idx[np.random.choice(len(probability), 1, p=probability)[0]]
         return best_idx, self.children[best_idx]
 
