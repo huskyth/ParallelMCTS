@@ -121,7 +121,7 @@ class TicTacToe(AbstractState):
                 board[i][j] = sign2value[board[i][j]]
         state = torch.tensor(board, dtype=torch.float32)[:, :, None]
         player = torch.ones(BOARD_SIZE, BOARD_SIZE, 1) * self.player
-        state = torch.cat([state, player], dim=2)
+        state = torch.cat([state, player], dim=2).float()
 
         return  state.cuda() if torch.cuda.is_available() else state
 

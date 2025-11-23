@@ -1,6 +1,6 @@
 class TrainConfig:
     def __init__(self):
-        self.epoch = 100
+        self.epoch = 1000
         self.test_rate = 5
         self.greedy_times = 5
         self.dirichlet_rate = 1 - 0.25

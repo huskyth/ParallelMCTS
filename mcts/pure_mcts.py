@@ -37,6 +37,8 @@ class MCTS:
             self.simulate_success_rate += 1
             assert winner is not None
             value = 1 if winner == state.get_current_player() else -1
+            if winner == 0:
+                value = 0
             if winner == current_pr:
                 self.win_rate += 1
         else:

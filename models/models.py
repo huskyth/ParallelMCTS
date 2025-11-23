@@ -74,7 +74,7 @@ class GameNet(nn.Module):
                     init.kaiming_normal_(param.data)
                 if "bias" in name:
                     init.zeros_(param.data)
-                param.register_hook(grad_hook)
+                # param.register_hook(grad_hook)
 
     def forward(self, state):
         for _ in range(4 - len(state.shape)):

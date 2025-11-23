@@ -111,7 +111,7 @@ class Trainer:
         draws = 0
         for i in range(self.contest_num):
             new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, old_mcts, i)
-            print(f"♬ 本局进行了{length_of_turn}轮")
+            print(f"♬ 本局进行了{length_of_turn}轮\n")
             wins += new_win
             olds += old_win
             draws += draw
@@ -127,7 +127,7 @@ class Trainer:
         player_list = [old_mcts, None, new_player]
         current_player = 1 if i % 2 == 0 else -1
         start_player = current_player
-        print(f"🌟 start {i}th contest, first hand is {start_player}")
+        print(f"\n🌟 start {i}th contest, first hand is {start_player}")
         length_of_turn = 0
         while not state.is_end()[0]:
             length_of_turn += 1
@@ -155,12 +155,21 @@ class Trainer:
         print(f"🍑 draws is {draws}, old win is {old_win}, new win is {new_win}")
         return new_win, old_win, draws, length_of_turn
 
-    def learn_one_by_one(self):
-        pass
+    def test(self):
+        self.abstract_game.network.load("best.pt")
+        if self.use_pool:
+            new_win, old_win, draws = self._contest_concurrent()
+        else:
+            new_win, old_win, draws = self._contest()
+        all_ = new_win + old_win + draws
+        self.swanlab.log({
+            "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_
+        })
+        print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved large than {self.best_win_rate}")
 
     def learn(self):
         start_epoch = self.abstract_game.start_epoch
-
+        is_trained = False
         for epoch in range(start_epoch, self.train_config.epoch):
 
             if self.use_pool:
@@ -171,14 +180,16 @@ class Trainer:
             self.train_sample.extend(train_sample)
 
             if len(self.train_sample) >= 100:
+                is_trained = True
                 print(f"start training... size of train_sample: {len(self.train_sample)}")
                 np.random.shuffle(self.train_sample)
+                self.abstract_game.network.save(epoch, key="before_train.pt")
                 stat = self.abstract_game.network.train(self.train_sample)
                 self.abstract_game.network.save(epoch)
                 for sta in stat:
                     self.swanlab.log(sta)
 
-            if (epoch + 1) % self.train_config.test_rate == 0:
+            if (epoch + 1) % self.train_config.test_rate == 0 and is_trained:
                 if self.use_pool:
                     new_win, old_win, draws = self._contest_concurrent()
                 else:
@@ -188,7 +199,9 @@ class Trainer:
                     "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_
                 })
                 if new_win / all_ > self.best_win_rate:
-                    print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved")
+                    print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved large than {self.best_win_rate}")
+                    self.best_win_rate = new_win / all_
                     self.abstract_game.network.save(epoch, key="best.pt")
                 else:
                     print("🐑 REJECT")
+                    self.abstract_game.network.load(key="before_train.pt")
