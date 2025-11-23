@@ -120,6 +120,8 @@ class Trainer:
                 old_win += 1
             else:
                 new_win += 1
+        elif winner == 0:
+            draws += 1
 
         print(f"🍑 draws is {draws}, old win is {old_win}, new win is {new_win}")
         return new_win, old_win, draws, length_of_turn
