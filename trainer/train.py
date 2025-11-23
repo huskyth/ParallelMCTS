@@ -147,7 +147,7 @@ class Trainer:
                 new_win, old_win, draws = self._contest()
                 all_ = new_win + old_win + draws
                 self.swanlab.log({
-                    "win_new": new_win, "win_random": old_win, "draws": draws
+                    "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_
                 })
                 if new_win / all_ > self.best_win_rate:
                     print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved")
