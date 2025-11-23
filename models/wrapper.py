@@ -50,7 +50,7 @@ class Wrapper:
     @torch.no_grad()
     def predict(self, state):
         v, p = self.net(state)
-        return v.detach().cpu().numpy(), p.detach().cpu().numpy()[0]
+        return v.detach().cpu().numpy(), (torch.e ** p).detach().cpu().numpy()[0]
 
     def train(self, train_sample):
         n = len(train_sample)

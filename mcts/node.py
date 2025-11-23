@@ -24,27 +24,10 @@ class Node:
             self.children[idx] = temp
 
     def select(self, mode):
-        childrens = [item for _, item in self.children.items() if item.p > 0]
-        move_idx = [idx for idx, item in self.children.items() if item.p > 0]
-        values = [item.get_value() for item in childrens]
-        value_sum = sum([np.e ** value for value in values])
-        probability = [np.e ** value / value_sum for value in values]
-        if len(childrens) == 0:
-            print(f"✨ select 中出现了问题，子节点的概率如下：\n\n {[self.children[key].p for key in self.children]} \n\n")
-
-        if mode == "train":
-            from utils.math_tool import dirichlet_noise
-            probability = dirichlet_noise(probability, alpha=0.03, epison=0.3)
-
-        import torch
-        if not torch.isclose(torch.tensor(sum(probability)).float(), torch.tensor(1.0).float()):
-            raise ValueError(f"probability must sum to 1, {probability} sum to {sum(probability)}")
-
-        # best_idx = move_idx[np.argmax(probability)]
-        probability = np.array(probability)
-        probability /= probability.sum()
-        best_idx = move_idx[np.random.choice(len(probability), 1, p=probability)[0]]
-        return best_idx, self.children[best_idx]
+        childrens = [item.get_value() for _, item in self.children.items()]
+        best_idx = np.argmax(childrens)
+        item = childrens[best_idx]
+        return best_idx, item
 
     def _update(self, value):
         self.visit += 1
