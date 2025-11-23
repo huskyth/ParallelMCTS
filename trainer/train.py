@@ -10,7 +10,7 @@ from utils.concurrent_tool import ConcurrentProcess
 
 class Trainer:
     def __init__(self, train_config=None, use_swanlab=True, mode='train', number_of_self_play=5, number_of_contest=5,
-                 abstract_game=None):
+                 abstract_game=None, use_pool=False):
         if use_swanlab:
             swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
             self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
@@ -23,12 +23,17 @@ class Trainer:
         self.train_sample = deque(maxlen=1000)
 
         self.best_win_rate = 0
-        self.self_play_parallel_num = number_of_self_play
-        self.self_play_processor = ConcurrentProcess(self.self_play_parallel_num)
-        self.contest_parallel_num = number_of_contest
-        self.contest_processor = ConcurrentProcess(self.contest_parallel_num)
+        self.use_pool = use_pool
+        if use_pool:
+            self.self_play_parallel_num = number_of_self_play
+            self.self_play_processor = ConcurrentProcess(self.self_play_parallel_num)
+            self.contest_parallel_num = number_of_contest
+            self.contest_processor = ConcurrentProcess(self.contest_parallel_num)
+        else:
+            self.self_play_num = number_of_self_play
+            self.contest_num = number_of_contest
 
-    def _collect(self):
+    def _collect_concurrent(self):
         mcts = self.abstract_game.mcts
         state = self.abstract_game.state
         param = [(mcts, state, i) for i in range(self.self_play_parallel_num)]
@@ -36,9 +41,18 @@ class Trainer:
         result = self.self_play_processor.result
         return [dim1 for dim2 in result for dim1 in dim2]
 
+    def _collect(self):
+        sample = []
+        mcts = self.abstract_game.mcts
+        state = self.abstract_game.state
+        for i in range(self.self_play_num):
+            temp = self._play(mcts, state, i)
+            sample.extend(temp)
+        return sample
+
     @staticmethod
     def _play(mcts, state, i):
-        print(f"😊 开始第{i}次自我Play")
+        print(f"😊 开始第{i + 1}次自我Play")
         train_sample = []
 
         mcts.update_tree(-1)
@@ -69,7 +83,7 @@ class Trainer:
 
         return train_sample
 
-    def _contest(self):
+    def _contest_concurrent(self):
         param = []
         new_player = self.abstract_game.mcts
         old_mcts = self.abstract_game.random_mcts
@@ -87,6 +101,21 @@ class Trainer:
             print(f"♬ 本局进行了{length_of_turn_}轮")
 
         return new_win, old_win, draws
+
+    def _contest(self):
+        new_player = self.abstract_game.mcts
+        old_mcts = self.abstract_game.random_mcts
+        state = self.abstract_game.state
+        wins = 0
+        olds = 0
+        draws = 0
+        for i in range(self.contest_num):
+            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, old_mcts, i)
+            print(f"♬ 本局进行了{length_of_turn}轮")
+            wins += new_win
+            olds += old_win
+            draws += draw
+        return wins, olds, draws
 
     @staticmethod
     def _contest_one_time(state, new_player, old_mcts, i):
@@ -126,12 +155,18 @@ class Trainer:
         print(f"🍑 draws is {draws}, old win is {old_win}, new win is {new_win}")
         return new_win, old_win, draws, length_of_turn
 
+    def learn_one_by_one(self):
+        pass
+
     def learn(self):
         start_epoch = self.abstract_game.start_epoch
 
         for epoch in range(start_epoch, self.train_config.epoch):
 
-            train_sample = self._collect()
+            if self.use_pool:
+                train_sample = self._collect_concurrent()
+            else:
+                train_sample = self._collect()
 
             self.train_sample.extend(train_sample)
 
@@ -144,7 +179,10 @@ class Trainer:
                     self.swanlab.log(sta)
 
             if (epoch + 1) % self.train_config.test_rate == 0:
-                new_win, old_win, draws = self._contest()
+                if self.use_pool:
+                    new_win, old_win, draws = self._contest_concurrent()
+                else:
+                    new_win, old_win, draws = self._contest()
                 all_ = new_win + old_win + draws
                 self.swanlab.log({
                     "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_
