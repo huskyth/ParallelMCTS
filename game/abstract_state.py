@@ -43,3 +43,7 @@ class AbstractState(ABC):
     @abstractmethod
     def index_to_move(self) -> dict:
         pass
+
+    @abstractmethod
+    def render(self, title):
+        pass

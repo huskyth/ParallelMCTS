@@ -123,7 +123,7 @@ class TicTacToe(AbstractState):
         player = torch.ones(BOARD_SIZE, BOARD_SIZE, 1) * self.player
         state = torch.cat([state, player], dim=2).float()
 
-        return  state.cuda() if torch.cuda.is_available() else state
+        return state.cuda() if torch.cuda.is_available() else state
 
     def get_legal_moves(self, player) -> list:
         return self.available_actions()
@@ -173,8 +173,8 @@ class TicTacToe(AbstractState):
                     return -1
         return None
 
-    def render(self):
-        print()
+    def render(self, title):
+        print('\n' + '*' * 20 + title + '*' * 20)
         print("board:")
         print("   0 1 2")
         for i in range(BOARD_SIZE):
@@ -182,7 +182,7 @@ class TicTacToe(AbstractState):
             for j in self.board[i]:
                 print(j if j is not None else '-', end=" ")
             print()
-        print()
+        print('\n' + '*' * 20 + title + '*' * 20)
 
     def move(self, action):
         self.left -= 1
@@ -196,4 +196,4 @@ class TicTacToe(AbstractState):
 
 if __name__ == '__main__':
     game = TicTacToe()
-    print(game.get_torch_state()[:,:,1])
+    print(game.get_torch_state()[:, :, 1])

@@ -129,12 +129,14 @@ class Trainer:
         start_player = current_player
         print(f"\n🌟 start {i}th contest, first hand is {start_player}")
         length_of_turn = 0
+        state.render()
         while not state.is_end()[0]:
             length_of_turn += 1
             player = player_list[current_player + 1]
             probability_new = player.get_action_probability(state, True)
             max_act = np.argmax(probability_new).item()
             state.do_action(max_act)
+            state.render()
             old_mcts.update_tree(-1)
             new_player.update_tree(-1)
             current_player *= -1
