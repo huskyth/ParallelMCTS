@@ -52,7 +52,8 @@ class Wrapper:
         v, p = self.net(state)
         return v.detach().cpu().numpy(), (torch.e ** p).detach().cpu().numpy()[0]
 
-    def train(self, train_sample):
+    def train_net(self, train_sample):
+        self.train()
         n = len(train_sample)
         state, probability, _, value = list(zip(*train_sample))
 
@@ -111,3 +112,9 @@ class Wrapper:
             })
 
         return return_dict
+
+    def eval(self):
+        self.net.eval()
+
+    def train(self):
+        self.net.train()

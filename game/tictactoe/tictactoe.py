@@ -182,7 +182,7 @@ class TicTacToe(AbstractState):
             for j in self.board[i]:
                 print(j if j is not None else '-', end=" ")
             print()
-        print('\n' + '*' * 20 + title + '*' * 20)
+        print('*' * 20 + title + '*' * 20)
 
     def move(self, action):
         self.left -= 1

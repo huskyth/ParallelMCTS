@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--number_of_self_play', type=int, default=1)
-    parser.add_argument('--number_of_contest', type=int, default=100)
+    parser.add_argument('--number_of_contest', type=int, default=10)
     parser.add_argument('--use_concurrent', type=bool, default=False)
     parser.add_argument('--mode', type=str, default="test")
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

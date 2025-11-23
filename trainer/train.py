@@ -63,7 +63,8 @@ class Trainer:
             ava_py_idx = [idx for idx, p in enumerate(probability) if p > 0]
             ava_py = [p for idx, p in enumerate(probability) if p > 0]
             ava_py_noise = dirichlet_noise(ava_py)
-            action_idx = np.random.choice(len(ava_py_noise), p=ava_py_noise)
+            action_idx = np.argmax(ava_py_noise)
+            # action_idx = np.random.choice(len(ava_py_noise), p=ava_py_noise)
             action = ava_py_idx[action_idx]
 
             train_sample.append([state.get_torch_state(), probability, state.get_current_player()])
@@ -159,6 +160,7 @@ class Trainer:
 
     def test(self):
         self.abstract_game.network.load("best.pt")
+        self.abstract_game.network.eval()
         if self.use_pool:
             new_win, old_win, draws = self._contest_concurrent()
         else:
@@ -167,7 +169,7 @@ class Trainer:
         self.swanlab.log({
             "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_
         })
-        print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved large than {self.best_win_rate}")
+        print(f"🍤 ACCEPT, Win Rate {new_win / all_}")
 
     def learn(self):
         start_epoch = self.abstract_game.start_epoch
@@ -186,12 +188,13 @@ class Trainer:
                 print(f"start training... size of train_sample: {len(self.train_sample)}")
                 np.random.shuffle(self.train_sample)
                 self.abstract_game.network.save(epoch, key="before_train.pt")
-                stat = self.abstract_game.network.train(self.train_sample)
+                stat = self.abstract_game.network.train_net(self.train_sample)
                 self.abstract_game.network.save(epoch)
                 for sta in stat:
                     self.swanlab.log(sta)
 
             if (epoch + 1) % self.train_config.test_rate == 0 and is_trained:
+                self.abstract_game.network.eval()
                 if self.use_pool:
                     new_win, old_win, draws = self._contest_concurrent()
                 else:
