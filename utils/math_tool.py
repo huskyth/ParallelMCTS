@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-def dirichlet_noise(origin_p, alpha=0.03, epison=0.3):
+def dirichlet_noise(origin_p, alpha=0.3, epison=0.3):
     if not isinstance(origin_p, list) and not isinstance(origin_p, np.ndarray) and not isinstance(origin_p,
                                                                                                   torch.Tensor):
         raise TypeError("origin_p must be list, np.ndarray or torch.tensor")

@@ -60,12 +60,11 @@ class Trainer:
 
         while not state.is_end()[0]:
             probability = mcts.get_action_probability(state=state, is_greedy=False)
-            ava_py_idx = [idx for idx, p in enumerate(probability) if p > 0]
-            ava_py = [p for idx, p in enumerate(probability) if p > 0]
-            ava_py_noise = dirichlet_noise(ava_py, epison=0.5)
+            ava_py_noise = dirichlet_noise(probability[probability > 0])
+            probability[probability > 0] = ava_py_noise
+
             # action_idx = np.argmax(ava_py_noise)
-            action_idx = np.random.choice(len(ava_py_noise), p=ava_py_noise)
-            action = ava_py_idx[action_idx]
+            action = np.random.choice(len(probability), p=probability)
 
             train_sample.append([state.get_torch_state(), probability, state.get_current_player()])
 
