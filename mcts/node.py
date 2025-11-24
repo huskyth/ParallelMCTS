@@ -6,7 +6,7 @@ class Node:
         self.p = p
         self.q = 0
         self.visit = 0
-        self.c = 1
+        self.c = 0.5
         self.children = {}
         self.parent = None
 
@@ -15,6 +15,7 @@ class Node:
         value = self.q + self.c * self.p * father_visit ** 0.5 / (1 + self.visit)
         if isinstance(value, np.ndarray):
             value = value.item()
+
         return value
 
     def expand(self, probability):
@@ -24,10 +25,10 @@ class Node:
             self.children[idx] = temp
 
     def select(self, mode):
-        values = [item.get_value() for _, item in self.children.items()]
-        childrens = [item for _, item in self.children.items()]
+        values = [item.get_value() for _, item in self.children.items() if item.p > 0]
+        items = [item for _, item in self.children.items() if item.p > 0]
         best_idx = np.argmax(values)
-        item = childrens[best_idx]
+        item = items[best_idx]
         return best_idx, item
 
     def _update(self, value):

@@ -67,17 +67,15 @@ class MCTS:
                 self.root = self.root.children[move]
                 self.root.parent = None
             else:
-                print("p is 0")
+                assert False
                 self.root = Node(1)
 
     def get_action_probability(self, state, is_greedy):
-
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
             self._simulate(state_copy)
 
         probability = np.array([item.visit for item in self.root.children.values()])
-
         explore_rate = 0
         ava_moves = state.get_legal_moves(state.get_current_player())
         ava_num = len(ava_moves)
