@@ -10,7 +10,7 @@ from utils.concurrent_tool import ConcurrentProcess
 
 class Trainer:
     def __init__(self, train_config=None, use_swanlab=True, mode='train', number_of_self_play=5, number_of_contest=5,
-                 abstract_game=None, use_pool=False):
+                 abstract_game=None, use_pool=False, is_render=False):
         if use_swanlab:
             swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
             self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
@@ -20,8 +20,8 @@ class Trainer:
 
         self.abstract_game = abstract_game
 
-        self.train_sample = deque(maxlen=1000)
-
+        self.train_sample = deque(maxlen=10)
+        self.is_render = is_render
         self.best_win_rate = 0
         self.use_pool = use_pool
         if use_pool:
@@ -62,9 +62,9 @@ class Trainer:
             probability = mcts.get_action_probability(state=state, is_greedy=False)
             ava_py_idx = [idx for idx, p in enumerate(probability) if p > 0]
             ava_py = [p for idx, p in enumerate(probability) if p > 0]
-            ava_py_noise = dirichlet_noise(ava_py)
-            action_idx = np.argmax(ava_py_noise)
-            # action_idx = np.random.choice(len(ava_py_noise), p=ava_py_noise)
+            ava_py_noise = dirichlet_noise(ava_py, epison=0.5)
+            # action_idx = np.argmax(ava_py_noise)
+            action_idx = np.random.choice(len(ava_py_noise), p=ava_py_noise)
             action = ava_py_idx[action_idx]
 
             train_sample.append([state.get_torch_state(), probability, state.get_current_player()])
@@ -111,7 +111,8 @@ class Trainer:
         olds = 0
         draws = 0
         for i in range(self.contest_num):
-            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, old_mcts, i)
+            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, old_mcts, i,
+                                                                            self.is_render)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
             wins += new_win
             olds += old_win
@@ -119,7 +120,7 @@ class Trainer:
         return wins, olds, draws
 
     @staticmethod
-    def _contest_one_time(state, new_player, old_mcts, i):
+    def _contest_one_time(state, new_player, old_mcts, i, is_render):
 
         new_win, old_win, draws = 0, 0, 0
         new_player.update_tree(-1)
@@ -130,14 +131,16 @@ class Trainer:
         start_player = current_player
         print(f"\n🌟 start {i}th contest, first hand is {start_player}")
         length_of_turn = 0
-        state.render()
+        if is_render:
+            state.render("初始化局面")
         while not state.is_end()[0]:
             length_of_turn += 1
             player = player_list[current_player + 1]
             probability_new = player.get_action_probability(state, True)
             max_act = np.argmax(probability_new).item()
             state.do_action(max_act)
-            state.render()
+            if is_render:
+                state.render(f"当前玩家 {-state.get_current_player()}")
             old_mcts.update_tree(-1)
             new_player.update_tree(-1)
             current_player *= -1
@@ -169,7 +172,7 @@ class Trainer:
         self.swanlab.log({
             "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_
         })
-        print(f"🍤 ACCEPT, Win Rate {new_win / all_}")
+        print(f"🍤 Win Rate {new_win / all_}")
 
     def learn(self):
         start_epoch = self.abstract_game.start_epoch
@@ -183,7 +186,7 @@ class Trainer:
 
             self.train_sample.extend(train_sample)
 
-            if len(self.train_sample) >= 100:
+            if len(self.train_sample) >= 2:
                 is_trained = True
                 print(f"start training... size of train_sample: {len(self.train_sample)}")
                 np.random.shuffle(self.train_sample)

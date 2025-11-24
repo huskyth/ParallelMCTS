@@ -16,7 +16,7 @@ if __name__ == '__main__':
     parser.add_argument('--number_of_self_play', type=int, default=1)
     parser.add_argument('--number_of_contest', type=int, default=10)
     parser.add_argument('--use_concurrent', type=bool, default=False)
-    parser.add_argument('--mode', type=str, default="test")
+    parser.add_argument('--mode', type=str, default="train")
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     args = parser.parse_args()
     if args.use_concurrent:
@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     t = Trainer(train_config=tn_cfg, number_of_contest=args.number_of_contest,
                 number_of_self_play=args.number_of_self_play, abstract_game=abs_game,
-                use_pool=args.use_concurrent)
+                use_pool=args.use_concurrent, is_render=False)
     try:
         if args.mode == 'train':
             t.learn()

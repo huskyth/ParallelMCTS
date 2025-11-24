@@ -9,5 +9,5 @@ class TictactoeNetWrapper(Wrapper):
         MODEL_SAVE_PATH.mkdir()
 
     def __init__(self):
-        self.net = GameNet(2, 3, 9)
+        self.net = GameNet(3, 3, 9)
         super().__init__(self.net)

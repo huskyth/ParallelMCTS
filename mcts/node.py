@@ -6,13 +6,13 @@ class Node:
         self.p = p
         self.q = 0
         self.visit = 0
-        self.c = 2
+        self.c = 1
         self.children = {}
         self.parent = None
 
     def get_value(self):
         father_visit = self.parent.visit
-        value = self.q + self.c * self.p * father_visit / (1 + self.visit) ** 0.5
+        value = self.q + self.c * self.p * father_visit ** 0.5 / (1 + self.visit)
         if isinstance(value, np.ndarray):
             value = value.item()
         return value

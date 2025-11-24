@@ -103,6 +103,7 @@ class TicTacToe(AbstractState):
         self.state.player = start_player
         self.player = self.state.player
         self.left = 9
+        self.last_action = None
 
     def get_current_player(self) -> int:
         return self.player
@@ -121,7 +122,11 @@ class TicTacToe(AbstractState):
                 board[i][j] = sign2value[board[i][j]]
         state = torch.tensor(board, dtype=torch.float32)[:, :, None]
         player = torch.ones(BOARD_SIZE, BOARD_SIZE, 1) * self.player
-        state = torch.cat([state, player], dim=2).float()
+        last_action = torch.zeros(player.shape)
+        last_player = self.player * -1
+        if self.last_action is not None:
+            last_action[self.last_action] = last_player
+        state = torch.cat([last_action, state, player], dim=2).float()
 
         return state.cuda() if torch.cuda.is_available() else state
 
@@ -140,6 +145,7 @@ class TicTacToe(AbstractState):
         self._move_to_index = {
             (i, j): i * 3 + j for i in range(BOARD_SIZE) for j in range(BOARD_SIZE)
         }
+        self.last_action = None
 
     def available_actions(self):
         return self.state.generate_actions()
@@ -187,6 +193,7 @@ class TicTacToe(AbstractState):
     def move(self, action):
         self.left -= 1
         self.state = self.state.move(action)
+        self.last_action = action
         self.board = self.state.board
         self.winner = self.check_winner()
         self.player = -self.player
@@ -196,4 +203,10 @@ class TicTacToe(AbstractState):
 
 if __name__ == '__main__':
     game = TicTacToe()
-    print(game.get_torch_state()[:, :, 1])
+    game.do_action(5)
+    temp = game.get_torch_state()
+    game.do_action(6)
+    temp = game.get_torch_state()
+    print(temp[:, :, 0])
+    print(temp[:, :, 1])
+    print(temp[:, :, 2])

@@ -56,8 +56,8 @@ class GameNet(nn.Module):
         super().__init__()
         self.action_size = action_size
         self.input_size = input_size
-        self.channel = 256
-        self.cnn_layer_num = 2
+        self.channel = 64
+        self.cnn_layer_num = 1
         self.feature = nn.Sequential(
             *([ResidualBlock(input_channel, self.channel)] + [ResidualBlock(self.channel, self.channel) for i in
                                                               range(self.cnn_layer_num - 1)]))
