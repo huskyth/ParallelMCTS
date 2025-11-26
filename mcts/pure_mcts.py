@@ -6,7 +6,7 @@ from mcts.node import Node
 
 
 class MCTS:
-    def __init__(self, predict, mode='train', swanlab=None):
+    def __init__(self, predict, mode='train', swanlab=None, name=None):
         if mode not in ["train", 'test']:
             raise ValueError("mode must be 'train' or 'test'")
         self.root = Node(1)
@@ -17,6 +17,7 @@ class MCTS:
         self.max_depth = -1
         self.simulate_success_rate = 0
         self.win_rate = 0
+        self.name = name
 
     def _simulate(self, state, i):
         current_pr = state.get_current_player()
@@ -27,6 +28,7 @@ class MCTS:
                 break
             max_depth += 1
             action, current_node = current_node.select(self.mode)
+            state.render(f"{self.name} 第{i}次模拟，当前玩家 {state.get_current_player()}执行动作 {action}")
             state.do_action(action)
 
         if max_depth > self.max_depth:
@@ -34,6 +36,7 @@ class MCTS:
 
         is_end, winner = state.is_end()
         if is_end is True:
+            state.render(f"{self.name} 第{i}次模拟，游戏结束,结果 {winner}")
             self.simulate_success_rate += 1
             assert winner is not None
             value = 1 if winner == state.get_current_player() else -1
@@ -42,6 +45,7 @@ class MCTS:
             if winner == current_pr:
                 self.win_rate += 1
         else:
+            state.render(f"{self.name} 第{i}次模拟，游戏没有结束")
             value, probability = self.predict(state.get_torch_state())
             available_action = state.get_legal_moves(state.get_current_player())
             available_ = set()
@@ -76,7 +80,7 @@ class MCTS:
             self._simulate(state_copy, i)
 
         probability = np.array([item.visit for item in self.root.children.values()])
-
+        state.render(f"{self.name}模拟出来的行为概率为 {probability}")
         explore_rate = 0
         ava_moves = state.get_legal_moves(state.get_current_player())
         ava_num = len(ava_moves)

@@ -1,3 +1,4 @@
+import random
 from collections import deque
 import swanlab
 import numpy as np
@@ -110,7 +111,7 @@ class Trainer:
         olds = 0
         draws = 0
         for i in range(self.contest_num):
-            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, old_mcts, i,
+            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i,
                                                                             self.is_render)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
             wins += new_win
@@ -119,13 +120,12 @@ class Trainer:
         return wins, olds, draws
 
     @staticmethod
-    def _contest_one_time(state, new_player, old_mcts, i, is_render):
+    def _contest_one_time(state, new_player, i, is_render):
 
         new_win, old_win, draws = 0, 0, 0
         new_player.update_tree(-1)
-        old_mcts.update_tree(-1)
         state.reset()
-        player_list = [old_mcts, None, new_player]
+        player_list = [None, None, new_player]
         current_player = 1 if i % 2 == 0 else -1
         start_player = current_player
         print(f"\n🌟 start {i}th contest, first hand is {start_player}")
@@ -135,14 +135,20 @@ class Trainer:
         while not state.is_end()[0]:
             length_of_turn += 1
             player = player_list[current_player + 1]
-            probability_new = player.get_action_probability(state, True)
-            max_act = np.argmax(probability_new).item()
+            if player is None:
+                tuple_act = random.choice(state.get_legal_moves(state.get_current_player()))
+                max_act = tuple_act[0] * 3 + tuple_act[1]
+            else:
+                probability_new = player.get_action_probability(state, True)
+                max_act = np.argmax(probability_new).item()
+
+            state.render(f"当前玩家 {player.name if player else '随机玩家'} {state.get_current_player()}, 执行 {max_act}")
             state.do_action(max_act)
             if is_render:
                 state.render(f"当前玩家 {-state.get_current_player()}")
-            old_mcts.update_tree(-1)
             new_player.update_tree(-1)
             current_player *= -1
+
         _, winner = state.is_end()
         if winner == 1:
             if start_player == 1:
@@ -156,6 +162,13 @@ class Trainer:
                 new_win += 1
         elif winner == 0:
             draws += 1
+        if winner == 1:
+            win = 'X'
+        elif winner == -1:
+            win = 'O'
+        else:
+            win = '平局'
+        state.render(f"本局-{i} 游戏结束,{win} 获胜")
 
         print(f"🍑 draws is {draws}, old win is {old_win}, new win is {new_win}")
         return new_win, old_win, draws, length_of_turn
