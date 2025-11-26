@@ -134,7 +134,7 @@ class TicTacToe(AbstractState):
     def get_legal_moves(self, player) -> list:
         return self.available_actions()
 
-    def __init__(self, board=None):
+    def __init__(self, board=None, is_render=False):
         self.state = board if board else Board()
         self.board = self.state.board
         self.winner = self.check_winner()
@@ -147,6 +147,7 @@ class TicTacToe(AbstractState):
             (i, j): i * 3 + j for i in range(BOARD_SIZE) for j in range(BOARD_SIZE)
         }
         self.last_action = None
+        self.is_render = is_render
 
     def available_actions(self):
         return self.state.generate_actions()
@@ -181,6 +182,8 @@ class TicTacToe(AbstractState):
         return None
 
     def render(self, title):
+        if not self.is_render:
+            return
         print('\n' + '*' * 20 + title + '*' * 20)
         print("board:")
         print("   0 1 2")

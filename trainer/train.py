@@ -105,14 +105,12 @@ class Trainer:
 
     def _contest(self):
         new_player = self.abstract_game.mcts
-        old_mcts = self.abstract_game.random_mcts
         state = self.abstract_game.state
         wins = 0
         olds = 0
         draws = 0
         for i in range(self.contest_num):
-            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i,
-                                                                            self.is_render)
+            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
             wins += new_win
             olds += old_win
@@ -120,7 +118,7 @@ class Trainer:
         return wins, olds, draws
 
     @staticmethod
-    def _contest_one_time(state, new_player, i, is_render):
+    def _contest_one_time(state, new_player, i):
 
         new_win, old_win, draws = 0, 0, 0
         new_player.update_tree(-1)
@@ -130,8 +128,7 @@ class Trainer:
         start_player = current_player
         print(f"\n🌟 start {i}th contest, first hand is {start_player}")
         length_of_turn = 0
-        if is_render:
-            state.render("初始化局面")
+        state.render("初始化局面")
         while not state.is_end()[0]:
             length_of_turn += 1
             player = player_list[current_player + 1]
@@ -144,8 +141,7 @@ class Trainer:
 
             state.render(f"当前玩家 {player.name if player else '随机玩家'} {state.get_current_player()}, 执行 {max_act}")
             state.do_action(max_act)
-            if is_render:
-                state.render(f"当前玩家 {-state.get_current_player()}")
+            state.render(f"当前玩家 {-state.get_current_player()}")
             new_player.update_tree(-1)
             current_player *= -1
 
