@@ -18,7 +18,7 @@ class MCTS:
         self.simulate_success_rate = 0
         self.win_rate = 0
 
-    def _simulate(self, state):
+    def _simulate(self, state, i):
         current_pr = state.get_current_player()
         max_depth = 0
         current_node = self.root
@@ -73,9 +73,10 @@ class MCTS:
     def get_action_probability(self, state, is_greedy):
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
-            self._simulate(state_copy)
+            self._simulate(state_copy, i)
 
         probability = np.array([item.visit for item in self.root.children.values()])
+
         explore_rate = 0
         ava_moves = state.get_legal_moves(state.get_current_player())
         ava_num = len(ava_moves)

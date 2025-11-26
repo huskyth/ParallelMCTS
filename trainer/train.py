@@ -20,7 +20,7 @@ class Trainer:
 
         self.abstract_game = abstract_game
 
-        self.train_sample = deque(maxlen=10)
+        self.train_sample = deque(maxlen=30)
         self.is_render = is_render
         self.best_win_rate = 0
         self.use_pool = use_pool

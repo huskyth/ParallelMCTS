@@ -25,10 +25,13 @@ class Node:
             self.children[idx] = temp
 
     def select(self, mode):
-        values = [item.get_value() for _, item in self.children.items() if item.p > 0]
+        values = [item.get_value() for idx, item in self.children.items() if item.p > 0]
         items = [item for _, item in self.children.items() if item.p > 0]
-        best_idx = np.argmax(values)
-        item = items[best_idx]
+        its = [idx for idx, item in self.children.items() if item.p > 0]
+        max_idx = np.argmax(values)
+        item = items[max_idx]
+        best_idx = its[max_idx]
+
         return best_idx, item
 
     def _update(self, value):

@@ -26,6 +26,7 @@ class Board:  # must contain (win,draw,player,board,valid actions,move) for mcts
         # create new board instance that inherits from the current state
         next_state = Board(self.board)
 
+        assert next_state.board[row][col] is EMPTY
         # make move
         next_state.board[row][col] = player2sign[self.player]
 
