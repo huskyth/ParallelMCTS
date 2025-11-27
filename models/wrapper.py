@@ -12,7 +12,7 @@ class Wrapper:
         self.net = net
         if self.is_cuda:
             self.net.cuda()
-        self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-2)
+        self.opt = Adam(self.net.parameters(), lr=1e-4, weight_decay=1e-2)
 
     def save(self, epoch, key="latest.pt"):
         checkpoint = {
@@ -71,7 +71,7 @@ class Wrapper:
             raise ValueError(
                 f"state, probability, value shape error, shape is {state.shape}, {probability.shape}, {value.shape}")
 
-        epoch = min(max(n // 100 + 1, 3), 10)
+        epoch = min(max(n // 100 + 1, 3), 5)
         print("🏠 Training epoch: ", epoch)
         batch_number = n // self.batch
         return_dict = []
