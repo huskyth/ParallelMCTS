@@ -57,6 +57,7 @@ class GameNet(nn.Module):
         self.action_size = action_size
         self.input_size = input_size
         self.channel = 64
+        self.input_channel = input_channel
         self.cnn_layer_num = 1
         self.feature = nn.Sequential(
             *([ResidualBlock(input_channel, self.channel)] + [ResidualBlock(self.channel, self.channel) for i in
@@ -85,7 +86,7 @@ class GameNet(nn.Module):
 
         batch, _, _, end = state.shape
 
-        if end == 2:
+        if end == self.input_channel:
             state = torch.permute(state, (0, 3, 1, 2))
 
         state = self.feature(state)
