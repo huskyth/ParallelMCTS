@@ -21,7 +21,7 @@ class Trainer:
 
         self.abstract_game = abstract_game
 
-        self.train_sample = deque(maxlen=30)
+        self.train_sample = deque(maxlen=1000)
         self.is_render = is_render
         self.best_win_rate = 0
         self.use_pool = use_pool
@@ -139,7 +139,8 @@ class Trainer:
                 probability_new = player.get_action_probability(state, True)
                 max_act = np.argmax(probability_new).item()
 
-            state.render(f"当前玩家 {player.name if player else '随机玩家'} {state.get_current_player()}, 执行 {max_act}")
+            state.render(
+                f"当前玩家 {player.name if player else '随机玩家'} {state.get_current_player()}, 执行 {max_act}")
             state.do_action(max_act)
             state.render(f"当前玩家 {-state.get_current_player()}")
             new_player.update_tree(-1)
@@ -182,6 +183,44 @@ class Trainer:
         })
         print(f"🍤 Win Rate {new_win / all_}")
 
+    def play(self, current_player="AI"):
+        if current_player not in ["AI", "Human"]:
+            raise ValueError("current_player must be 'AI' or 'Human'")
+        self.abstract_game.network.load("best.pt")
+        ai = self.abstract_game.mcts
+        state = self.abstract_game.state
+
+        ai.update_tree(-1)
+        state.reset()
+        start_player = current_player
+        ano_player = 'Human' if start_player == 'AI' else 'AI'
+        state.is_render = True
+        state.render("当前局面")
+        state.is_render = False
+        while not state.is_end()[0]:
+            if current_player == "AI":
+                print('👀 Now AI play')
+                probability_new = ai.get_action_probability(state, True)
+                max_act = np.argmax(probability_new).item()
+                current_player = "Human"
+            else:
+                print('👀 Now human play')
+                max_act = int(input("please input you action"))
+                current_player = "AI"
+
+            state.do_action(max_act)
+            ai.update_tree(-1)
+            state.is_render = True
+            state.render("当前局面")
+            state.is_render = False
+        _, winner = state.is_end()
+        if winner == 0:
+            print("和棋")
+        elif winner == 1:
+            print(f"{start_player} 赢了")
+        elif winner == -1:
+            print(f"{ano_player} 赢了")
+
     def learn(self):
         start_epoch = self.abstract_game.start_epoch
         is_trained = False
@@ -194,7 +233,7 @@ class Trainer:
 
             self.train_sample.extend(train_sample)
 
-            if len(self.train_sample) >= 2:
+            if len(self.train_sample) >= 50:
                 is_trained = True
                 print(f"start training... size of train_sample: {len(self.train_sample)}")
                 np.random.shuffle(self.train_sample)
@@ -220,4 +259,4 @@ class Trainer:
                     self.abstract_game.network.save(epoch, key="best.pt")
                 else:
                     print("🐑 REJECT")
-                    self.abstract_game.network.load(key="before_train.pt")
+                    # self.abstract_game.network.load(key="before_train.pt")
