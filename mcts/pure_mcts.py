@@ -62,7 +62,7 @@ class MCTS:
             epison = 0
             if self.mode == 'train':
                 epison = 0.3
-            ava_py_noise = dirichlet_noise(probability[probability > 0], epison)
+            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison)
             probability[probability > 0] = ava_py_noise
 
             if probability.sum() == 0:
