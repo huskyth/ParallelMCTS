@@ -132,7 +132,7 @@ class TicTacToe(AbstractState):
         other_state[other_state == self.player] = 0
         other_state[other_state == -self.player] = 1
 
-        player = torch.ones(BOARD_SIZE, BOARD_SIZE, 1) * self.player
+        player = torch.ones(BOARD_SIZE, BOARD_SIZE, 1) * (1 if self.player == 1 else 0)
 
         last_action = torch.zeros(player.shape)
         if self.last_action is not None:

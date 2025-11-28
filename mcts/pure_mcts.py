@@ -12,7 +12,7 @@ class MCTS:
             raise ValueError("mode must be 'train' or 'test'")
         self.root = Node(1)
         self.predict = predict
-        self.simulate_times = 10 if mode == 'train' else 10
+        self.simulate_times = 1600 if mode == 'train' else 1600
         self.mode = mode
         self.swanlab = swanlab
         self.max_depth = -1
@@ -61,7 +61,7 @@ class MCTS:
 
             epison = 0
             if self.mode == 'train':
-                epison = 0.3
+                epison = 0.2
             ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison)
             probability[probability > 0] = ava_py_noise
 

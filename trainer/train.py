@@ -1,3 +1,4 @@
+import os
 import random
 from collections import deque
 import swanlab
@@ -20,7 +21,7 @@ class Trainer:
 
         self.abstract_game = abstract_game
 
-        self.train_sample = deque(maxlen=1000)
+        self.train_sample = deque(maxlen=100)
         self.is_render = is_render
         self.best_win_rate = 0
         self.use_pool = use_pool
@@ -66,16 +67,18 @@ class Trainer:
 
             state.do_action(action)
             mcts.update_tree(action)
-
+        episode_length = len(train_sample)
+        gama = 0.1
         _, winner = state.is_end()
         assert winner is not None
-        for item in train_sample:
+        for idx, item in enumerate(train_sample):
+            rate = gama ** (episode_length - 1 - idx)
             if winner == 0:
                 item.append(torch.tensor(0.0))
             elif item[-1] == winner:
-                item.append(torch.tensor(1.0))
+                item.append(torch.tensor(1.0 * rate))
             else:
-                item.append(torch.tensor(-1.0))
+                item.append(torch.tensor(-1.0 * rate))
 
         return train_sample
 
