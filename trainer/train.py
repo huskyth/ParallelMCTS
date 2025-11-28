@@ -104,12 +104,14 @@ class Trainer:
         wins = 0
         olds = 0
         draws = 0
+        new_player.mode = 'test'
         for i in range(self.contest_num):
             new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
             wins += new_win
             olds += old_win
             draws += draw
+        new_player.mode = 'train'
         return wins, olds, draws
 
     @staticmethod
@@ -183,6 +185,7 @@ class Trainer:
             raise ValueError("current_player must be 'AI' or 'Human'")
         self.abstract_game.network.load("best.pt")
         ai = self.abstract_game.mcts
+        ai.mode = 'test'
         state = self.abstract_game.state
 
         ai.update_tree(-1)
@@ -209,6 +212,7 @@ class Trainer:
             state.render("当前局面")
             state.is_render = False
         _, winner = state.is_end()
+        ai.mode = 'train'
         if winner == 0:
             print("和棋")
         elif winner == 1:
