@@ -4,7 +4,6 @@ import swanlab
 import numpy as np
 import torch
 from constants import ROOT_PATH
-from utils.math_tool import dirichlet_noise
 
 from utils.concurrent_tool import ConcurrentProcess
 
@@ -38,7 +37,7 @@ class Trainer:
         mcts = self.abstract_game.mcts
         state = self.abstract_game.state
         param = [(mcts, state, i) for i in range(self.self_play_parallel_num)]
-        self.self_play_processor.process(self._play, param)
+        self.self_play_processor.process(self._self_play, param)
         result = self.self_play_processor.result
         return [dim1 for dim2 in result for dim1 in dim2]
 
@@ -47,12 +46,12 @@ class Trainer:
         mcts = self.abstract_game.mcts
         state = self.abstract_game.state
         for i in range(self.self_play_num):
-            temp = self._play(mcts, state, i)
+            temp = self._self_play(mcts, state, i)
             sample.extend(temp)
         return sample
 
     @staticmethod
-    def _play(mcts, state, i):
+    def _self_play(mcts, state, i):
         print(f"😊 开始第{i + 1}次自我Play")
         train_sample = []
 
@@ -61,10 +60,6 @@ class Trainer:
 
         while not state.is_end()[0]:
             probability = mcts.get_action_probability(state=state, is_greedy=False)
-            ava_py_noise = dirichlet_noise(probability[probability > 0])
-            probability[probability > 0] = ava_py_noise
-
-            # action_idx = np.argmax(ava_py_noise)
             action = np.random.choice(len(probability), p=probability)
 
             train_sample.append([state.get_torch_state(), probability, state.get_current_player()])

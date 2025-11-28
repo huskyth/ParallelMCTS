@@ -20,4 +20,4 @@ def dirichlet_noise(origin_p, alpha=0.3, epison=0.3):
 
     if not torch.isclose(torch.tensor(sum(ret_py)).float(), torch.tensor(1.0).float()):
         raise ValueError(f"ret_py must sum to 1, {ret_py} sum to {sum(ret_py)}")
-    return noise
+    return ret_py

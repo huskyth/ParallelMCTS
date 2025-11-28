@@ -3,6 +3,7 @@ import copy
 import numpy as np
 
 from mcts.node import Node
+from utils.math_tool import dirichlet_noise
 
 
 class MCTS:
@@ -57,6 +58,12 @@ class MCTS:
                     probability[idx] = 0
 
             probability /= probability.sum()
+
+            epison = 0
+            if self.mode == 'train':
+                epison = 0.3
+            ava_py_noise = dirichlet_noise(probability[probability > 0], epison)
+            probability[probability > 0] = ava_py_noise
 
             if probability.sum() == 0:
                 print(f"✨ _simulate 中出现了问题，子节点的概率如下：\n\n {probability} \n\n")
