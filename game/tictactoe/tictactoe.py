@@ -1,3 +1,4 @@
+import random
 from copy import deepcopy
 
 import torch
@@ -128,7 +129,6 @@ class TicTacToe(AbstractState):
         player_state[player_state == -self.player] = 0
         player_state[player_state == self.player] = 1
 
-
         other_state[other_state == self.player] = 0
         other_state[other_state == -self.player] = 1
 
@@ -214,6 +214,11 @@ class TicTacToe(AbstractState):
         self.player = -self.player
         if self.winner is None and self.left == 0:
             self.winner = 0
+
+    def move_random(self):
+        tuple_act = random.choice(self.get_legal_moves(self.get_current_player()))
+        max_act = tuple_act[0] * 3 + tuple_act[1]
+        return max_act
 
 
 if __name__ == '__main__':

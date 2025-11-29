@@ -1,5 +1,3 @@
-import os
-import random
 from collections import deque
 import swanlab
 import numpy as np
@@ -133,16 +131,15 @@ class Trainer:
             length_of_turn += 1
             player = player_list[current_player + 1]
             if player is None:
-                tuple_act = random.choice(state.get_legal_moves(state.get_current_player()))
-                max_act = tuple_act[0] * 3 + tuple_act[1]
+                max_act = state.move_random()
             else:
                 probability_new = player.get_action_probability(state, True)
                 max_act = np.argmax(probability_new).item()
-
+            p_name = player.name if player else '随机玩家'
             state.render(
-                f"当前玩家 {player.name if player else '随机玩家'} {state.get_current_player()}, 执行 {max_act}")
+                f"Step {length_of_turn} - 当前玩家 {p_name} {state.get_current_player()}, 执行 {state.index_to_move[max_act]}")
             state.do_action(max_act)
-            state.render(f"当前玩家 {-state.get_current_player()}")
+            state.render(f"Step {length_of_turn} - 当前玩家 {p_name} 索引{-state.get_current_player()}执行后的局面")
             new_player.update_tree(-1)
             current_player *= -1
 

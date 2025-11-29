@@ -19,11 +19,12 @@ WHITE = -1
 
 
 class Chess(ChessBoard):
-    def __init__(self, start_player=1):
+    def __init__(self, start_player=1, is_render=False):
         super().__init__()
         self.current_player = start_player
         self.move_to_index = MOVE_TO_INDEX_DICT
         self.index_to_move = INDEX_TO_MOVE_DICT
+        self.is_render = is_render
 
     def is_end(self):
         winner = self.check_winner()
@@ -38,8 +39,10 @@ class Chess(ChessBoard):
             SCREEN_HEIGHT - CHESSMAN_HEIGHT * 1
         return x, y
 
-    def dump(self, key):
-        image = cv2.imread(str(ROOT_PATH / "chess/assets/watermelon.png"))
+    def render(self, key):
+        if not self.is_render:
+            return
+        image = cv2.imread(str(ROOT_PATH / "game/chess/assets/watermelon.png"))
         for index, point in enumerate(self.pointStatus):
             if point == 0:
                 continue
@@ -72,5 +75,9 @@ class Chess(ChessBoard):
         self.init_point_status()
         self.current_player = start_player
 
-    def render(self, key):
-        pass
+    def move_random(self):
+        import random
+        l_move = self.get_legal_moves(self.get_current_player())
+        l_move = random.choice(l_move)
+        max_act = self.move_to_index[l_move]
+        return max_act

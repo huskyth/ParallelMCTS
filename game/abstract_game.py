@@ -10,7 +10,7 @@ class AbstractGame:
         if name == 'WMChess':
             self._network = ChessNetWrapper()
             self._random_network = ChessNetWrapper()
-            self._state = Chess()
+            self._state = Chess(is_render=is_render)
         elif name == "tictactoe":
             self._network = TictactoeNetWrapper()
             self._random_network = TictactoeNetWrapper()
