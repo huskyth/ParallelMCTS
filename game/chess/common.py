@@ -76,12 +76,17 @@ def from_array_to_input_tensor(point_status, current_player):
     if len(point_status) != 21:
         raise Exception('point_status length must be 21')
 
-    input_tensor = torch.zeros((7, 7, 2))
+    input_tensor = torch.zeros((7, 7, 3))
     for i, chessman in enumerate(point_status):
         row, column = ARRAY_TO_IMAGE[i]
-        input_tensor[row, column, 0] = chessman
+        if chessman == current_player:
+            input_tensor[row, column, 0] = 1
+        elif chessman == -current_player:
+            input_tensor[row, column, 1] = 1
+        else:
+            assert chessman == 0
 
-    input_tensor[:, :, 1] = current_player
+    input_tensor[:, :, 2] = current_player
 
     return input_tensor.cuda() if is_cuda else input_tensor
 

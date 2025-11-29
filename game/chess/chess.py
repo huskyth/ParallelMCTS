@@ -3,7 +3,7 @@ import os
 import cv2
 
 from game.chess.chess_board import ChessBoard
-from game.chess.common import from_array_to_input_tensor, GAME_MAP
+from game.chess.common import from_array_to_input_tensor, GAME_MAP, MOVE_TO_INDEX_DICT, INDEX_TO_MOVE_DICT
 
 from constants import ROOT_PATH
 
@@ -22,6 +22,8 @@ class Chess(ChessBoard):
     def __init__(self, start_player=1):
         super().__init__()
         self.current_player = start_player
+        self.move_to_index = MOVE_TO_INDEX_DICT
+        self.index_to_move = INDEX_TO_MOVE_DICT
 
     def is_end(self):
         winner = self.check_winner()
@@ -69,3 +71,6 @@ class Chess(ChessBoard):
     def reset(self, start_player=1):
         self.init_point_status()
         self.current_player = start_player
+
+    def render(self, key):
+        pass
