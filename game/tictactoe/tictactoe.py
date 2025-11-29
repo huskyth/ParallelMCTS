@@ -1,6 +1,6 @@
 import random
 from copy import deepcopy
-
+import numpy as np
 import torch
 
 from game.abstract_state import AbstractState
@@ -219,6 +219,22 @@ class TicTacToe(AbstractState):
         tuple_act = random.choice(self.get_legal_moves(self.get_current_player()))
         max_act = tuple_act[0] * 3 + tuple_act[1]
         return max_act
+
+    def top_buttom(self, state, probability):
+        state[:, :, 0] = torch.flip(state[:, :, 0], (0,))
+        state[:, :, 1] = torch.flip(state[:, :, 1], (0,))
+        probability = np.reshape(np.flip(probability.reshape(3, 3), (0,)), (9,))
+        return state, probability
+
+    def left_right(self, state, probability):
+        state[:, :, 0] = torch.flip(state[:, :, 0], (1,))
+        state[:, :, 1] = torch.flip(state[:, :, 1], (1,))
+        probability = np.reshape(np.flip(probability.reshape(3, 3), (1,)), (9,))
+        return state, probability
+
+    def center(self, state, probability):
+        s, p = self.top_buttom(state, probability)
+        return self.left_right(s, p)
 
 
 if __name__ == '__main__':

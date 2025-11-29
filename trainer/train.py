@@ -55,13 +55,16 @@ class Trainer:
 
         mcts.update_tree(-1)
         state.reset()
-
         while not state.is_end()[0]:
             probability = mcts.get_action_probability(state=state, is_greedy=False)
             action = np.random.choice(len(probability), p=probability)
-
             train_sample.append([state.get_torch_state(), probability, state.get_current_player()])
-
+            s1, p1 = state.top_buttom(state.get_torch_state(), probability)
+            s2, p2 = state.left_right(state.get_torch_state(), probability)
+            s3, p3 = state.center(state.get_torch_state(), probability)
+            train_sample.append([s1, p1, state.get_current_player()])
+            train_sample.append([s2, p2, state.get_current_player()])
+            train_sample.append([s3, p3, state.get_current_player()])
             state.do_action(action)
             mcts.update_tree(action)
         episode_length = len(train_sample)
