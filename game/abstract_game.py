@@ -44,3 +44,24 @@ class AbstractGame:
     @property
     def state(self):
         return self._state
+
+
+if __name__ == '__main__':
+    import torch
+    import numpy as np
+    ag = AbstractGame("tictactoe", False)
+    ag.network.load("best.pt")
+    state = TicTacToe(is_render=True)
+    state.reset(-1)
+    state.render(f"当前局面 {-1}作为开始的玩家")
+    v, p = ag.network.predict(state.get_torch_state())
+    print(f"当前游戏,{v}, {p}，{np.argmax(p)}")
+
+    print('=' * 120)
+    ag = AbstractGame("tictactoe", False)
+    ag.network.load("best.pt")
+    state = TicTacToe(is_render=True)
+    state.reset(1)
+    state.render(f"当前局面 {1}作为开始的玩家")
+    v, p = ag.network.predict(state.get_torch_state())
+    print(f"当前游戏,{v}, {p}，{np.argmax(p)}")
