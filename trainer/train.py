@@ -68,7 +68,7 @@ class Trainer:
             state.do_action(action)
             mcts.update_tree(action)
         episode_length = len(train_sample)
-        gama = 0.1
+        gama = 1
         _, winner = state.is_end()
         assert winner is not None
         for idx, item in enumerate(train_sample):
@@ -179,7 +179,8 @@ class Trainer:
             new_win, old_win, draws = self._contest()
         all_ = new_win + old_win + draws
         self.swanlab.log({
-            "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_
+            "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_,
+            "pure_rate": new_win / (new_win + old_win)
         })
         print(f"🍤 Win Rate {new_win / all_}")
 

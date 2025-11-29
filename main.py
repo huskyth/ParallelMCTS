@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--number_of_self_play', type=int, default=1)
-    parser.add_argument('--number_of_contest', type=int, default=50)
+    parser.add_argument('--number_of_contest', type=int, default=10)
     parser.add_argument('--use_concurrent', type=bool, default=False)
     parser.add_argument('--is_render', type=bool, default=False)
     parser.add_argument('--mode', type=str, default="train")
@@ -36,7 +36,7 @@ if __name__ == '__main__':
         elif args.mode == "test":
             t.test()
         elif args.mode == "play":
-            t.play("Human")
+            t.play("AI")
     except Exception as err:
         print(err)
         print(traceback.format_exc())
