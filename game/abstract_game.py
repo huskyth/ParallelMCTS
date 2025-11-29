@@ -30,6 +30,10 @@ class AbstractGame:
         return self._random_mcts
 
     @property
+    def random_network(self):
+        return self._random_network
+
+    @property
     def start_epoch(self):
         return self._start_epoch
 

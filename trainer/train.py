@@ -21,7 +21,6 @@ class Trainer:
 
         self.train_sample = deque(maxlen=100)
         self.is_render = is_render
-        self.best_win_rate = 0
         self.use_pool = use_pool
         if use_pool:
             self.self_play_parallel_num = number_of_self_play
@@ -102,12 +101,17 @@ class Trainer:
     def _contest(self):
         new_player = self.abstract_game.mcts
         state = self.abstract_game.state
+
+        self.abstract_game.random_network.load("before_train.pt")
+        self.abstract_game.random_network.eval()
+
+        last_mcts = self.abstract_game.random_mcts
         wins = 0
         olds = 0
         draws = 0
         new_player.mode = 'test'
         for i in range(self.contest_num):
-            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i)
+            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i, last_mcts)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
             wins += new_win
             olds += old_win
@@ -116,12 +120,13 @@ class Trainer:
         return wins, olds, draws
 
     @staticmethod
-    def _contest_one_time(state, new_player, i):
+    def _contest_one_time(state, new_player, i, last_mcts):
 
         new_win, old_win, draws = 0, 0, 0
         new_player.update_tree(-1)
+        last_mcts.update_tree(-1)
         state.reset()
-        player_list = [None, None, new_player]
+        player_list = [last_mcts, None, new_player]
         current_player = 1 if i % 2 == 0 else -1
         start_player = current_player
         print(f"\n🌟 start {i}th contest, first hand is {start_player}")
@@ -141,6 +146,7 @@ class Trainer:
             state.do_action(max_act)
             state.render(f"Step {length_of_turn} - 当前玩家 {p_name} 索引{-state.get_current_player()}执行后的局面")
             new_player.update_tree(-1)
+            last_mcts.update_tree(-1)
             current_player *= -1
 
         _, winner = state.is_end()
@@ -253,10 +259,10 @@ class Trainer:
                 self.swanlab.log({
                     "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_
                 })
-                if new_win / all_ > self.best_win_rate:
-                    print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved large than {self.best_win_rate}")
-                    self.best_win_rate = new_win / all_
+                if new_win > old_win:
+                    print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved")
                     self.abstract_game.network.save(epoch, key="best.pt")
                 else:
-                    print("🐑 REJECT")
-                    # self.abstract_game.network.load(key="before_train.pt")
+                    print(f"🐑 REJECT Win Rate {new_win / all_}")
+                    self.abstract_game.network.load(key="before_train.pt")
+                self.abstract_game.network.train()
