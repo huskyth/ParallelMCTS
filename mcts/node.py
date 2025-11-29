@@ -10,12 +10,15 @@ class Node:
         self.children = {}
         self.parent = None
 
-    def get_value(self):
+    def get_value(self, state, idx):
         father_visit = self.parent.visit
         value = self.q + self.c * self.p * father_visit ** 0.5 / (1 + self.visit)
         if isinstance(value, np.ndarray):
             value = value.item()
 
+        state.render(
+            f"当前 q = {self.q}, c = {self.c}, p = {self.p}, f_visit = {father_visit}, visit = {self.visit},"
+            f" 当前玩家 {state.get_current_player()} value = {value}, 这个move = {idx}")
         return value
 
     def expand(self, probability):
@@ -24,8 +27,8 @@ class Node:
             temp.parent = self
             self.children[idx] = temp
 
-    def select(self, mode):
-        values = [item.get_value() for idx, item in self.children.items() if item.p > 0]
+    def select(self, mode, state):
+        values = [item.get_value(state, idx) for idx, item in self.children.items() if item.p > 0]
         items = [item for _, item in self.children.items() if item.p > 0]
         its = [idx for idx, item in self.children.items() if item.p > 0]
         max_idx = np.argmax(values)

@@ -28,8 +28,8 @@ class MCTS:
             if current_node.is_leaf():
                 break
             max_depth += 1
-            action, current_node = current_node.select(self.mode)
-            state.render(f"{self.name} 第{i}次模拟，当前玩家 {state.get_current_player()}执行动作 {action}")
+            action, current_node = current_node.select(self.mode, state)
+            state.render(f"{self.name} 第{i}次模拟（select在前面调用），当前玩家 {state.get_current_player()}执行动作 {action}")
             state.do_action(action)
 
         if max_depth > self.max_depth:

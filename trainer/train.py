@@ -44,12 +44,12 @@ class Trainer:
         mcts = self.abstract_game.mcts
         state = self.abstract_game.state
         for i in range(self.self_play_num):
-            temp = self._self_play(mcts, state, i)
+            temp = self._self_play(mcts, state, i, self.is_render)
             sample.extend(temp)
         return sample
 
     @staticmethod
-    def _self_play(mcts, state, i):
+    def _self_play(mcts, state, i, is_render):
         print(f"😊 开始第{i + 1}次自我Play")
         train_sample = []
 
@@ -58,13 +58,13 @@ class Trainer:
         while not state.is_end()[0]:
             probability = mcts.get_action_probability(state=state, is_greedy=False)
             action = np.random.choice(len(probability), p=probability)
-            train_sample.append([state.get_torch_state(), probability, state.get_current_player()])
+            train_sample.append([state.get_torch_state(), probability, state.get_current_player(), action])
             s1, p1 = state.top_buttom(state.get_torch_state(), probability)
             s2, p2 = state.left_right(state.get_torch_state(), probability)
             s3, p3 = state.center(state.get_torch_state(), probability)
-            train_sample.append([s1, p1, state.get_current_player()])
-            train_sample.append([s2, p2, state.get_current_player()])
-            train_sample.append([s3, p3, state.get_current_player()])
+            train_sample.append([s1, p1, state.get_current_player(), action])
+            train_sample.append([s2, p2, state.get_current_player(), action])
+            train_sample.append([s3, p3, state.get_current_player(), action])
             state.do_action(action)
             mcts.update_tree(action)
         episode_length = len(train_sample)
@@ -75,10 +75,21 @@ class Trainer:
             rate = gama ** (episode_length - 1 - idx)
             if winner == 0:
                 item.append(torch.tensor(0.0))
-            elif item[-1] == winner:
+            elif item[-2] == winner:
                 item.append(torch.tensor(1.0 * rate))
             else:
                 item.append(torch.tensor(-1.0 * rate))
+
+        if is_render:
+            print("=" * 123 + "训练数据")
+            for item in train_sample:
+                state, p, player, act, value = item
+                print(
+                    f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n"
+                    f"概率为{np.reshape(p, (3, 3))}\n当前玩家{player}\nvalue = {value} 执行 {act}")
+            print("=" * 123 + "训练数据")
+        for idx in range(len(train_sample)):
+            train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
 
         return train_sample
 
