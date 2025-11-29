@@ -10,8 +10,7 @@ if not log_path.exists():
 class Logger:
     def __init__(self):
         self.terminal = sys.stdout
-        time_ms = time.time()
-        self.file = open(log_path / f"log_{time_ms}.txt", "w", encoding="utf-8")
+        self.file = open(log_path / f"app.log", "w", encoding="utf-8")
 
     def write(self, text):
         self.terminal.write(text)
