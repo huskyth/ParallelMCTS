@@ -86,11 +86,10 @@ class Trainer:
                 state, p, player, act, value = item
                 print(
                     f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
-                    f"概率为{np.reshape(p, (3, 3))}\n当前玩家{player}\nvalue = {value} 执行 {act}（仅对第一组有效）")
+                    f"\n概率为{p}\n当前玩家{player}\nvalue = {value} 执行 {act}（仅对第一组有效）")
             print("=" * 123 + "训练数据")
         for idx in range(len(train_sample)):
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
-
         return train_sample
 
     def _contest_concurrent(self):
