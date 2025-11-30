@@ -194,7 +194,7 @@ class Trainer:
         if self.use_pool:
             new_win, old_win, draws = self._contest_concurrent()
         else:
-            new_win, old_win, draws = self._contest(mode='test', test_number)
+            new_win, old_win, draws = self._contest(mode='test', test_number=test_number)
         all_ = new_win + old_win + draws
         self.swanlab.log({
             "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_,
