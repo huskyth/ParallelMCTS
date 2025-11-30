@@ -85,8 +85,8 @@ class Trainer:
             for item in train_sample:
                 state, p, player, act, value = item
                 print(
-                    f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n"
-                    f"概率为{np.reshape(p, (3, 3))}\n当前玩家{player}\nvalue = {value} 执行 {act}")
+                    f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
+                    f"概率为{np.reshape(p, (3, 3))}\n当前玩家{player}\nvalue = {value} 执行 {act}（仅对第一组有效）")
             print("=" * 123 + "训练数据")
         for idx in range(len(train_sample)):
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
@@ -153,8 +153,9 @@ class Trainer:
             if player is None:
                 max_act = state.move_random()
             else:
-                probability_new = player.get_action_probability(state, True)
+                probability_new = player.get_action_probability(state, False)
                 max_act = np.argmax(probability_new).item()
+                max_act = np.random.choice(len(probability_new), p=probability_new)
             p_name = player.name if player else '随机玩家'
             state.render(
                 f"Step {length_of_turn} - 当前玩家 {p_name} {state.get_current_player()}, 执行 {state.index_to_move[max_act]}")
