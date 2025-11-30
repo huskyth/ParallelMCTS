@@ -49,6 +49,9 @@ def get_map():
 
 
 # TODO://对于7x7的矩阵映射关系
+"""
+key表示21长度数组的索引，也就是棋盘的索引，value表示tensor的row,col
+"""
 ARRAY_TO_IMAGE = {
     0: (0, 3), 15: (6, 3), 6: (3, 0), 10: (3, 6),
     1: (0, 2), 3: (0, 4), 2: (1, 3),
@@ -60,7 +63,7 @@ ARRAY_TO_IMAGE = {
 }
 
 
-def from_array_to_input_tensor(point_status, current_player):
+def from_array_to_input_tensor(point_status, current_player, last_action):
     """
         :param point_status:
         :param current_player:
@@ -85,8 +88,11 @@ def from_array_to_input_tensor(point_status, current_player):
             input_tensor[row, column, 1] = 1
         else:
             assert chessman == 0
-
-    input_tensor[:, :, 2] = current_player
+    if last_action != (-1, -1):
+        _, to = last_action
+        row, column = ARRAY_TO_IMAGE[to]
+        input_tensor[row, column, 2] = 1
+        assert point_status[to] == -current_player
 
     return input_tensor.cuda() if is_cuda else input_tensor
 

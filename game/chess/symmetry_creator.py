@@ -1,6 +1,7 @@
 import copy
 
 import numpy as np
+import torch
 
 from game.chess.common import ARRAY_TO_IMAGE, MOVE_LIST, MOVE_TO_INDEX_DICT
 
@@ -62,15 +63,21 @@ print()
 
 
 def lr(board, last_action, pi, current_player):
+    if isinstance(board, torch.Tensor):
+        board = board.cpu().numpy()
+
+    if isinstance(pi, torch.Tensor):
+        pi = pi.cpu().numpy()
+
     new_board = np.ascontiguousarray(np.fliplr(board))
     assert id(board) != id(new_board)
     from_idx, to_idx = last_action
 
     if last_action != (-1, -1):
         row, column = ARRAY_TO_IMAGE[from_idx]
-        assert board[row][column] == 0
+        assert board[:, :, 1][row][column] == 0
         row, column = ARRAY_TO_IMAGE[to_idx]
-        assert board[row][column] == -current_player
+        assert board[:, :, 1][row][column] == -current_player
 
         new_last_action = (LEFT_RIGHT_POINT_MAP[from_idx], LEFT_RIGHT_POINT_MAP[to_idx])
     else:
@@ -83,14 +90,20 @@ def lr(board, last_action, pi, current_player):
     if new_last_action != (-1, -1):
         new_from_idx, new_to_idx = new_last_action
         new_row, new_column = ARRAY_TO_IMAGE[new_from_idx]
-        assert new_board[new_row][new_column] == 0
+        assert new_board[:, :, 1][new_row][new_column] == 0
         new_row, new_column = ARRAY_TO_IMAGE[new_to_idx]
-        assert new_board[new_row][new_column] == -current_player
+        assert new_board[:, :, 1][new_row][new_column] == -current_player
 
     return new_board, new_last_action, new_pi, new_current_player
 
 
 def tb_(board, last_action, pi, current_player):
+    if isinstance(board, torch.Tensor):
+        board = board.cpu().numpy()
+
+    if isinstance(pi, torch.Tensor):
+        pi = pi.cpu().numpy()
+
     new_board = np.ascontiguousarray(np.flipud(board))
     assert id(board) != id(new_board)
 
@@ -98,9 +111,9 @@ def tb_(board, last_action, pi, current_player):
 
     if last_action != (-1, -1):
         row, column = ARRAY_TO_IMAGE[from_idx]
-        assert board[row][column] == 0
+        assert board[:, :, 1][row][column] == 0
         row, column = ARRAY_TO_IMAGE[to_idx]
-        assert board[row][column] == -current_player
+        assert board[:, :, 1][row][column] == 1
 
         new_last_action = (TOP_BOTTOM_POINT_MAP[from_idx], TOP_BOTTOM_POINT_MAP[to_idx])
     else:
@@ -113,8 +126,8 @@ def tb_(board, last_action, pi, current_player):
     if new_last_action != (-1, -1):
         new_from_idx, new_to_idx = new_last_action
         new_row, new_column = ARRAY_TO_IMAGE[new_from_idx]
-        assert new_board[new_row][new_column] == 0
+        assert new_board[:, :, 1][new_row][new_column] == 0
         new_row, new_column = ARRAY_TO_IMAGE[new_to_idx]
-        assert new_board[new_row][new_column] == -new_current_player
+        assert new_board[:, :, 1][new_row][new_column] == 1
 
     return new_board, new_last_action, new_pi, new_current_player

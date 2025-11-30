@@ -1,11 +1,14 @@
 import os
 
 import cv2
+import numpy as np
+import torch
 
 from game.chess.chess_board import ChessBoard
 from game.chess.common import from_array_to_input_tensor, GAME_MAP, MOVE_TO_INDEX_DICT, INDEX_TO_MOVE_DICT
 
 from constants import ROOT_PATH
+from game.chess.symmetry_creator import lr, tb_
 
 debug_path = ROOT_PATH / "debug"
 if not debug_path.exists():
@@ -56,14 +59,14 @@ class Chess(ChessBoard):
                 cv2.circle(img=image, color=(255.0, 0.0, 0.0),
                            center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
                            radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
-        cv2.imwrite(str(debug_path) + os.sep + key + '.png', image)
+        cv2.imencode(str(debug_path) + os.sep + key + '.png', image)
 
     def get_torch_state(self):
         """
             得到棋盘的张量
             :return:
         """
-        return from_array_to_input_tensor(self.pointStatus, self.current_player)
+        return from_array_to_input_tensor(self.pointStatus, self.current_player, self.last_action)
 
     def do_action(self, action):
         self.execute_move(action, self.current_player)
@@ -83,3 +86,42 @@ class Chess(ChessBoard):
         l_move = random.choice(l_move)
         max_act = self.move_to_index[l_move]
         return max_act
+
+    def top_buttom(self, s, p):
+        board = s
+        pi = p
+        current_player = self.get_current_player()
+        last_action = self.last_action
+        new_board, new_last_action, new_pi, new_current_player = tb_(board, last_action, pi, current_player)
+        if isinstance(new_board, np.ndarray):
+            new_board = torch.from_numpy(new_board).float()
+        if isinstance(new_pi, np.ndarray):
+            new_pi = torch.from_numpy(new_pi).float()
+        return new_board, new_pi
+
+    def left_right(self, s, p):
+        board = s
+        pi = p
+        current_player = self.get_current_player()
+        last_action = self.last_action
+        new_board, new_last_action, new_pi, new_current_player = lr(board, last_action, pi, current_player)
+        if isinstance(new_board, np.ndarray):
+            new_board = torch.from_numpy(new_board).float()
+        if isinstance(new_pi, np.ndarray):
+            new_pi = torch.from_numpy(new_pi).float()
+        return new_board, new_pi
+
+    def center(self, s, p):
+        board = s
+        pi = p
+        current_player = self.get_current_player()
+        last_action = self.last_action
+        new_board, new_last_action, new_pi, new_current_player = lr(board, last_action, pi, current_player)
+        new_board, new_last_action, new_pi, new_current_player = tb_(new_board, new_last_action, new_pi,
+                                                                     new_current_player)
+        if isinstance(new_board, np.ndarray):
+            new_board = torch.from_numpy(new_board).float()
+        if isinstance(new_pi, np.ndarray):
+            new_pi = torch.from_numpy(new_pi).float()
+
+        return new_board, new_pi
