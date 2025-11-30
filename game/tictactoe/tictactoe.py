@@ -138,7 +138,7 @@ class TicTacToe(AbstractState):
         if self.last_action is not None:
             last_action[self.last_action] = 1
 
-        state = torch.cat([player_state, other_state], dim=2).float()
+        state = torch.cat([player_state, other_state, last_action], dim=2).float()
 
         return state.cuda() if torch.cuda.is_available() else state
 

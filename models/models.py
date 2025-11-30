@@ -56,7 +56,7 @@ class GameNet(nn.Module):
         super().__init__()
         self.action_size = action_size
         self.input_size = input_size
-        self.channel = 8
+        self.channel = 16
         self.input_channel = input_channel
         self.cnn_layer_num = 1
         self.feature = nn.Sequential(
