@@ -21,3 +21,13 @@ def dirichlet_noise(origin_p, alpha=0.3, epison=0.3):
     if not torch.isclose(torch.tensor(sum(ret_py)).float(), torch.tensor(1.0).float()):
         raise ValueError(f"ret_py must sum to 1, {ret_py} sum to {sum(ret_py)}")
     return ret_py
+
+
+if __name__ == '__main__':
+    bef = np.array([0, 0, 0, 0, 1, 0, 0, 0])
+
+    y = dirichlet_noise(bef, alpha=0.03,epison=0.6)
+
+
+    print(y)
+    print(np.argmax(y))

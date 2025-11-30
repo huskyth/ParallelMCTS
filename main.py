@@ -17,8 +17,8 @@ if __name__ == '__main__':
     parser.add_argument('--number_of_contest', type=int, default=100)
     parser.add_argument('--use_concurrent', type=bool, default=False)
     parser.add_argument('--is_render', type=bool, default=False)
-    parser.add_argument('--mode', type=str, default="train")
-    parser.add_argument('--test_number', type=int, default=100)
+    parser.add_argument('--mode', type=str, default="play")
+    parser.add_argument('--test_number', type=int, default=1000)
     parser.add_argument('--game', type=str, default="tictactoe", choices=['WMChess', 'tictactoe'])
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     args = parser.parse_args()
@@ -38,7 +38,7 @@ if __name__ == '__main__':
         elif args.mode == "test":
             t.test(args.test_number)
         elif args.mode == "play":
-            t.play("AI")
+            t.play("Human")
     except Exception as err:
         print(err)
         print(traceback.format_exc())

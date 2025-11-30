@@ -49,16 +49,16 @@ class AbstractGame:
 if __name__ == '__main__':
     import torch
     import numpy as np
+
     start = 1
     ag = AbstractGame("tictactoe", False)
-    ag.network.load("best.pt")
+    ag.network.load("latest.pt")
     ag.mcts.mode = 'test'
     state = TicTacToe(is_render=True)
     state.reset(start)
     state.render(f"当前局面 {start}作为开始的玩家")
     v, p = ag.network.predict(state.get_torch_state())
     print(f"当前对于玩家 {state.get_current_player()}游戏,{v}, {p}，{np.argmax(p)}")
-
 
     print('=' * 120)
     state.move((0, 1))
@@ -82,7 +82,10 @@ if __name__ == '__main__':
     state.move((1, 2))
     state.render(f"当前局面")
     v, p = ag.network.predict(state.get_torch_state())
-    print(f"当前对于玩家 {state.get_current_player()}游戏,{v}, {p}，{np.argmax(p)}")
+    cs = state.get_torch_state()
+    print(
+        f"当前对于玩家 {state.get_current_player()}游戏,{v}, {p}，{np.argmax(p)} "
+        f"\n\n当前状态为\n{cs[:, :, 0]}\n {cs[:, :, 1]}\n\n {cs[:, :, 2]}")
 
     visit_list = ag.mcts.get_action_probability(state=state, is_greedy=False)
     print(f"当前对于玩家 {state.get_current_player()},mcts的概率为 {visit_list}, {np.argmax(visit_list)}")

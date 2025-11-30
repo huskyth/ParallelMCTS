@@ -19,7 +19,7 @@ class Trainer:
 
         self.abstract_game = abstract_game
 
-        self.train_sample = deque(maxlen=100)
+        self.train_sample = deque(maxlen=2000)
         self.is_render = is_render
         self.use_pool = use_pool
         if use_pool:
