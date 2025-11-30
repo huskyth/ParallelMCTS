@@ -112,7 +112,7 @@ class Trainer:
 
         return new_win, old_win, draws
 
-    def _contest(self, mode='train'):
+    def _contest(self, mode='train', test_number=1000):
         new_player = self.abstract_game.mcts
         state = self.abstract_game.state
 
@@ -125,7 +125,7 @@ class Trainer:
         olds = 0
         draws = 0
         new_player.mode = 'test'
-        for i in range(self.contest_num):
+        for i in range(test_number):
             new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i, last_mcts)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
             wins += new_win
@@ -188,13 +188,13 @@ class Trainer:
         print(f"🍑 draws is {draws}, old win is {old_win}, new win is {new_win}")
         return new_win, old_win, draws, length_of_turn
 
-    def test(self):
+    def test(self, test_number):
         self.abstract_game.network.load("best.pt")
         self.abstract_game.network.eval()
         if self.use_pool:
             new_win, old_win, draws = self._contest_concurrent()
         else:
-            new_win, old_win, draws = self._contest(mode='test')
+            new_win, old_win, draws = self._contest(mode='test', test_number)
         all_ = new_win + old_win + draws
         self.swanlab.log({
             "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_,

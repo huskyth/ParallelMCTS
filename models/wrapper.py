@@ -4,7 +4,7 @@ from torch.optim import Adam
 
 
 class Wrapper:
-    batch = 4
+    batch = 8
 
     def __init__(self, net):
 
@@ -12,7 +12,7 @@ class Wrapper:
         self.net = net
         if self.is_cuda:
             self.net.cuda()
-        self.opt = Adam(self.net.parameters(), lr=1e-2, weight_decay=1e-3)
+        self.opt = Adam(self.net.parameters(), lr=1e-4, weight_decay=1e-3)
 
     def save(self, epoch, key="latest.pt"):
         checkpoint = {
@@ -66,12 +66,13 @@ class Wrapper:
         value = torch.stack(value)[:, None].float()
         value = value.cuda() if self.is_cuda else value
 
-        if state.shape != (n, self.net.input_size, self.net.input_size, self.net.input_channel) or probability.shape != (
+        if state.shape != (
+        n, self.net.input_size, self.net.input_size, self.net.input_channel) or probability.shape != (
                 n, self.net.action_size) or value.shape != (n, 1):
             raise ValueError(
                 f"state, probability, value shape error, shape is {state.shape}, {probability.shape}, {value.shape}")
 
-        epoch = 10
+        epoch = 5
         print("🏠 Training epoch: ", epoch)
         batch_number = n // self.batch
         return_dict = []
