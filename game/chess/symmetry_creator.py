@@ -77,7 +77,7 @@ def lr(board, last_action, pi, current_player):
         row, column = ARRAY_TO_IMAGE[from_idx]
         assert board[:, :, 1][row][column] == 0
         row, column = ARRAY_TO_IMAGE[to_idx]
-        assert board[:, :, 1][row][column] == -current_player
+        assert board[:, :, 1][row][column] == 1
 
         new_last_action = (LEFT_RIGHT_POINT_MAP[from_idx], LEFT_RIGHT_POINT_MAP[to_idx])
     else:
@@ -92,7 +92,7 @@ def lr(board, last_action, pi, current_player):
         new_row, new_column = ARRAY_TO_IMAGE[new_from_idx]
         assert new_board[:, :, 1][new_row][new_column] == 0
         new_row, new_column = ARRAY_TO_IMAGE[new_to_idx]
-        assert new_board[:, :, 1][new_row][new_column] == -current_player
+        assert new_board[:, :, 1][new_row][new_column] == 1
 
     return new_board, new_last_action, new_pi, new_current_player
 
