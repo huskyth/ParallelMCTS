@@ -25,6 +25,7 @@ class Chess(ChessBoard):
         self.move_to_index = MOVE_TO_INDEX_DICT
         self.index_to_move = INDEX_TO_MOVE_DICT
         self.is_render = is_render
+        self.last_action = (-1, -1)
 
     def is_end(self):
         winner = self.check_winner()
@@ -74,6 +75,7 @@ class Chess(ChessBoard):
     def reset(self, start_player=1):
         self.init_point_status()
         self.current_player = start_player
+        self.last_action = (-1, -1)
 
     def move_random(self):
         import random

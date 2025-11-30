@@ -71,6 +71,7 @@ class ChessBoard:
             move = INDEX_TO_MOVE_DICT[int(move)]
 
         from_int, to_int = move
+        self.last_action = (from_int, to_int)
         assert color == WHITE or color == BLACK
         assert self.pointStatus[from_int] == color
         assert self.pointStatus[to_int] == 0

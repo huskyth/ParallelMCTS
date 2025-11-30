@@ -14,12 +14,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--number_of_self_play', type=int, default=1)
-    parser.add_argument('--number_of_contest', type=int, default=100)
+    parser.add_argument('--number_of_contest', type=int, default=10)
     parser.add_argument('--use_concurrent', type=bool, default=False)
     parser.add_argument('--is_render', type=bool, default=False)
-    parser.add_argument('--mode', type=str, default="train", choices=['train', 'test', 'play'])
+    parser.add_argument('--mode', type=str, default="play", choices=['train', 'test', 'play'])
     parser.add_argument('--test_number', type=int, default=1000)
-    parser.add_argument('--game', type=str, default="tictactoe", choices=['WMChess', 'tictactoe'])
+    parser.add_argument('--game', type=str, default="WMChess", choices=['WMChess', 'tictactoe'])
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     args = parser.parse_args()
     if args.use_concurrent:
@@ -38,7 +38,7 @@ if __name__ == '__main__':
         elif args.mode == "test":
             t.test(args.test_number)
         elif args.mode == "play":
-            t.play("Human")
+            t.play("AI")
     except Exception as err:
         print(err)
         print(traceback.format_exc())

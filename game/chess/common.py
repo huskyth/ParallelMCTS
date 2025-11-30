@@ -64,7 +64,7 @@ def from_array_to_input_tensor(point_status, current_player):
     """
         :param point_status:
         :param current_player:
-        :return: 返回(7, 7, 2)的张量，第三个维度的第一个维度为棋子，第三个维度的第二个为棋手
+        :return: 返回(7, 7, 3)的张量，第三个维度的第一个维度为棋子，第三个维度的第二个为棋手
     """
     is_cuda = True if torch.cuda.is_available() else False
     if current_player not in [-1, 1]:
