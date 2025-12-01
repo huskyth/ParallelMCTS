@@ -59,7 +59,8 @@ class Chess(ChessBoard):
                 cv2.circle(img=image, color=(255.0, 0.0, 0.0),
                            center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
                            radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
-        cv2.imencode(str(debug_path) + os.sep + key + '.png', image)
+
+        cv2.imencode(".png", image)[1].tofile(debug_path / f"{key}.png")
 
     def get_torch_state(self):
         """
