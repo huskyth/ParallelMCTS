@@ -81,12 +81,15 @@ class Trainer:
                 item.append(torch.tensor(-1.0 * rate))
 
         if is_render:
-            print("=" * 123 + "训练数据")
-            for item in train_sample:
+            title = ["原始", "上下", "左右", "中心对称"]
+            print("=" * 123 + f"训练数据， 当前训练数据有 {len(train_sample)} 比")
+            for idx, item in enumerate(train_sample):
                 state, p, player, act, value = item
                 print(
-                    f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
-                    f"\n概率为{p}\n当前玩家{player}\nvalue = {value} 执行 {act}（仅对第一组有效）")
+                    f"*" * 100 + " " + str(idx % 4) + f" {title[idx % 4]}"
+                                                      f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
+                                                      f"\n概率为{p}\n当前玩家{player}\nvalue = {value} 执行 {act}（仅对第一组有效）,应该执行的工作为 {np.argmax(p)}"
+                                                      f"#" * 100)
             print("=" * 123 + "训练数据")
         for idx in range(len(train_sample)):
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
