@@ -58,7 +58,7 @@ class Trainer:
         while not state.is_end()[0]:
             probability = mcts.get_action_probability(state=state, is_greedy=False)
             action = np.argmax(probability).item()
-            train_sample.append([state.get_torch_state(), probability, state.get_current_player(), action])
+            train_sample.append([state.get_torch_state().cpu(), probability, state.get_current_player(), action])
             s1, p1 = state.top_buttom(state.get_torch_state(), probability)
             s2, p2 = state.left_right(state.get_torch_state(), probability)
             s3, p3 = state.center(state.get_torch_state(), probability)
