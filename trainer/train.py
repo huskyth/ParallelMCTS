@@ -144,7 +144,8 @@ class Trainer:
         draws = 0
         new_player.mode = 'test'
         for i in range(test_number):
-            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i, last_mcts)
+            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i, last_mcts,
+                                                                            self.is_image_show)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
             wins += new_win
             olds += old_win
@@ -153,7 +154,7 @@ class Trainer:
         return wins, olds, draws
 
     @staticmethod
-    def _contest_one_time(state, new_player, i, last_mcts):
+    def _contest_one_time(state, new_player, i, last_mcts, is_image_show):
 
         new_win, old_win, draws = 0, 0, 0
         new_player.update_tree(-1)
@@ -165,6 +166,7 @@ class Trainer:
         print(f"\n🌟 start {i}th contest, first hand is {start_player}")
         length_of_turn = 0
         state.render("初始化局面")
+        state.image_show("对抗", is_image_show)
         while not state.is_end()[0]:
             length_of_turn += 1
             player = player_list[current_player + 1]
@@ -182,6 +184,7 @@ class Trainer:
             new_player.update_tree(-1)
             last_mcts.update_tree(-1)
             current_player *= -1
+            state.image_show("对抗", is_image_show)
 
         _, winner = state.is_end()
         if winner == 1:
