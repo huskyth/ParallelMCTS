@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-import sys
 import threading
 
 import pygame
@@ -22,15 +20,13 @@ CHESSMAN_HEIGHT = 20
 
 
 class WMChessGUI:
-    def __init__(self, n, human_color=1, fps=3, is_show=False, mcts_player=None, play_state=None):
+    def __init__(self, mcts_player, play_state, human_color=-1, fps=6):
 
-        self.is_show = is_show
         # screen
         self.board = None
         self.width = 580
         self.height = 580
 
-        self.n = n
         self.fps = fps
 
         # human color
@@ -39,7 +35,6 @@ class WMChessGUI:
         # reset items
         self.board = None
         self.number = None
-        self.k = None
         self.is_human = None
         self.human_move = None
         self.chessman_in_hand = None
@@ -70,9 +65,7 @@ class WMChessGUI:
 
     # reset status
     def reset_status(self):
-        if not self.is_show: return
         self.init_point_status()
-        self.k = 1  # step number
 
         self.is_human = False
         self.human_move = -1
@@ -96,7 +89,6 @@ class WMChessGUI:
 
     # execute move
     def execute_move(self, color, move, info=None):
-        if not self.is_show: return
         from_int, to_int = move
         print(f"🌿 exec {from_int} to {to_int}")
         assert color == WHITE or color == BLACK
@@ -108,18 +100,13 @@ class WMChessGUI:
         bake_point_status = copy.deepcopy(self.board)
         self.board = shiftOutChessman(
             bake_point_status, DISTANCE)
-        self.k += 1
 
     def start(self):
-        if not self.is_show: return
-
         t = threading.Thread(target=self.loop)
         t.start()
 
     # main loop
     def loop(self):
-        if not self.is_show: return
-
         # set running
         self.is_running = True
 
@@ -170,19 +157,25 @@ class WMChessGUI:
                                     DISTANCE[self.chosen_chessman][chessman] == 1:
 
                                 self.human_move = (self.chosen_chessman, chessman)
-                                self.execute_move(self.human_color, self.human_move)
+                                self.execute_move(self.human_color, self.human_move, "人类玩家")
                                 self.human_move = MOVE_TO_INDEX_DICT[self.human_move]
                                 self.set_is_human(False)
-                                if self.play_state:
-                                    self.play_state.do_action(self.human_move)
+                                self.play_state.do_action(self.human_move)
                             else:
                                 self.board[
                                     self.chosen_chessman] = self.chosen_chessman_color
                             self.chessman_in_hand = False
+                            # draw
+
                 else:
-                    if self.mcts_player:
-                        self.mcts_player()
-                        self.is_human = True
+
+                    self.mcts_player.update_tree(-1)
+                    pi = self.mcts_player.get_action_probability(self.play_state, False)
+                    move_idx = np.argmax(pi)
+                    move = self.play_state.index_to_move[move_idx]
+                    self.execute_move(-self.human_color, move, info="AI")
+                    self.play_state.do_action(move)
+                    self.is_human = True
 
                 # draw
                 self._draw_background()

@@ -17,6 +17,7 @@ class AbstractGame:
             self._state = TicTacToe(is_render=is_render)
         else:
             raise ValueError("Invalid game name")
+        self.game = name
         self._start_epoch = self._network.try_load()
         self._random_mcts = MCTS(self._random_network.predict, mode='test', name="随机玩家")
         self._mcts = MCTS(self._network.predict, mode='train', name="AI")

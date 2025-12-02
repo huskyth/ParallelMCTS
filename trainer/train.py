@@ -165,10 +165,14 @@ class Trainer:
         start_player = current_player
         print(f"\n🌟 start {i}th contest, first hand is {start_player}")
         length_of_turn = 0
+        max_turn = 1000
         state.render("初始化局面")
         state.image_show("对抗", is_image_show)
         while not state.is_end()[0]:
             length_of_turn += 1
+            if length_of_turn >= max_turn:
+                print(f"🍑 draws is 1, old win is 0, new win is 0, 超出最大步数，判和棋")
+                return 0, 0, 1, length_of_turn
             player = player_list[current_player + 1]
             if player is None:
                 max_act = state.move_random()
@@ -225,6 +229,9 @@ class Trainer:
         print(f"🍤 Win Rate {new_win / all_}")
 
     def play(self, current_player="AI"):
+        if self.abstract_game.game == 'WMChess':
+            self._wm_play()
+            return
         if current_player not in ["AI", "Human"]:
             raise ValueError("current_player must be 'AI' or 'Human'")
         self.abstract_game.network.load("best.pt")
@@ -263,6 +270,15 @@ class Trainer:
             print(f"{start_player} 赢了")
         elif winner == -1:
             print(f"{ano_player} 赢了")
+
+    def _wm_play(self):
+        from game.chess.wm_chess_gui import WMChessGUI
+        state = self.abstract_game.state
+        self.abstract_game.random_network.load("best.pt")
+        mcts = self.abstract_game.random_mcts
+        state.reset()
+        wm = WMChessGUI(mcts, state)
+        wm.start()
 
     def learn(self):
         start_epoch = self.abstract_game.start_epoch
