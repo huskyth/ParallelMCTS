@@ -44,9 +44,7 @@ class Chess(ChessBoard):
             SCREEN_HEIGHT - CHESSMAN_HEIGHT * 1
         return x, y
 
-    def render(self, key):
-        if not self.is_render:
-            return
+    def _write_point(self):
         image = cv2.imread(str(ROOT_PATH / "game/chess/assets/watermelon.png"))
         for index, point in enumerate(self.pointStatus):
             if point == 0:
@@ -60,7 +58,12 @@ class Chess(ChessBoard):
                 cv2.circle(img=image, color=(255.0, 0.0, 0.0),
                            center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
                            radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
+        return image
 
+    def render(self, key):
+        if not self.is_render:
+            return
+        image = self._write_point()
         cv2.imencode(".png", image)[1].tofile(debug_path / f"{key}.png")
 
     def center_probability(self, pi):
@@ -116,6 +119,13 @@ class Chess(ChessBoard):
         if isinstance(new_pi, np.ndarray):
             new_pi = torch.from_numpy(new_pi).float()
         return new_board, new_pi
+
+    def image_show(self, key, is_image_show):
+        if not is_image_show:
+            return
+        img = self._write_point()
+        cv2.imshow(key, img)
+        cv2.waitKey(1)
 
     def left_right(self, s, p):
         board = s

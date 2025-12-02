@@ -17,7 +17,8 @@ if __name__ == '__main__':
     parser.add_argument('--number_of_contest', type=int, default=10)
     parser.add_argument('--use_concurrent', type=bool, default=False)
     parser.add_argument('--is_render', type=bool, default=False)
-    parser.add_argument('--is_data_augment', type=bool, default=False)
+    parser.add_argument('--is_data_augment', type=bool, default=True)
+    parser.add_argument('--is_image_show', type=bool, default=True)
     parser.add_argument('--mode', type=str, default="train", choices=['train', 'test', 'play'])
     parser.add_argument('--test_number', type=int, default=1)
     parser.add_argument('--game', type=str, default="WMChess", choices=['WMChess', 'tictactoe'])
@@ -32,7 +33,8 @@ if __name__ == '__main__':
 
     t = Trainer(train_config=tn_cfg, number_of_contest=args.number_of_contest,
                 number_of_self_play=args.number_of_self_play, abstract_game=abs_game,
-                use_pool=args.use_concurrent, is_render=args.is_render, is_data_augment=args.is_data_augment)
+                use_pool=args.use_concurrent, is_render=args.is_render, is_data_augment=args.is_data_augment,
+                is_image_show=args.is_image_show)
     try:
         if args.mode == 'train':
             t.learn()

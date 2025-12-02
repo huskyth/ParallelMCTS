@@ -9,7 +9,7 @@ from utils.concurrent_tool import ConcurrentProcess
 
 class Trainer:
     def __init__(self, train_config=None, use_swanlab=True, mode='train', number_of_self_play=5, number_of_contest=5,
-                 abstract_game=None, use_pool=False, is_render=False, is_data_augment=False):
+                 abstract_game=None, use_pool=False, is_render=False, is_data_augment=False, is_image_show=False):
         if use_swanlab:
             swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
             self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
@@ -19,6 +19,7 @@ class Trainer:
 
         self.abstract_game = abstract_game
         self.is_data_augment = is_data_augment
+        self.is_image_show = is_image_show
 
         self.train_sample = deque(maxlen=5000)
         self.is_render = is_render
@@ -46,20 +47,24 @@ class Trainer:
         mcts = self.abstract_game.mcts
         state = self.abstract_game.state
         for i in range(self.self_play_num):
-            temp = self._self_play(mcts, state, i, self.is_render, self.current_play_turn, self.is_data_augment)
+            temp = self._self_play(mcts, state, i, self.is_render, self.current_play_turn, self.is_data_augment,
+                                   self.is_image_show)
             self.current_play_turn += 1
             sample.extend(temp)
         return sample
 
     @staticmethod
-    def _self_play(mcts, state, i, is_render, current_play_turn, is_data_augment):
-        print(f"😊 开始第{i + 1}次自我Play，总共进行 {current_play_turn + 1}轮self_play")
+    def _self_play(mcts, state, i, is_render, current_play_turn, is_data_augment, is_image_show):
+        print(f"😊 开始第{current_play_turn + 1}轮self_play")
         train_sample = []
         turn = 0
         mcts.update_tree(-1)
         state.reset()
+        state.image_show(f"测试局面", is_image_show)
         while not state.is_end()[0]:
             turn += 1
+            if turn % 100 == 0:
+                print(f"😊 第{current_play_turn + 1}次self_play 共进行 {turn} 轮")
             probability = mcts.get_action_probability(state=state, is_greedy=False)
             action = np.argmax(probability).item()
             train_sample.append(
@@ -73,6 +78,8 @@ class Trainer:
                 train_sample.append([s3, p3, state.get_current_player(), action])
             state.do_action(action)
             mcts.update_tree(action)
+            state.image_show(f"测试局面", is_image_show)
+
         episode_length = len(train_sample)
         gama = 1
         print(f'☃️ 一共 {turn}轮')
@@ -96,9 +103,9 @@ class Trainer:
 
                 print(
                     f"*" * 100 + " " + str(idx % rate_) + f" {title[idx % rate_]}"
-                                                      f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
-                                                      f"\n概率为{p}\n当前玩家{player}\nvalue = {value} 执行 {act}（仅对第一组有效）,应该执行的工作为 {np.argmax(p)}"
-                                                      f"#" * 100)
+                                                          f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
+                                                          f"\n概率为{p}\n当前玩家{player}\nvalue = {value} 执行 {act}（仅对第一组有效）,应该执行的工作为 {np.argmax(p)}"
+                                                          f"#" * 100)
             print("=" * 123 + "训练数据")
         for idx in range(len(train_sample)):
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
