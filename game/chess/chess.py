@@ -110,9 +110,7 @@ class Chess(ChessBoard):
     def top_buttom(self, s, p):
         board = s
         pi = p
-        current_player = self.get_current_player()
-        last_action = self.last_action
-        new_board, new_last_action, new_pi, new_current_player = tb_(board, last_action, pi, current_player)
+        new_board, new_pi = tb_(board, pi)
         if isinstance(new_board, np.ndarray):
             new_board = torch.from_numpy(new_board).float()
         if isinstance(new_pi, np.ndarray):
@@ -122,9 +120,7 @@ class Chess(ChessBoard):
     def left_right(self, s, p):
         board = s
         pi = p
-        current_player = self.get_current_player()
-        last_action = self.last_action
-        new_board, new_last_action, new_pi, new_current_player = lr(board, last_action, pi, current_player)
+        new_board, new_pi = lr(board, pi)
         if isinstance(new_board, np.ndarray):
             new_board = torch.from_numpy(new_board).float()
         if isinstance(new_pi, np.ndarray):
@@ -134,11 +130,8 @@ class Chess(ChessBoard):
     def center(self, s, p):
         board = s
         pi = p
-        current_player = self.get_current_player()
-        last_action = self.last_action
-        new_board, new_last_action, new_pi, new_current_player = lr(board, last_action, pi, current_player)
-        new_board, new_last_action, new_pi, new_current_player = tb_(new_board, new_last_action, new_pi,
-                                                                     new_current_player)
+        new_board, new_pi = lr(board, pi)
+        new_board, new_pi = tb_(new_board, new_pi)
         if isinstance(new_board, np.ndarray):
             new_board = torch.from_numpy(new_board).float()
         if isinstance(new_pi, np.ndarray):

@@ -3,7 +3,7 @@ import copy
 import numpy as np
 import torch
 
-from game.chess.common import ARRAY_TO_IMAGE, MOVE_LIST, MOVE_TO_INDEX_DICT
+from game.chess.common import MOVE_LIST, MOVE_TO_INDEX_DICT
 
 LEFT_RIGHT_POINT_MAP = {
     0: 0, 1: 3, 3: 1, 2: 2, 4: 8, 8: 4, 6: 10, 10: 6, 5: 9, 9: 5, 16: 16, 17: 18, 18: 17,
@@ -62,42 +62,22 @@ for index, action in enumerate(MOVE_LIST):
 print()
 
 
-def lr(board, last_action, pi, current_player):
+def lr(board, pi):
     if isinstance(board, torch.Tensor):
         board = board.cpu().numpy()
 
     if isinstance(pi, torch.Tensor):
         pi = pi.cpu().numpy()
-
     new_board = np.ascontiguousarray(np.fliplr(board))
-    assert id(board) != id(new_board)
-    from_idx, to_idx = last_action
 
-    if last_action != (-1, -1):
-        row, column = ARRAY_TO_IMAGE[from_idx]
-        assert board[:, :, 1][row][column] == 0
-        row, column = ARRAY_TO_IMAGE[to_idx]
-        assert board[:, :, 1][row][column] == 1
-
-        new_last_action = (LEFT_RIGHT_POINT_MAP[from_idx], LEFT_RIGHT_POINT_MAP[to_idx])
-    else:
-        new_last_action = last_action
     l, r = np.array(LEFT_ACTION_INDEX), np.array(RIGHT_ACTION_INDEX)
     new_pi = copy.deepcopy(pi)
     new_pi[l], new_pi[r] = new_pi[r], new_pi[l]
-    new_current_player = current_player
 
-    if new_last_action != (-1, -1):
-        new_from_idx, new_to_idx = new_last_action
-        new_row, new_column = ARRAY_TO_IMAGE[new_from_idx]
-        assert new_board[:, :, 1][new_row][new_column] == 0
-        new_row, new_column = ARRAY_TO_IMAGE[new_to_idx]
-        assert new_board[:, :, 1][new_row][new_column] == 1
-
-    return new_board, new_last_action, new_pi, new_current_player
+    return new_board, new_pi
 
 
-def tb_(board, last_action, pi, current_player):
+def tb_(board, pi):
     if isinstance(board, torch.Tensor):
         board = board.cpu().numpy()
 
@@ -105,29 +85,32 @@ def tb_(board, last_action, pi, current_player):
         pi = pi.cpu().numpy()
 
     new_board = np.ascontiguousarray(np.flipud(board))
-    assert id(board) != id(new_board)
 
-    from_idx, to_idx = last_action
-
-    if last_action != (-1, -1):
-        row, column = ARRAY_TO_IMAGE[from_idx]
-        assert board[:, :, 1][row][column] == 0
-        row, column = ARRAY_TO_IMAGE[to_idx]
-        assert board[:, :, 1][row][column] == 1
-
-        new_last_action = (TOP_BOTTOM_POINT_MAP[from_idx], TOP_BOTTOM_POINT_MAP[to_idx])
-    else:
-        new_last_action = last_action
     t, b = np.array(TOP_ACTION_INDEX), np.array(BOTTOM_ACTION_INDEX)
     new_pi = copy.deepcopy(pi)
     new_pi[t], new_pi[b] = new_pi[b], new_pi[t]
-    new_current_player = current_player
 
-    if new_last_action != (-1, -1):
-        new_from_idx, new_to_idx = new_last_action
-        new_row, new_column = ARRAY_TO_IMAGE[new_from_idx]
-        assert new_board[:, :, 1][new_row][new_column] == 0
-        new_row, new_column = ARRAY_TO_IMAGE[new_to_idx]
-        assert new_board[:, :, 1][new_row][new_column] == 1
+    return new_board, new_pi
 
-    return new_board, new_last_action, new_pi, new_current_player
+
+def l_r_probability(po):
+    l, r = np.array(LEFT_ACTION_INDEX), np.array(RIGHT_ACTION_INDEX)
+    new_pi = copy.deepcopy(po)
+    new_pi[l], new_pi[r] = new_pi[r], new_pi[l]
+    return new_pi
+
+
+def t_b_probability(po):
+    t, b = np.array(TOP_ACTION_INDEX), np.array(BOTTOM_ACTION_INDEX)
+    new_pi = copy.deepcopy(po)
+    new_pi[t], new_pi[b] = new_pi[b], new_pi[t]
+    return new_pi
+
+
+if __name__ == '__main__':
+    po = np.arange(72)
+    new_pi = l_r_probability(t_b_probability(po))
+    print(po)
+    print(new_pi)
+    print(t_b_probability(l_r_probability(po))
+          )
