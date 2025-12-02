@@ -19,9 +19,10 @@ class Trainer:
 
         self.abstract_game = abstract_game
 
-        self.train_sample = deque(maxlen=2000)
+        self.train_sample = deque(maxlen=5000)
         self.is_render = is_render
         self.use_pool = use_pool
+        self.current_play_turn = 0
         if use_pool:
             self.self_play_parallel_num = number_of_self_play
             self.self_play_processor = ConcurrentProcess(self.self_play_parallel_num)
@@ -44,18 +45,20 @@ class Trainer:
         mcts = self.abstract_game.mcts
         state = self.abstract_game.state
         for i in range(self.self_play_num):
-            temp = self._self_play(mcts, state, i, self.is_render)
+            temp = self._self_play(mcts, state, i, self.is_render, self.current_play_turn)
+            self.current_play_turn += 1
             sample.extend(temp)
         return sample
 
     @staticmethod
-    def _self_play(mcts, state, i, is_render):
-        print(f"😊 开始第{i + 1}次自我Play")
+    def _self_play(mcts, state, i, is_render, current_play_turn):
+        print(f"😊 开始第{i + 1}次自我Play，总共进行 {current_play_turn + 1}轮self_play")
         train_sample = []
-
+        turn = 0
         mcts.update_tree(-1)
         state.reset()
         while not state.is_end()[0]:
+            turn += 1
             probability = mcts.get_action_probability(state=state, is_greedy=False)
             action = np.argmax(probability).item()
             train_sample.append(
@@ -70,6 +73,7 @@ class Trainer:
             mcts.update_tree(action)
         episode_length = len(train_sample)
         gama = 1
+        print(f'☃️ 一共 {turn}轮')
         _, winner = state.is_end()
         assert winner is not None
         for idx, item in enumerate(train_sample):

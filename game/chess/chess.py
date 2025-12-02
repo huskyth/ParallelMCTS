@@ -1,4 +1,4 @@
-import os
+import copy
 
 import cv2
 import numpy as np
@@ -8,7 +8,8 @@ from game.chess.chess_board import ChessBoard
 from game.chess.common import from_array_to_input_tensor, GAME_MAP, MOVE_TO_INDEX_DICT, INDEX_TO_MOVE_DICT
 
 from constants import ROOT_PATH
-from game.chess.symmetry_creator import lr, tb_
+from game.chess.symmetry_creator import lr, tb_, LEFT_ACTION_INDEX, RIGHT_ACTION_INDEX, TOP_ACTION_INDEX, \
+    BOTTOM_ACTION_INDEX
 
 debug_path = ROOT_PATH / "debug"
 if not debug_path.exists():
@@ -62,12 +63,30 @@ class Chess(ChessBoard):
 
         cv2.imencode(".png", image)[1].tofile(debug_path / f"{key}.png")
 
+    def center_probability(self, pi):
+        l, r = np.array(LEFT_ACTION_INDEX), np.array(RIGHT_ACTION_INDEX)
+        new_pi = copy.deepcopy(pi)
+        new_pi[l], new_pi[r] = new_pi[r], new_pi[l]
+        t, b = np.array(TOP_ACTION_INDEX), np.array(BOTTOM_ACTION_INDEX)
+        new_pi = copy.deepcopy(new_pi)
+        new_pi[t], new_pi[b] = new_pi[b], new_pi[t]
+        return new_pi
+
     def get_torch_state(self):
         """
             得到棋盘的张量
             :return:
         """
-        return from_array_to_input_tensor(self.pointStatus, self.current_player, self.last_action)
+        state = from_array_to_input_tensor(self.pointStatus, self.current_player, self.last_action)
+        if self.current_player == 1:
+            if isinstance(state, torch.Tensor):
+                state = state.cpu().numpy()
+            new_board = np.ascontiguousarray(np.flipud(state))
+            state = np.ascontiguousarray(np.fliplr(new_board))
+            is_cuda = True if torch.cuda.is_available() else False
+            torch_state = torch.from_numpy(state).float()
+            state = torch_state.cuda() if is_cuda else torch_state
+        return state
 
     def do_action(self, action):
         self.execute_move(action, self.current_player)

@@ -60,7 +60,7 @@ class Wrapper:
         state = torch.stack(state).float()
         state = state.cuda() if self.is_cuda else state
 
-        probability = torch.tensor(probability).float()
+        probability = torch.stack(probability).float()
         probability = probability.cuda() if self.is_cuda else probability
 
         value = torch.stack(value)[:, None].float()
