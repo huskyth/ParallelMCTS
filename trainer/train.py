@@ -9,7 +9,7 @@ from utils.concurrent_tool import ConcurrentProcess
 
 class Trainer:
     def __init__(self, train_config=None, use_swanlab=True, mode='train', number_of_self_play=5, number_of_contest=5,
-                 abstract_game=None, use_pool=False, is_render=False):
+                 abstract_game=None, use_pool=False, is_render=False, is_data_augment=False):
         if use_swanlab:
             swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
             self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
@@ -18,6 +18,7 @@ class Trainer:
         self.train_config = train_config
 
         self.abstract_game = abstract_game
+        self.is_data_augment = is_data_augment
 
         self.train_sample = deque(maxlen=5000)
         self.is_render = is_render
@@ -45,13 +46,13 @@ class Trainer:
         mcts = self.abstract_game.mcts
         state = self.abstract_game.state
         for i in range(self.self_play_num):
-            temp = self._self_play(mcts, state, i, self.is_render, self.current_play_turn)
+            temp = self._self_play(mcts, state, i, self.is_render, self.current_play_turn, self.is_data_augment)
             self.current_play_turn += 1
             sample.extend(temp)
         return sample
 
     @staticmethod
-    def _self_play(mcts, state, i, is_render, current_play_turn):
+    def _self_play(mcts, state, i, is_render, current_play_turn, is_data_augment):
         print(f"😊 开始第{i + 1}次自我Play，总共进行 {current_play_turn + 1}轮self_play")
         train_sample = []
         turn = 0
@@ -63,12 +64,13 @@ class Trainer:
             action = np.argmax(probability).item()
             train_sample.append(
                 [state.get_torch_state().cpu(), torch.tensor(probability), state.get_current_player(), action])
-            s1, p1 = state.top_buttom(state.get_torch_state(), probability)
-            s2, p2 = state.left_right(state.get_torch_state(), probability)
-            s3, p3 = state.center(state.get_torch_state(), probability)
-            train_sample.append([s1, p1, state.get_current_player(), action])
-            train_sample.append([s2, p2, state.get_current_player(), action])
-            train_sample.append([s3, p3, state.get_current_player(), action])
+            if is_data_augment:
+                s1, p1 = state.top_buttom(state.get_torch_state(), probability)
+                s2, p2 = state.left_right(state.get_torch_state(), probability)
+                s3, p3 = state.center(state.get_torch_state(), probability)
+                train_sample.append([s1, p1, state.get_current_player(), action])
+                train_sample.append([s2, p2, state.get_current_player(), action])
+                train_sample.append([s3, p3, state.get_current_player(), action])
             state.do_action(action)
             mcts.update_tree(action)
         episode_length = len(train_sample)
@@ -88,10 +90,12 @@ class Trainer:
         if is_render:
             title = ["原始", "上下", "左右", "中心对称"]
             print("=" * 123 + f"训练数据， 当前训练数据有 {len(train_sample)} 比")
+            rate_ = 4 if is_data_augment else 1
             for idx, item in enumerate(train_sample):
                 state, p, player, act, value = item
+
                 print(
-                    f"*" * 100 + " " + str(idx % 4) + f" {title[idx % 4]}"
+                    f"*" * 100 + " " + str(idx % rate_) + f" {title[idx % rate_]}"
                                                       f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
                                                       f"\n概率为{p}\n当前玩家{player}\nvalue = {value} 执行 {act}（仅对第一组有效）,应该执行的工作为 {np.argmax(p)}"
                                                       f"#" * 100)

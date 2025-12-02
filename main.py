@@ -16,8 +16,9 @@ if __name__ == '__main__':
     parser.add_argument('--number_of_self_play', type=int, default=1)
     parser.add_argument('--number_of_contest', type=int, default=10)
     parser.add_argument('--use_concurrent', type=bool, default=False)
-    parser.add_argument('--is_render', type=bool, default=True)
-    parser.add_argument('--mode', type=str, default="test", choices=['train', 'test', 'play'])
+    parser.add_argument('--is_render', type=bool, default=False)
+    parser.add_argument('--is_data_augment', type=bool, default=False)
+    parser.add_argument('--mode', type=str, default="train", choices=['train', 'test', 'play'])
     parser.add_argument('--test_number', type=int, default=1)
     parser.add_argument('--game', type=str, default="WMChess", choices=['WMChess', 'tictactoe'])
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -31,7 +32,7 @@ if __name__ == '__main__':
 
     t = Trainer(train_config=tn_cfg, number_of_contest=args.number_of_contest,
                 number_of_self_play=args.number_of_self_play, abstract_game=abs_game,
-                use_pool=args.use_concurrent, is_render=args.is_render)
+                use_pool=args.use_concurrent, is_render=args.is_render, is_data_augment=args.is_data_augment)
     try:
         if args.mode == 'train':
             t.learn()
