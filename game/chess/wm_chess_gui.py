@@ -3,6 +3,8 @@ import threading
 import pygame
 import os
 
+import torch
+
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import numpy as np
 
@@ -172,6 +174,18 @@ class WMChessGUI:
                     self.mcts_player.update_tree(-1)
                     pi = self.mcts_player.get_action_probability(self.play_state, False)
                     move_idx = np.argmax(pi)
+                    state = self.play_state.get_torch_state()
+                    v, p = self.mcts_player.predict(state)
+                    if self.play_state.get_current_player() == 1:
+                        """上边永远是1，下边永远是-1"""
+                        p = self.play_state.center_probability(p)
+                    print(f"当前玩家 {self.play_state.get_current_player()} 的 MCTS 模拟概率为:\n\n {pi} \n\n "
+                          f"直接预测的价值为 {v} \n\n"
+                          f"直接预测的概率为 \n\n {p} \n\n"
+                          f"直接预测会选择的行为 {np.argmax(p)} ，蒙特卡洛预测行为 {move_idx}\n\n"
+                          f"当前第一维度：\n\n {state[:, :, 0]}\n\n\n"
+                          f"当前第二维度：\n\n {state[:, :, 1]}\n\n\n"
+                          f"当前第三维度：\n\n {state[:, :, 2]}\n\n\n")
                     move = self.play_state.index_to_move[move_idx]
                     self.execute_move(-self.human_color, move, info="AI")
                     self.play_state.do_action(move)

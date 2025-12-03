@@ -96,19 +96,20 @@ class Trainer:
 
         if is_render:
             title = ["原始", "上下", "左右", "中心对称"]
-            print("=" * 123 + f"训练数据， 当前训练数据有 {len(train_sample)} 比")
+            print("=" * 150 + f"训练数据， 当前训练数据有 {len(train_sample)} 比")
             rate_ = 4 if is_data_augment else 1
             for idx, item in enumerate(train_sample):
                 state, p, player, act, value = item
 
                 print(
-                    f"*" * 100 + " " + str(idx % rate_) + f" {title[idx % rate_]}"
-                                                          f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
-                                                          f"\n概率为{p}\n当前玩家{player}\nvalue = {value} 执行 {act}（仅对第一组有效）,应该执行的工作为 {np.argmax(p)}"
-                                                          f"#" * 100)
-            print("=" * 123 + "训练数据")
+                    f"\n\n" + "*" * 100 + " " + str(idx % rate_) + f" {title[idx % rate_]}"
+                                                                   f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
+                                                                   f"\n概率为{p}\n当前玩家{player} value = {value} 执行 {act}（仅对第一组有效）,应该执行的行为（最大概率） {np.argmax(p)}"
+                    + '\n' + f"#" * 150)
+            print("=" * 150 + "训练数据")
         for idx in range(len(train_sample)):
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
+
         return train_sample
 
     def _contest_concurrent(self):

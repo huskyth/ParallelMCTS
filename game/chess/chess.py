@@ -63,8 +63,7 @@ class Chess(ChessBoard):
     def render(self, key):
         if not self.is_render:
             return
-        image = self._write_point()
-        cv2.imencode(".png", image)[1].tofile(debug_path / f"{key}.png")
+        print(f"当前局面{self.pointStatus}的日志如下\n{key}\n")
 
     def center_probability(self, pi):
         l, r = np.array(LEFT_ACTION_INDEX), np.array(RIGHT_ACTION_INDEX)
@@ -120,12 +119,12 @@ class Chess(ChessBoard):
             new_pi = torch.from_numpy(new_pi).float()
         return new_board, new_pi
 
-    def image_show(self, key, is_image_show):
+    def image_show(self, key, is_image_show, wait_key=1):
         if not is_image_show:
             return
         img = self._write_point()
         cv2.imshow(key, img)
-        cv2.waitKey(1)
+        return cv2.waitKey(wait_key)
 
     def left_right(self, s, p):
         board = s
