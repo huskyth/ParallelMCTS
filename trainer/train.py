@@ -55,18 +55,25 @@ class Trainer:
 
     @staticmethod
     def _self_play(mcts, state, i, is_render, current_play_turn, is_data_augment, is_image_show):
-        print(f"😊 开始第{current_play_turn + 1}轮self_play")
         train_sample = []
         turn = 0
         mcts.update_tree(-1)
-        state.reset()
+        f_p = 1 if current_play_turn + 1 % 2 == 0 else -1
+        state.reset(f_p)
+        print(f"😊 开始第{current_play_turn + 1}轮self_play，先手是 {f_p}")
+
         state.image_show(f"测试局面", is_image_show)
         while not state.is_end()[0]:
             turn += 1
             if turn % 100 == 0:
                 print(f"😊 第{current_play_turn + 1}次self_play 共进行 {turn} 轮")
             probability = mcts.get_action_probability(state=state, is_greedy=False)
+
             action = np.argmax(probability).item()
+            action = np.random.choice(len(probability), p=probability)
+            probability = np.zeros(probability.shape)
+            probability[action] = 1
+
             train_sample.append(
                 [state.get_torch_state().cpu(), torch.tensor(probability), state.get_current_player(), action])
             if is_data_augment:
@@ -105,7 +112,7 @@ class Trainer:
                 print(
                     f"\n\n" + "*" * 100 + " " + str(idx % rate_) + f" {title[idx % rate_]}"
                                                                    f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
-                                                                   f"\n概率为{p}\n当前玩家{player} value = {value} 执行 {act}（仅对第一组有效）,应该执行的行为（最大概率） {np.argmax(p)}"
+                                                                   f"\n（改了，改成了单一概率，是随机采样后修改为只有一个1的概率，看到不要惊讶）概率为{p}\n当前玩家{player} value = {value} 执行 {act}（仅对第一组有效）,应该执行的行为（最大概率） {np.argmax(p)}"
                     + '\n' + f"#" * 150)
             print("=" * 150 + "训练数据")
         for idx in range(len(train_sample)):

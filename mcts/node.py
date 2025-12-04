@@ -6,7 +6,7 @@ class Node:
         self.p = p
         self.q = 0
         self.visit = 0
-        self.c = 8
+        self.c = 3
         self.children = {}
         self.parent = None
 

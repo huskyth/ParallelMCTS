@@ -72,7 +72,7 @@ class Wrapper:
             raise ValueError(
                 f"state, probability, value shape error, shape is {state.shape}, {probability.shape}, {value.shape}")
 
-        epoch = 10
+        epoch = n // 100 + 1
         print("🏠 Training epoch: ", epoch)
         batch_number = n // self.batch
         return_dict = []
