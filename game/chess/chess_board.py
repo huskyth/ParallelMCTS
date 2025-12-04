@@ -11,13 +11,11 @@ class ChessBoard:
         self.gameMap = []
         self.pointStatus = []
         self.distance = []
-        self.status = None
-        self.whiteNum = 6
-        self.blackNum = 6
         self.init_distance()
         self.init_point_status()
         self.init_game_map()
         self.is_simple = True
+        self.draw_checker = {}
 
     def get_game_map(self):
         return self.gameMap
@@ -41,10 +39,6 @@ class ChessBoard:
             self.pointStatus[x] = BLACK
         for x in white:
             self.pointStatus[x] = WHITE
-
-    def init_chessman_num(self):
-        self.whiteNum = 6
-        self.blackNum = 6
 
     def init_game_map(self):
         self.gameMap = GAME_MAP
@@ -83,6 +77,16 @@ class ChessBoard:
             bake_point_status, self.distance)
 
     def check_winner(self):
+        str_point = [str(t) for t in self.pointStatus] + [str(self.get_current_player())]
+        str_point = "".join(str_point)
+        if str_point not in self.draw_checker:
+            self.draw_checker[str_point] = 1
+        else:
+            self.draw_checker[str_point] += 1
+            if self.draw_checker == 3:
+                print(f"☂️ 当前局面{self.pointStatus}判和棋: \n{self.draw_checker}\n")
+                return 0
+
         black_num = 0
         white_num = 0
         winner = None

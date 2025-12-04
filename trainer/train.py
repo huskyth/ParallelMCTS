@@ -171,9 +171,6 @@ class Trainer:
         state.image_show("对抗", is_image_show)
         while not state.is_end()[0]:
             length_of_turn += 1
-            if length_of_turn >= max_turn:
-                print(f"🍑 draws is 1, old win is 0, new win is 0, 超出最大步数，判和棋")
-                return 0, 0, 1, length_of_turn
             player = player_list[current_player + 1]
             if player is None:
                 max_act = state.move_random()

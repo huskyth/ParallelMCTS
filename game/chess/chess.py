@@ -101,6 +101,7 @@ class Chess(ChessBoard):
         self.init_point_status()
         self.current_player = start_player
         self.last_action = (-1, -1)
+        self.draw_checker = {}
 
     def move_random(self):
         import random

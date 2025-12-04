@@ -28,14 +28,12 @@ class Node:
             self.children[idx] = temp
 
     def select(self, mode, state):
-        print('get_value方法开始' + "=" * 150)
         values = [item.get_value(state, idx) for idx, item in self.children.items() if item.p > 0]
         items = [item for _, item in self.children.items() if item.p > 0]
         its = [idx for idx, item in self.children.items() if item.p > 0]
         max_idx = np.argmax(values)
         item = items[max_idx]
         best_idx = its[max_idx]
-        print('get_value方法结束' + "=" * 150)
 
         return best_idx, item
 
