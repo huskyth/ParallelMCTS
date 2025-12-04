@@ -15,6 +15,7 @@ class Logger:
     def write(self, text):
         self.terminal.write(text)
         self.file.write(text)
+        self.flush()
 
     def flush(self):
         self.terminal.flush()

@@ -13,7 +13,7 @@ class MCTS:
             raise ValueError("mode must be 'train' or 'test'")
         self.root = Node(1)
         self.predict = predict
-        self.simulate_times = 100
+        self.simulate_times = 400
         self.mode = mode
         self.swanlab = swanlab
         self.max_depth = -1

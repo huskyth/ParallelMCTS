@@ -170,7 +170,7 @@ class WMChessGUI:
                             # draw
 
                 else:
-
+                    self.play_state.is_render = False
                     self.mcts_player.update_tree(-1)
                     pi = self.mcts_player.get_action_probability(self.play_state, False)
                     move_idx = np.argmax(pi)

@@ -58,7 +58,7 @@ class Trainer:
         train_sample = []
         turn = 0
         mcts.update_tree(-1)
-        f_p = 1 if current_play_turn + 1 % 2 == 0 else -1
+        f_p = 1 if (current_play_turn + 1) % 2 == 0 else -1
         state.reset(f_p)
         print(f"😊 开始第{current_play_turn + 1}轮self_play，先手是 {f_p}")
 
@@ -178,6 +178,9 @@ class Trainer:
         state.image_show("对抗", is_image_show)
         while not state.is_end()[0]:
             length_of_turn += 1
+            if length_of_turn >= max_turn:
+                print(f"🍑 draws is 1, old win is 0, new win is 0")
+                return 0, 0, 1, length_of_turn
             player = player_list[current_player + 1]
             if player is None:
                 max_act = state.move_random()
