@@ -15,8 +15,8 @@ class ChessBoard:
         self.init_point_status()
         self.init_game_map()
         self.is_simple = True
-        self.draw_checker = {}
-        self.reset_draw_checker()
+        # self.draw_checker = {}
+        # self.reset_draw_checker()
 
     def reset_draw_checker(self):
         str_point = [str(t) for t in self.pointStatus] + [str(self.get_current_player())]
@@ -83,10 +83,10 @@ class ChessBoard:
             bake_point_status, self.distance)
 
     def check_winner(self, mock):
-        if 'has' in self.draw_checker:
-            if mock:
-                print(f"用于调试 {self.draw_checker}")
-            return 0
+        # if 'has' in self.draw_checker:
+        #     if mock:
+        #         print(f"用于调试 {self.draw_checker}")
+        #     return 0
         black_num = 0
         white_num = 0
         winner = None

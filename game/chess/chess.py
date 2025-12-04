@@ -20,7 +20,7 @@ CHESSMAN_WIDTH = 20
 CHESSMAN_HEIGHT = 20
 BLACK = 1
 WHITE = -1
-MAX_DRAW_TIME = 3
+MAX_DRAW_TIME = 5
 
 
 class Chess(ChessBoard):
@@ -81,29 +81,21 @@ class Chess(ChessBoard):
             :return:
         """
         state = from_array_to_input_tensor(self.pointStatus, self.current_player, self.last_action)
-        if self.current_player == 1:
-            if isinstance(state, torch.Tensor):
-                state = state.cpu().numpy()
-            new_board = np.ascontiguousarray(np.flipud(state))
-            state = np.ascontiguousarray(np.fliplr(new_board))
-            is_cuda = True if torch.cuda.is_available() else False
-            torch_state = torch.from_numpy(state).float()
-            state = torch_state.cuda() if is_cuda else torch_state
         return state
 
     def do_action(self, action):
         self.execute_move(action, self.current_player)
         self.current_player *= -1
 
-        str_point = [str(t) for t in self.pointStatus] + [str(self.get_current_player())]
-        str_point = "".join(str_point)
-
-        if str_point not in self.draw_checker:
-            self.draw_checker[str_point] = 1
-        else:
-            self.draw_checker[str_point] += 1
-            if self.draw_checker[str_point] == MAX_DRAW_TIME:
-                self.draw_checker['has'] = True
+        # str_point = [str(t) for t in self.pointStatus] + [str(self.get_current_player())]
+        # str_point = "".join(str_point)
+        #
+        # if str_point not in self.draw_checker:
+        #     self.draw_checker[str_point] = 1
+        # else:
+        #     self.draw_checker[str_point] += 1
+        #     if self.draw_checker[str_point] == MAX_DRAW_TIME:
+        #         self.draw_checker['has'] = True
 
     def get_current_player(self):
         return self.current_player
@@ -112,7 +104,7 @@ class Chess(ChessBoard):
         self.init_point_status()
         self.current_player = start_player
         self.last_action = (-1, -1)
-        self.reset_draw_checker()
+        # self.reset_draw_checker()
 
     def move_random(self):
         import random

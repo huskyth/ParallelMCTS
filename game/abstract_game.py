@@ -84,8 +84,6 @@ if __name__ == '__main__':
     state.reset(start)
     state.render(f"当前局面 {start}作为开始的玩家")
     v, p = ag.network.predict(state.get_torch_state())
-    if start == 1:
-        p = state.center_probability(p)
     print(f"当前对于玩家 {state.get_current_player()}游戏,{v}, {p}，{np.argmax(p)}")
 
     assert False

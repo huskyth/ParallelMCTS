@@ -31,7 +31,7 @@ class MCTS:
             max_depth += 1
             action, current_node = current_node.select(self.mode, state)
             state.render(
-                f"{self.name} 第{i}次模拟（select在前面调用，在循环里面），当前玩家 {state.get_current_player()}执行动作 {action}")
+                f"{self.name} 第{i}次模拟过程（select在前面调用，这行日志在循环里面），当前玩家 {state.get_current_player()}执行动作 {action}")
             state.do_action(action)
 
         if max_depth > self.max_depth:
@@ -48,12 +48,8 @@ class MCTS:
             if winner == current_pr:
                 self.win_rate += 1
         else:
-            state.render(f"{self.name} 第{i}次模拟，游戏没有结束")
+            state.render(f"{self.name} 第{i}次模拟到终点，游戏没有结束")
             value, probability = self.predict(state.get_torch_state())
-            if state.get_current_player() == 1:
-                """上边永远是1，下边永远是-1"""
-                probability = state.center_probability(probability)
-
             state.render(
                 f"这是Raw模型输出,当前对于玩家,{state.get_current_player()}游戏,"
                 f"价值：{value},策略：\n{probability}\n，应该的行为：{np.argmax(probability)}")
@@ -70,8 +66,8 @@ class MCTS:
 
             epison = 0
             if self.mode == 'train':
-                epison = 0.25
-            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison,alpha=0.03)
+                epison = 0.35
+            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison,alpha=0.3)
             probability[probability > 0] = ava_py_noise
 
             if probability.sum() == 0:

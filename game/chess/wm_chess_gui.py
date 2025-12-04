@@ -176,9 +176,6 @@ class WMChessGUI:
                     move_idx = np.argmax(pi)
                     state = self.play_state.get_torch_state()
                     v, p = self.mcts_player.predict(state)
-                    if self.play_state.get_current_player() == 1:
-                        """上边永远是1，下边永远是-1"""
-                        p = self.play_state.center_probability(p)
                     print(f"当前玩家 {self.play_state.get_current_player()} 的 MCTS 模拟概率为:\n\n {pi} \n\n "
                           f"直接预测的价值为 {v} \n\n"
                           f"直接预测的概率为 \n\n {p} \n\n"
