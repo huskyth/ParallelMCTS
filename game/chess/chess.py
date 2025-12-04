@@ -20,19 +20,20 @@ CHESSMAN_WIDTH = 20
 CHESSMAN_HEIGHT = 20
 BLACK = 1
 WHITE = -1
+MAX_DRAW_TIME = 3
 
 
 class Chess(ChessBoard):
     def __init__(self, start_player=1, is_render=False):
-        super().__init__()
         self.current_player = start_player
+        super().__init__()
         self.move_to_index = MOVE_TO_INDEX_DICT
         self.index_to_move = INDEX_TO_MOVE_DICT
         self.is_render = is_render
         self.last_action = (-1, -1)
 
-    def is_end(self):
-        winner = self.check_winner()
+    def is_end(self, mock=False):
+        winner = self.check_winner(mock)
         is_end = winner is not None
         return is_end, winner
 
@@ -94,6 +95,16 @@ class Chess(ChessBoard):
         self.execute_move(action, self.current_player)
         self.current_player *= -1
 
+        str_point = [str(t) for t in self.pointStatus] + [str(self.get_current_player())]
+        str_point = "".join(str_point)
+
+        if str_point not in self.draw_checker:
+            self.draw_checker[str_point] = 1
+        else:
+            self.draw_checker[str_point] += 1
+            if self.draw_checker[str_point] == MAX_DRAW_TIME:
+                self.draw_checker['has'] = True
+
     def get_current_player(self):
         return self.current_player
 
@@ -101,7 +112,7 @@ class Chess(ChessBoard):
         self.init_point_status()
         self.current_player = start_player
         self.last_action = (-1, -1)
-        self.draw_checker = {}
+        self.reset_draw_checker()
 
     def move_random(self):
         import random

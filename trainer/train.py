@@ -84,6 +84,7 @@ class Trainer:
         gama = 1
         print(f'☃️ 一共 {turn}轮')
         _, winner = state.is_end()
+        print(f'☃️ 一共 {turn}轮, 结果为 {winner}')
         assert winner is not None
         for idx, item in enumerate(train_sample):
             rate = gama ** (episode_length - 1 - idx)
@@ -109,7 +110,6 @@ class Trainer:
             print("=" * 150 + "训练数据")
         for idx in range(len(train_sample)):
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
-
         return train_sample
 
     def _contest_concurrent(self):
