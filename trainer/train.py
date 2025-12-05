@@ -40,7 +40,7 @@ class Trainer:
         state = self.abstract_game.state
         param = (self.current_play_turn, mcts, state, False, self.is_data_augment, self.is_image_show)
 
-        result = self.self_play_processor.process(self._self_play, param)
+        result = self.self_play_processor.process(self._self_play, *param)
         self.current_play_turn += self.self_play_parallel_num
         ret = []
         for r in result:
@@ -130,7 +130,7 @@ class Trainer:
         old_mcts = self.abstract_game.random_mcts
         state = self.abstract_game.state
         param = (0, state, new_player, old_mcts, None)
-        ret = self.contest_processor.process(self._contest_one_time, param)
+        ret = self.contest_processor.process(self._contest_one_time, *param)
         for item in ret:
             new_win_, old_win_, draws_, length_of_turn_ = item
             new_win += new_win_
