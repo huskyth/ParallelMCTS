@@ -24,9 +24,6 @@ if __name__ == '__main__':
     parser.add_argument('--game', type=str, default="WMChess", choices=['WMChess', 'tictactoe'])
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     args = parser.parse_args()
-    if args.use_concurrent:
-        torch.multiprocessing.set_sharing_strategy('file_system')
-        torch.multiprocessing.set_start_method('spawn')
     tn_cfg = TrainConfig()
     abs_game = AbstractGame(args.game, is_render=args.is_render)
     print(f"🍹 执行{args.number_of_self_play}次自我对弈，{args.number_of_contest}次比赛")

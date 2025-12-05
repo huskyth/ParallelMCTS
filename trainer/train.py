@@ -1,3 +1,4 @@
+import os
 from collections import deque
 import swanlab
 import numpy as np
@@ -37,30 +38,34 @@ class Trainer:
     def _collect_concurrent(self):
         mcts = self.abstract_game.mcts
         state = self.abstract_game.state
-        param = [(mcts, state, i) for i in range(self.self_play_parallel_num)]
-        self.self_play_processor.process(self._self_play, param)
-        result = self.self_play_processor.result
-        return [dim1 for dim2 in result for dim1 in dim2]
+        param = (self.current_play_turn, mcts, state, False, self.is_data_augment, self.is_image_show)
+
+        result = self.self_play_processor.process(self._self_play, param)
+        self.current_play_turn += self.self_play_parallel_num
+        ret = []
+        for r in result:
+            ret.extend(r)
+        return ret
 
     def _collect(self):
         sample = []
         mcts = self.abstract_game.mcts
         state = self.abstract_game.state
         for i in range(self.self_play_num):
-            temp = self._self_play(mcts, state, i, self.is_render, self.current_play_turn, self.is_data_augment,
+            temp = self._self_play(self.current_play_turn, mcts, state, self.is_render, self.is_data_augment,
                                    self.is_image_show)
             self.current_play_turn += 1
             sample.extend(temp)
         return sample
 
     @staticmethod
-    def _self_play(mcts, state, i, is_render, current_play_turn, is_data_augment, is_image_show):
+    def _self_play(current_play_turn, mcts, state, is_render, is_data_augment, is_image_show):
         train_sample = []
         turn = 0
         mcts.update_tree(-1)
         f_p = 1 if (current_play_turn + 1) % 2 == 0 else -1
         state.reset(f_p)
-        print(f"😊 开始第{current_play_turn + 1}轮self_play，先手是 {f_p}")
+        print(f"😊 开始第{current_play_turn + 1}轮self_play，先手是 {f_p}，进程ID {os.getpid()}")
 
         state.image_show(f"测试局面", is_image_show)
         while not state.is_end()[0]:
@@ -120,15 +125,12 @@ class Trainer:
         return train_sample
 
     def _contest_concurrent(self):
-        param = []
+        new_win, old_win, draws = 0, 0, 0
         new_player = self.abstract_game.mcts
         old_mcts = self.abstract_game.random_mcts
         state = self.abstract_game.state
-        for i in range(self.contest_parallel_num):
-            param.append((state, new_player, old_mcts, i))
-        self.contest_processor.process(self._contest_one_time, param)
-        ret = self.contest_processor.result
-        new_win, old_win, draws = 0, 0, 0
+        param = (0, state, new_player, old_mcts, None)
+        ret = self.contest_processor.process(self._contest_one_time, param)
         for item in ret:
             new_win_, old_win_, draws_, length_of_turn_ = item
             new_win += new_win_
@@ -152,7 +154,7 @@ class Trainer:
         draws = 0
         new_player.mode = 'test'
         for i in range(test_number):
-            new_win, old_win, draw, length_of_turn = self._contest_one_time(state, new_player, i, last_mcts,
+            new_win, old_win, draw, length_of_turn = self._contest_one_time(i, state, new_player, last_mcts,
                                                                             self.is_image_show)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
             wins += new_win
@@ -162,7 +164,7 @@ class Trainer:
         return wins, olds, draws
 
     @staticmethod
-    def _contest_one_time(state, new_player, i, last_mcts, is_image_show):
+    def _contest_one_time(i, state, new_player, last_mcts, is_image_show):
 
         new_win, old_win, draws = 0, 0, 0
         new_player.update_tree(-1)
