@@ -12,7 +12,7 @@ class Wrapper:
         self.net = net
         if self.is_cuda:
             self.net.cuda()
-        self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-2)
+        self.opt = Adam(self.net.parameters(), lr=1e-5, weight_decay=1e-2)
 
     def save(self, epoch, key="latest.pt"):
         checkpoint = {
@@ -40,12 +40,12 @@ class Wrapper:
         return epoch
 
     @staticmethod
-    def smooth_l1(input_tensor, target_tensor):
-        return F.smooth_l1_loss(input_tensor, target_tensor)
+    def mse(input_tensor, target_tensor):
+        return torch.mean((input_tensor - target_tensor) ** 2)
 
     @staticmethod
-    def cross_entropy(p, p_target):
-        return F.cross_entropy(p, p_target)
+    def cross(log_p, p_target):
+        return -torch.mean(torch.sum(log_p * p_target, dim=-1))
 
     @torch.no_grad()
     def predict(self, state):
@@ -67,12 +67,12 @@ class Wrapper:
         value = value.cuda() if self.is_cuda else value
 
         if state.shape != (
-        n, self.net.input_size, self.net.input_size, self.net.input_channel) or probability.shape != (
+                n, self.net.input_size, self.net.input_size, self.net.input_channel) or probability.shape != (
                 n, self.net.action_size) or value.shape != (n, 1):
             raise ValueError(
                 f"state, probability, value shape error, shape is {state.shape}, {probability.shape}, {value.shape}")
 
-        epoch = n // 100 + 1
+        epoch = n // 600 + 1
         print("🏠 Training epoch: ", epoch)
         batch_number = n // self.batch
         return_dict = []
@@ -86,11 +86,9 @@ class Wrapper:
                 probability_batch = probability[start:start + self.batch, :]
                 value_batch = value[start:start + self.batch]
                 v_predict, p_predict = self.net(state_batch)
-                value_loss = self.smooth_l1(v_predict, value_batch)
+                value_loss = self.mse(v_predict, value_batch)
 
-                target = torch.argmax(probability_batch, dim=1)
-
-                probability_loss = self.cross_entropy(torch.e ** p_predict, target)
+                probability_loss = self.cross(p_predict, probability_batch)
 
                 entropy_p = (-torch.e ** p_predict * p_predict).sum(axis=1).mean().item()
 

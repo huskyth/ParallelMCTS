@@ -73,12 +73,7 @@ class Trainer:
             if turn % 100 == 0:
                 print(f"😊 第{current_play_turn + 1}次self_play 共进行 {turn} 轮")
             probability = mcts.get_action_probability(state=state, is_greedy=False)
-
-            action = np.argmax(probability).item()
             action = np.random.choice(len(probability), p=probability)
-            probability = np.zeros(probability.shape)
-            probability[action] = 1
-
             train_sample.append(
                 [state.get_torch_state().cpu(), torch.tensor(probability), state.get_current_player(), action])
             if is_data_augment:
@@ -317,7 +312,7 @@ class Trainer:
             if (epoch + 1) % self.train_config.test_rate == 0 and is_trained:
                 self.abstract_game.network.eval()
                 if self.use_pool:
-                    new_win, old_win, draws = self._contest_concurrent()
+                    new_win, old_win, draws = self._contest_concurrent(mode='train')
                 else:
                     new_win, old_win, draws = self._contest(test_number=self.contest_num)
                 all_ = new_win + old_win + draws
