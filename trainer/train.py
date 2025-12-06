@@ -124,10 +124,12 @@ class Trainer:
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
         return train_sample
 
-    def _contest_concurrent(self):
+    def _contest_concurrent(self, mode):
         new_win, old_win, draws = 0, 0, 0
         new_player = self.abstract_game.mcts
         old_mcts = self.abstract_game.random_mcts
+        if mode == 'train':
+            self.abstract_game.random_network.load("before_train.pt")
         state = self.abstract_game.state
         param = (0, state, new_player, old_mcts, None)
         ret = self.contest_processor.process(self._contest_one_time, *param)
@@ -228,7 +230,7 @@ class Trainer:
         self.abstract_game.network.load("best.pt")
         self.abstract_game.network.eval()
         if self.use_pool:
-            new_win, old_win, draws = self._contest_concurrent()
+            new_win, old_win, draws = self._contest_concurrent(mode='test')
         else:
             new_win, old_win, draws = self._contest(mode='test', test_number=test_number)
         all_ = new_win + old_win + draws

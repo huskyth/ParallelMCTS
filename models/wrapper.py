@@ -12,7 +12,7 @@ class Wrapper:
         self.net = net
         if self.is_cuda:
             self.net.cuda()
-        self.opt = Adam(self.net.parameters(), lr=1e-4, weight_decay=1e-2)
+        self.opt = Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-2)
 
     def save(self, epoch, key="latest.pt"):
         checkpoint = {
