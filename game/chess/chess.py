@@ -151,3 +151,13 @@ class Chess(ChessBoard):
             new_pi = torch.from_numpy(new_pi).float()
 
         return new_board, new_pi
+
+
+if __name__ == '__main__':
+    import os
+    print(os.name)
+    s = Chess().get_torch_state()
+    print(s[:, :, 0])
+    print(s[:, :, 1])
+    print(s[:, :, 2])
+    print(s[:, :, 3])

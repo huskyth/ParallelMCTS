@@ -9,5 +9,5 @@ class ChessNetWrapper(Wrapper):
         MODEL_SAVE_PATH.mkdir()
 
     def __init__(self):
-        self.net = GameNet(3, 7, 72)
+        self.net = GameNet(4, 7, 72)
         super().__init__(self.net)

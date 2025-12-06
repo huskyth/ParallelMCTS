@@ -79,7 +79,12 @@ def from_array_to_input_tensor(point_status, current_player, last_action):
     if len(point_status) != 21:
         raise Exception('point_status length must be 21')
 
-    input_tensor = torch.zeros((7, 7, 3))
+    v = list(ARRAY_TO_IMAGE.values())
+    v_ind = np.stack(v)
+    state_not = np.ones((7, 7))
+    state_not[v_ind[:, 0], v_ind[:, 1]] = 0
+
+    input_tensor = torch.zeros((7, 7, 4))
     for i, chessman in enumerate(point_status):
         row, column = ARRAY_TO_IMAGE[i]
         if chessman == current_player:
@@ -93,6 +98,7 @@ def from_array_to_input_tensor(point_status, current_player, last_action):
         row, column = ARRAY_TO_IMAGE[to]
         input_tensor[row, column, 2] = 1
         assert point_status[to] == -current_player
+    input_tensor[:, :, 3] = torch.from_numpy(state_not)
 
     return input_tensor.cuda() if is_cuda else input_tensor
 
@@ -213,11 +219,19 @@ for idx, move_tuple in enumerate(MOVE_LIST):
     INDEX_TO_MOVE_DICT[idx] = move_tuple
 
 if __name__ == '__main__':
-    from pprint import pprint
+    # from pprint import pprint
+    #
+    # ary = 21 * [0]
+    # ary[10] = 1
+    # data = from_array_to_input_tensor(ary, -1).data
+    #
+    # pprint(data[:, :, 0])
+    # pprint(data[:, :, 1])
+    import numpy as np
+    import torch
 
-    ary = 21 * [0]
-    ary[10] = 1
-    data = from_array_to_input_tensor(ary, -1).data
-
-    pprint(data[:, :, 0])
-    pprint(data[:, :, 1])
+    v = list(ARRAY_TO_IMAGE.values())
+    v_ind = np.stack(v)
+    state = np.ones((7, 7))
+    state[v_ind[:, 0], v_ind[:, 1]] = 0
+    print(state)

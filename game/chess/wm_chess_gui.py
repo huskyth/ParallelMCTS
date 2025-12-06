@@ -104,8 +104,11 @@ class WMChessGUI:
             bake_point_status, DISTANCE)
 
     def start(self):
-        t = threading.Thread(target=self.loop)
-        t.start()
+        if os.name == 'posix':
+            self.loop()
+        else:
+            t = threading.Thread(target=self.loop)
+            t.start()
 
     # main loop
     def loop(self):
