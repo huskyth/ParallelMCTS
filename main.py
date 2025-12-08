@@ -1,4 +1,3 @@
-from game.abstract_game import AbstractGame
 from trainer.train import Trainer
 from utils.logger import Logger
 from datetime import datetime
@@ -6,7 +5,6 @@ from trainer.train_config import TrainConfig
 import sys
 import traceback
 import argparse
-import torch
 
 sys.stdout = Logger()
 
@@ -19,7 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('--is_render', type=bool, default=False)
     parser.add_argument('--is_data_augment', type=bool, default=True)
     parser.add_argument('--is_image_show', type=bool, default=True)
-    parser.add_argument('--mode', type=str, default="play", choices=['train', 'test', 'play'])
+    parser.add_argument('--mode', type=str, default="train", choices=['train', 'test', 'play'])
     parser.add_argument('--test_number', type=int, default=50)
     parser.add_argument('--game', type=str, default="WMChess", choices=['WMChess', 'tictactoe'])
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

@@ -159,6 +159,7 @@ class Trainer:
         except Exception as e:
             print("best.pt模型不存在，加载before_train.pt")
             contest_network.load("latest.pt")
+        contest_network.eval()
         last_mcts = MCTS(contest_network.predict, mode='test', name="之前最优玩家")
 
         wins = 0
