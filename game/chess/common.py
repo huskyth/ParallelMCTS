@@ -81,24 +81,30 @@ def from_array_to_input_tensor(point_status, current_player, last_action):
 
     v = list(ARRAY_TO_IMAGE.values())
     v_ind = np.stack(v)
-    state_not = np.ones((7, 7))
+    state_not = np.ones((7, 7)) * 2
     state_not[v_ind[:, 0], v_ind[:, 1]] = 0
 
-    input_tensor = torch.zeros((7, 7, 4))
+    input_tensor = torch.zeros((7, 7, 3))
+
+    input_tensor[:, :, 0][state_not == 2] = 2
+    input_tensor[:, :, 1][state_not == 2] = 2
+
     for i, chessman in enumerate(point_status):
         row, column = ARRAY_TO_IMAGE[i]
         if chessman == current_player:
+            assert input_tensor[row, column, 0].item() != 2
             input_tensor[row, column, 0] = 1
         elif chessman == -current_player:
+            assert input_tensor[row, column, 1].item() != 2
             input_tensor[row, column, 1] = 1
         else:
             assert chessman == 0
+
     if last_action != (-1, -1):
         _, to = last_action
         row, column = ARRAY_TO_IMAGE[to]
         input_tensor[row, column, 2] = 1
         assert point_status[to] == -current_player
-    input_tensor[:, :, 3] = torch.from_numpy(state_not)
 
     return input_tensor.cuda() if is_cuda else input_tensor
 

@@ -1,5 +1,4 @@
 import copy
-import uuid
 
 import numpy as np
 
@@ -83,7 +82,6 @@ class MCTS:
                 self.root = self.root.children[move]
                 self.root.parent = None
             else:
-                assert False
                 self.root = Node(1)
 
     def get_action_probability(self, state, is_greedy):

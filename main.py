@@ -25,11 +25,10 @@ if __name__ == '__main__':
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     args = parser.parse_args()
     tn_cfg = TrainConfig()
-    abs_game = AbstractGame(args.game, is_render=args.is_render)
     print(f"🍹 执行{args.number_of_self_play}次自我对弈，{args.number_of_contest}次比赛")
 
     t = Trainer(train_config=tn_cfg, number_of_contest=args.number_of_contest,
-                number_of_self_play=args.number_of_self_play, abstract_game=abs_game,
+                number_of_self_play=args.number_of_self_play,
                 use_pool=args.use_concurrent, is_render=args.is_render, is_data_augment=args.is_data_augment,
                 is_image_show=args.is_image_show)
     try:

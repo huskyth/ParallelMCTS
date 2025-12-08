@@ -154,10 +154,13 @@ class Chess(ChessBoard):
 
 
 if __name__ == '__main__':
+    abv = [1, 2, 3, 4]
+    print(np.random.shuffle(abv))
+    print(abv)
     import os
+
     print(os.name)
     s = Chess().get_torch_state()
     print(s[:, :, 0])
     print(s[:, :, 1])
     print(s[:, :, 2])
-    print(s[:, :, 3])
