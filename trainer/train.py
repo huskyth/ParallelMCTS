@@ -282,6 +282,7 @@ class Trainer:
         from game.chess.wm_chess_gui import WMChessGUI
         state = self.abstract_game.state
         self.abstract_game.random_network.load("best.pt")
+        self.abstract_game.random_network.eval()
         mcts = self.abstract_game.random_mcts
         state.reset()
         wm = WMChessGUI(mcts, state)
