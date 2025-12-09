@@ -295,7 +295,7 @@ class Trainer:
         self.training_network.load("best.pt")
         self.training_network.eval()
 
-        mcts = MCTS(self.training_network.predict, mode='train', name="AI")
+        mcts = MCTS(self.training_network.predict, mode='train', name="AI", simulate_times=1600)
 
         state.reset()
         wm = WMChessGUI(mcts, state)

@@ -7,12 +7,12 @@ from utils.math_tool import dirichlet_noise
 
 
 class MCTS:
-    def __init__(self, predict, mode='train', swanlab=None, name=None):
+    def __init__(self, predict, mode='train', swanlab=None, name=None, simulate_times=800):
         if mode not in ["train", 'test']:
             raise ValueError("mode must be 'train' or 'test'")
         self.root = Node(1)
         self.predict = predict
-        self.simulate_times = 800
+        self.simulate_times = simulate_times
         self.mode = mode
         self.swanlab = swanlab
         self.max_depth = -1
@@ -66,7 +66,7 @@ class MCTS:
             epison = 0
             if self.mode == 'train':
                 epison = 0.35
-            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison,alpha=0.3)
+            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison, alpha=0.3)
             probability[probability > 0] = ava_py_noise
 
             if probability.sum() == 0:
