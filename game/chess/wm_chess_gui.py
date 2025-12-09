@@ -164,6 +164,7 @@ class WMChessGUI:
                                 self.human_move = (self.chosen_chessman, chessman)
                                 self.execute_move(self.human_color, self.human_move, "人类玩家")
                                 self.human_move = MOVE_TO_INDEX_DICT[self.human_move]
+                                self.mcts_player.update_tree(self.human_move)
                                 self.set_is_human(False)
                                 self.play_state.do_action(self.human_move)
                             else:
@@ -173,8 +174,6 @@ class WMChessGUI:
                             # draw
 
                 else:
-                    self.play_state.is_render = False
-                    self.mcts_player.update_tree(-1)
                     pi = self.mcts_player.get_action_probability(self.play_state, False)
                     move_idx = np.argmax(pi)
                     state = self.play_state.get_torch_state()
@@ -186,6 +185,7 @@ class WMChessGUI:
                           f"当前第一维度：\n\n {state[:, :, 0]}\n\n\n"
                           f"当前第二维度：\n\n {state[:, :, 1]}\n\n\n"
                           f"当前第三维度：\n\n {state[:, :, 2]}\n\n\n")
+                    self.mcts_player.update_tree(move_idx)
                     move = self.play_state.index_to_move[move_idx]
                     self.execute_move(-self.human_color, move, info="AI")
                     self.play_state.do_action(move)

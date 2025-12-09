@@ -248,9 +248,8 @@ class Trainer:
         print(f"🍤 Win Rate {wins / all_}")
 
     def play(self, current_player="AI"):
-        if self.abstract_game.game == 'WMChess':
-            self._wm_play()
-            return
+        self._wm_play()
+        return
         if current_player not in ["AI", "Human"]:
             raise ValueError("current_player must be 'AI' or 'Human'")
         self.abstract_game.network.load("best.pt")
@@ -292,10 +291,12 @@ class Trainer:
 
     def _wm_play(self):
         from game.chess.wm_chess_gui import WMChessGUI
-        state = self.abstract_game.state
-        self.abstract_game.random_network.load("best.pt")
-        self.abstract_game.random_network.eval()
-        mcts = self.abstract_game.random_mcts
+        state = Chess(is_render=self.is_render)
+        self.training_network.load("best.pt")
+        self.training_network.eval()
+
+        mcts = MCTS(self.training_network.predict, mode='train', name="AI")
+
         state.reset()
         wm = WMChessGUI(mcts, state)
         wm.start()
