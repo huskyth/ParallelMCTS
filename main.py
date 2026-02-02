@@ -27,6 +27,7 @@ if __name__ == '__main__':
         import torch.multiprocessing as mp
 
         mp.set_start_method('spawn', force=True)
+        mp.set_sharing_strategy('file_system')
     tn_cfg = TrainConfig()
     print(f"🍹 执行{args.number_of_self_play}次自我对弈，{args.number_of_contest}次比赛")
 
