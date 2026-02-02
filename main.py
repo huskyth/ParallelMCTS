@@ -11,9 +11,9 @@ sys.stdout = Logger()
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--number_of_self_play', type=int, default=1)
+    parser.add_argument('--number_of_self_play', type=int, default=10)
     parser.add_argument('--number_of_contest', type=int, default=10)
-    parser.add_argument('--use_concurrent', type=bool, default=False)
+    parser.add_argument('--use_concurrent', type=bool, default=True)
     parser.add_argument('--is_render', type=bool, default=False)
     parser.add_argument('--is_data_augment', type=bool, default=True)
     parser.add_argument('--is_image_show', type=bool, default=True)

@@ -332,13 +332,17 @@ class Trainer:
                 else:
                     new_win, old_win, draws = self._contest(test_number=self.contest_num)
                 all_ = new_win + old_win + draws
+                sum_ = new_win + old_win
+                clean_rate = new_win / sum_ if sum_ != 0 else -1
                 self.swanlab.log({
-                    "win_new": new_win, "win_random": old_win, "draws": draws, "win_rate": new_win / all_
+                    "新模型获胜局数": new_win, "旧模型获胜局数": old_win, "和棋数": draws, "胜率": new_win / all_,
+                    "纯净胜率（-1不存在）": clean_rate
                 })
-                if new_win > old_win:
-                    print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved")
-                    self.training_network.save(epoch, key="best.pt")
-                else:
+                if new_win + old_win == 0 or new_win / (new_win + old_win) < 0.6:
                     print(f"🐑 REJECT Win Rate {new_win / all_}")
                     self.training_network.load(key="before_train.pt")
+                else:
+                    print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved")
+                    self.training_network.save(epoch, key="best.pt")
+
                 self.training_network.train()
