@@ -40,9 +40,10 @@ class Trainer:
         self.training_network = ChessNetWrapper()
 
     def _collect_concurrent(self):
-        mcts = self.abstract_game.mcts
-        state = self.abstract_game.state
-        param = (self.current_play_turn, mcts, state, False, self.is_data_augment, self.is_image_show)
+        mcts1 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家1")
+        mcts2 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家2")
+        state = Chess(is_render=self.is_render)
+        param = (self.current_play_turn, mcts1, mcts2, state, False, self.is_data_augment, self.is_image_show)
 
         result = self.self_play_processor.process(self._self_play, *param)
         self.current_play_turn += self.self_play_parallel_num
@@ -131,14 +132,22 @@ class Trainer:
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
         return train_sample
 
-    def _contest_concurrent(self, mode):
+    def _contest_concurrent(self):
         new_win, old_win, draws = 0, 0, 0
-        new_player = self.abstract_game.mcts
-        old_mcts = self.abstract_game.random_mcts
-        if mode == 'train':
-            self.abstract_game.random_network.load("before_train.pt")
-        state = self.abstract_game.state
-        param = (0, state, new_player, old_mcts, None)
+
+        new_player = MCTS(self.training_network.predict, mode='test', name="当前训练玩家")
+        state = Chess(is_render=self.is_render)
+
+        contest_network = ChessNetWrapper()
+        try:
+            contest_network.load("best.pt")
+        except Exception as e:
+            print("best.pt模型不存在，加载before_train.pt")
+            contest_network.load("latest.pt")
+        contest_network.eval()
+        last_mcts = MCTS(contest_network.predict, mode='test', name="之前最优玩家")
+
+        param = (0, state, new_player, last_mcts, None)
         ret = self.contest_processor.process(self._contest_one_time, *param)
         for item in ret:
             new_win_, old_win_, draws_, length_of_turn_ = item
@@ -146,6 +155,9 @@ class Trainer:
             old_win += old_win_
             draws += draws_
             print(f"♬ 本局进行了{length_of_turn_}轮")
+            self.swanlab.log({
+                "轮数": length_of_turn_
+            })
 
         return new_win, old_win, draws
 
@@ -328,7 +340,7 @@ class Trainer:
             if (epoch + 1) % self.train_config.test_rate == 0 and is_trained:
                 self.training_network.eval()
                 if self.use_pool:
-                    new_win, old_win, draws = self._contest_concurrent(mode='train')
+                    new_win, old_win, draws = self._contest_concurrent()
                 else:
                     new_win, old_win, draws = self._contest(test_number=self.contest_num)
                 all_ = new_win + old_win + draws
