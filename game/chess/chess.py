@@ -1,11 +1,13 @@
 import copy
+from collections import deque
 
 import cv2
 import numpy as np
 import torch
 
 from game.chess.chess_board import ChessBoard
-from game.chess.common import from_array_to_input_tensor, GAME_MAP, MOVE_TO_INDEX_DICT, INDEX_TO_MOVE_DICT
+from game.chess.common import from_array_to_input_tensor, GAME_MAP, MOVE_TO_INDEX_DICT, INDEX_TO_MOVE_DICT, \
+    MAX_HISTORY_STEPS
 
 from constants import ROOT_PATH
 from game.chess.symmetry_creator import lr, tb_, LEFT_ACTION_INDEX, RIGHT_ACTION_INDEX, TOP_ACTION_INDEX, \
@@ -30,7 +32,7 @@ class Chess(ChessBoard):
         self.move_to_index = MOVE_TO_INDEX_DICT
         self.index_to_move = INDEX_TO_MOVE_DICT
         self.is_render = is_render
-        self.last_action = (-1, -1)
+        self.last_action = deque(maxlen=MAX_HISTORY_STEPS)
 
     def is_end(self, mock=False):
         winner = self.check_winner(mock)
@@ -103,7 +105,7 @@ class Chess(ChessBoard):
     def reset(self, start_player=1):
         self.init_point_status()
         self.current_player = start_player
-        self.last_action = (-1, -1)
+        self.last_action = deque(maxlen=MAX_HISTORY_STEPS)
         # self.reset_draw_checker()
 
     def move_random(self):
@@ -159,8 +161,28 @@ if __name__ == '__main__':
     print(abv)
     import os
 
+    sta = Chess(-1)
+    sta.do_action((7, 5))
+    sta.do_action((8, 9))
+    sta.do_action((12, 19))
+    sta.do_action((3, 8))
+    sta.do_action((15, 12))
+    sta.do_action((0, 3))
+    sta.do_action((13, 15))
+    sta.do_action((1, 0))
+    sta.do_action((11, 10))
+
     print(os.name)
-    s = Chess().get_torch_state()
+    s = sta.get_torch_state()
     print(s[:, :, 0])
     print(s[:, :, 1])
     print(s[:, :, 2])
+    print(s[:, :, 3])
+    print(s[:, :, 4])
+    print(s[:, :, 5])
+    print(s[:, :, 6])
+    print(s[:, :, 7])
+    print(s[:, :, 8])
+    print(s[:, :, 9])
+    print(s[:, :, 10])
+

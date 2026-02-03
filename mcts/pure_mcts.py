@@ -7,7 +7,7 @@ from utils.math_tool import dirichlet_noise
 
 
 class MCTS:
-    def __init__(self, predict, mode='train', swanlab=None, name=None, simulate_times=200):
+    def __init__(self, predict, mode='train', swanlab=None, name=None, simulate_times=60):
         if mode not in ["train", 'test']:
             raise ValueError("mode must be 'train' or 'test'")
         self.root = Node(1)

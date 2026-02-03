@@ -10,6 +10,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import torch
 
+MAX_HISTORY_STEPS = 8
+
 
 def create_directory(path):
     if not os.path.exists(str(path)):
@@ -63,11 +65,14 @@ ARRAY_TO_IMAGE = {
 }
 
 
-def from_array_to_input_tensor(point_status, current_player, last_action):
+def from_array_to_input_tensor(point_status, current_player, last_action_list):
     """
         :param point_status:
         :param current_player:
-        :return: 返回(7, 7, 3)的张量，第三个维度的第一个维度为棋子，第三个维度的第二个为棋手
+        :return: 返回(7, 7, 3)的张量，第三个维度的第一个维度为执棋方
+                                    第三个维度的第二个为对手
+                                    第三个维度的第二个指示
+                                    第三个维度的第二个为棋手
     """
     is_cuda = True if torch.cuda.is_available() else False
     if current_player not in [-1, 1]:
@@ -84,11 +89,11 @@ def from_array_to_input_tensor(point_status, current_player, last_action):
     state_not = np.ones((7, 7)) * 2
     state_not[v_ind[:, 0], v_ind[:, 1]] = 0
 
-    input_tensor = torch.zeros((7, 7, 3))
+    input_tensor = torch.zeros((7, 7, 3 + MAX_HISTORY_STEPS))
 
     input_tensor[:, :, 0][state_not == 2] = 2
     input_tensor[:, :, 1][state_not == 2] = 2
-
+    input_tensor[:, :, 2] = 1 if 1 == current_player else 0
     for i, chessman in enumerate(point_status):
         row, column = ARRAY_TO_IMAGE[i]
         if chessman == current_player:
@@ -100,11 +105,11 @@ def from_array_to_input_tensor(point_status, current_player, last_action):
         else:
             assert chessman == 0
 
-    if last_action != (-1, -1):
-        _, to = last_action
-        row, column = ARRAY_TO_IMAGE[to]
-        input_tensor[row, column, 2] = 1
-        assert point_status[to] == -current_player
+    for i, last_action in enumerate(last_action_list):
+        if last_action != (-1, -1):
+            _, to = last_action
+            row, column = ARRAY_TO_IMAGE[to]
+            input_tensor[row, column, i + 3] = 1
 
     return input_tensor.cuda() if is_cuda else input_tensor
 

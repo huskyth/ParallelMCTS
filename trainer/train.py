@@ -25,7 +25,7 @@ class Trainer:
         self.is_data_augment = is_data_augment
         self.is_image_show = is_image_show
 
-        self.train_sample = deque(maxlen=5000)
+        self.train_sample = deque(maxlen=8000)
         self.is_render = is_render
         self.use_pool = use_pool
         self.current_play_turn = 0

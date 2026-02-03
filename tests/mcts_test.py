@@ -4,9 +4,9 @@ from game.chess.chess import Chess
 from game.chess.common import INDEX_TO_MOVE_DICT
 from mcts.pure_mcts import MCTS
 from models.wm_model.network_wrapper import ChessNetWrapper
-from utils.debug_tools import visualize_mcts
 
 net = ChessNetWrapper()
+net.load("best.pt")
 mcts = MCTS(net.predict, 'test')
 
 state = Chess(-1)
