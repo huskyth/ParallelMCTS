@@ -20,6 +20,7 @@ class Trainer:
         else:
             self.swanlab = None
         self.train_config = train_config
+        self.init_best_model = False
 
         self.is_data_augment = is_data_augment
         self.is_image_show = is_image_show
@@ -314,9 +315,9 @@ class Trainer:
         wm.start()
 
     def learn(self):
+        #self.training_network.save(-1, "best.pt")
 
         start_epoch = self.training_network.try_load()
-
         is_trained = False
         for epoch in range(start_epoch, self.train_config.epoch):
 
