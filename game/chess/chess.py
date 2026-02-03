@@ -56,7 +56,7 @@ class Chess(ChessBoard):
                            center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
                            radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
             elif point == WHITE:
-                cv2.circle(img=image, color=(255.0, 0.0, 0.0),
+                cv2.circle(img=image, color=(0.0, 0.0, 255.0),
                            center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
                            radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
         return image
