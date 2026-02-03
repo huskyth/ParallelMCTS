@@ -64,8 +64,8 @@ class MCTS:
             probability /= probability.sum()
 
             epison = 0
-            if self.mode == 'train':
-                epison = 0.35
+            if self.mode == 'train' and current_node is self.root:
+                epison = 0.25
             ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison, alpha=0.3)
             probability[probability > 0] = ava_py_noise
 
