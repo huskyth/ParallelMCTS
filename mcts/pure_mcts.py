@@ -65,7 +65,7 @@ class MCTS:
 
             epison = 0
             if self.mode == 'train' and current_node is self.root:
-                epison = 0.98
+                epison = 0.28
             ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison, alpha=0.3)
             probability[probability > 0] = ava_py_noise
 

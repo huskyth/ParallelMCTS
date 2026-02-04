@@ -25,7 +25,7 @@ class Trainer:
         self.is_data_augment = is_data_augment
         self.is_image_show = is_image_show
 
-        self.train_sample = deque(maxlen=2000)
+        self.train_sample = deque(maxlen=1024)
         self.is_render = is_render
         self.use_pool = use_pool
         self.current_play_turn = 0
@@ -140,11 +140,7 @@ class Trainer:
         state = Chess(is_render=self.is_render)
 
         contest_network = ChessNetWrapper()
-        try:
-            contest_network.load("best.pt")
-        except Exception as e:
-            print("best.pt模型不存在，加载before_train.pt")
-            contest_network.load("latest.pt")
+        contest_network.load("before_train.pt")
         contest_network.eval()
         last_mcts = MCTS(contest_network.predict, mode='test', name="之前最优玩家")
 
@@ -237,11 +233,12 @@ class Trainer:
 
     def test(self, test_number):
         self.training_network.load("best.pt")
-        new_player = MCTS(self.training_network.predict, mode='test', name="最佳玩家", simulate_times=100)
+
+        new_player = MCTS(self.training_network.predict, mode='test', name="最佳玩家")
         state = Chess(is_render=self.is_render)
 
         contest_network = ChessNetWrapper()
-        random_mcts = MCTS(contest_network.predict, mode='test', name="随机玩家", simulate_times=100)
+        random_mcts = MCTS(contest_network.predict, mode='test', name="随机玩家")
 
         wins = 0
         olds = 0
@@ -308,14 +305,13 @@ class Trainer:
         self.training_network.load("best.pt")
         self.training_network.eval()
 
-        mcts = MCTS(self.training_network.predict, mode='train', name="AI", simulate_times=1600)
+        mcts = MCTS(self.training_network.predict, mode='test', name="AI", simulate_times=1600)
 
         state.reset()
         wm = WMChessGUI(mcts, state)
         wm.start()
 
     def learn(self):
-        #self.training_network.save(-1, "best.pt")
 
         start_epoch = self.training_network.try_load()
         is_trained = False
@@ -351,7 +347,7 @@ class Trainer:
                     "新模型获胜局数": new_win, "旧模型获胜局数": old_win, "和棋数": draws, "胜率": new_win / all_,
                     "纯净胜率（-1不存在）": clean_rate
                 })
-                if new_win + old_win == 0 or new_win / (new_win + old_win) < 0.6:
+                if new_win + old_win == 0 or new_win / (new_win + old_win) < 0.7:
                     print(f"🐑 REJECT Win Rate {new_win / all_}")
                     self.training_network.load(key="before_train.pt")
                 else:
