@@ -25,7 +25,7 @@ class Trainer:
         self.is_data_augment = is_data_augment
         self.is_image_show = is_image_show
 
-        self.train_sample = deque(maxlen=8000)
+        self.train_sample = deque(maxlen=2000)
         self.is_render = is_render
         self.use_pool = use_pool
         self.current_play_turn = 0
@@ -237,11 +237,11 @@ class Trainer:
 
     def test(self, test_number):
         self.training_network.load("best.pt")
-        new_player = MCTS(self.training_network.predict, mode='test', name="最佳玩家")
+        new_player = MCTS(self.training_network.predict, mode='test', name="最佳玩家", simulate_times=100)
         state = Chess(is_render=self.is_render)
 
         contest_network = ChessNetWrapper()
-        random_mcts = MCTS(contest_network.predict, mode='test', name="随机玩家")
+        random_mcts = MCTS(contest_network.predict, mode='test', name="随机玩家", simulate_times=100)
 
         wins = 0
         olds = 0

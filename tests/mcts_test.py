@@ -7,9 +7,9 @@ from models.wm_model.network_wrapper import ChessNetWrapper
 
 net = ChessNetWrapper()
 net.load("best.pt")
-mcts = MCTS(net.predict, 'test')
+mcts = MCTS(net.predict, 'test', simulate_times=80)
 
-state = Chess(-1)
+state = Chess(1)
 
 state.pointStatus = [1, 1, -1, 1, 1, 0, 0, 0, 0, -1, 0, 0, -1, 0, -1, 0, 0, -1, 1, 1, -1]
 

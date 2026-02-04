@@ -72,7 +72,7 @@ class Wrapper:
             raise ValueError(
                 f"state, probability, value shape error, shape is {state.shape}, {probability.shape}, {value.shape}")
 
-        epoch = n // 200 + 1
+        epoch = n // 500 + 1
         print("🏠 Training epoch: ", epoch)
         batch_number = n // self.batch
         return_dict = []
@@ -99,7 +99,7 @@ class Wrapper:
                 if torch.isclose(torch.tensor(entropy_p), torch.tensor(0.0)):
                     print(f"🐰 为什么熵为0，看看张量：{p_predict}")
 
-                loss = value_loss + probability_loss
+                loss = value_loss + probability_loss - entropy_p
 
                 self.opt.zero_grad()
                 loss.backward()
