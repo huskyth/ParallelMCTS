@@ -160,6 +160,9 @@ class TicTacToe(AbstractState):
         self.last_action = None
         self.is_render = is_render
 
+    def image_show(self, key, is_image_show, wait_key=1):
+        pass
+
     def available_actions(self):
         return self.state.generate_actions()
 
@@ -243,9 +246,17 @@ if __name__ == '__main__':
     game = TicTacToe()
     game.do_action(5)
     game.do_action(6)
-    game.do_action(1)
+
     temp = game.get_torch_state()
     print(temp[:, :, 0])
     print(temp[:, :, 1])
     print(temp[:, :, 2])
-    print(temp[:, :, 3])
+
+
+    game.do_action(1)
+    temp = game.get_torch_state()
+
+    print('=' * 100)
+    print(temp[:, :, 0])
+    print(temp[:, :, 1])
+    print(temp[:, :, 2])

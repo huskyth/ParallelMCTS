@@ -5,18 +5,24 @@ import numpy as np
 import torch
 from constants import ROOT_PATH
 from game.chess.chess import Chess
+from game.tictactoe.tictactoe import TicTacToe
 from mcts.pure_mcts import MCTS
+from models.tictactoe.network_wrapper import TictactoeNetWrapper
 from models.wm_model.network_wrapper import ChessNetWrapper
-
-from utils.concurrent_tool import ConcurrentProcess
+from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from pickle import Pickler, Unpickler
 
 
 class Trainer:
     def __init__(self, train_config=None, use_swanlab=True, mode='train', number_of_self_play=5, number_of_contest=5,
-                 use_pool=False, is_render=False, is_data_augment=False, is_image_show=False):
+                 use_pool=False, is_render=False, is_data_augment=False, is_image_show=False, is_continue=False,
+                 game="WMChess"):
+
+        self.is_continue = is_continue
         if use_swanlab:
             swanlab.login(api_key="rdGaOSnlBY0KBDnNdkzja")
-            self.swanlab = swanlab.init(project="Chess", logdir=ROOT_PATH / "logs")
+            self.swanlab = swanlab.init(project="ChessGame", logdir=ROOT_PATH / "logs")
         else:
             self.swanlab = None
         self.train_config = train_config
@@ -25,40 +31,58 @@ class Trainer:
         self.is_data_augment = is_data_augment
         self.is_image_show = is_image_show
 
-        self.train_sample = deque(maxlen=1024)
+        self.train_sample = []
         self.is_render = is_render
         self.use_pool = use_pool
         self.current_play_turn = 0
         if use_pool:
             self.self_play_parallel_num = number_of_self_play
-            self.self_play_processor = ConcurrentProcess(self.self_play_parallel_num)
             self.contest_parallel_num = number_of_contest
-            self.contest_processor = ConcurrentProcess(self.contest_parallel_num)
         else:
             self.self_play_num = number_of_self_play
             self.contest_num = number_of_contest
+        self.game = game
+        self.training_network = self.generate_net()
 
-        self.training_network = ChessNetWrapper()
+    def generate_state(self):
+        state = None
+        if self.game == 'tictactoe':
+            state = TicTacToe(is_render=self.is_render)
+        elif self.game == 'WMChess':
+            state = Chess(is_render=self.is_render)
+        return state
+
+    def generate_net(self):
+        net = None
+        if self.game == "tictactoe":
+            net = TictactoeNetWrapper()
+        elif self.game == 'WMChess':
+            net = ChessNetWrapper()
+        return net
 
     def _collect_concurrent(self):
         mcts1 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家1")
         mcts2 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家2")
-        state = Chess(is_render=self.is_render)
-        param = (self.current_play_turn, mcts1, mcts2, state, False, self.is_data_augment, self.is_image_show)
+        state = self.generate_state()
+        param = (mcts1, mcts2, state, False, self.is_data_augment, self.is_image_show)
 
-        result = self.self_play_processor.process(self._self_play, *param)
+        result = []
+        with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
+            future_list = [ppe.submit(self._self_play, i + self.current_play_turn, *param)
+                           for i in range(self.self_play_parallel_num)]
+            for item in as_completed(future_list):
+                data_list = item.result()
+                result.extend(data_list)
+
         self.current_play_turn += self.self_play_parallel_num
-        ret = []
-        for r in result:
-            ret.extend(r)
-        return ret
+        return result
 
     def _collect(self):
-        sample = []
+        sample = deque([], maxlen=200000)
         mcts1 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家1")
         mcts2 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家2")
-        state = Chess(is_render=self.is_render)
-        for i in range(self.self_play_num):
+        state = self.generate_state()
+        for _ in tqdm(range(self.self_play_num), desc='Self Play'):
             temp = self._self_play(self.current_play_turn, mcts1, mcts2, state, self.is_render, self.is_data_augment,
                                    self.is_image_show)
             self.current_play_turn += 1
@@ -83,9 +107,10 @@ class Trainer:
         state.image_show(f"测试局面", is_image_show)
         while not state.is_end()[0]:
             turn += 1
+            is_greedy = turn > 13
             if turn % 100 == 0:
                 print(f"😊 第{current_play_turn + 1}次self_play 共进行 {turn} 轮")
-            probability = player_list[start_player + 1].get_action_probability(state=state, is_greedy=False)
+            probability = player_list[start_player + 1].get_action_probability(state=state, is_greedy=is_greedy)
             action = np.random.choice(len(probability), p=probability)
             train_sample.append(
                 [state.get_torch_state().cpu(), torch.tensor(probability), state.get_current_player(), action])
@@ -137,63 +162,73 @@ class Trainer:
         new_win, old_win, draws = 0, 0, 0
 
         new_player = MCTS(self.training_network.predict, mode='test', name="当前训练玩家")
-        state = Chess(is_render=self.is_render)
+        state = self.generate_state()
 
-        contest_network = ChessNetWrapper()
+        contest_network = self.generate_net()
         contest_network.load("before_train.pt")
         contest_network.eval()
         last_mcts = MCTS(contest_network.predict, mode='test', name="之前最优玩家")
 
-        param = (0, state, new_player, last_mcts, None)
-        ret = self.contest_processor.process(self._contest_one_time, *param)
-        for item in ret:
-            new_win_, old_win_, draws_, length_of_turn_ = item
-            new_win += new_win_
-            old_win += old_win_
-            draws += draws_
-            print(f"♬ 本局进行了{length_of_turn_}轮")
-            self.swanlab.log({
-                "轮数": length_of_turn_
-            })
+        param = (state, new_player, last_mcts, None)
+
+        with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
+            future_list = [ppe.submit(self._contest_one_time, *param) for _ in range(self.contest_parallel_num // 2)]
+            for item in as_completed(future_list):
+                data_list = item.result()
+                new_win_, old_win_, draws_, length_of_turn_ = data_list
+                new_win += new_win_
+                old_win += old_win_
+                draws += draws_
+
+        param = (state, last_mcts, new_player, None)
+        with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
+            future_list = [ppe.submit(self._contest_one_time, *param) for _ in range(self.contest_parallel_num // 2)]
+            for item in as_completed(future_list):
+                data_list = item.result()
+                new_win_, old_win_, draws_, length_of_turn_ = data_list
+                new_win += old_win_
+                old_win += new_win_
+                draws += draws_
 
         return new_win, old_win, draws
 
     def _contest(self, test_number=1000):
-        new_player = MCTS(self.training_network.predict, mode='test', name="当前训练玩家")
-        state = Chess(is_render=self.is_render)
+        first_player = MCTS(self.training_network.predict, mode='test', name="当前训练玩家")
+        state = self.generate_state()
 
-        contest_network = ChessNetWrapper()
-        try:
-            contest_network.load("best.pt")
-        except Exception as e:
-            print("best.pt模型不存在，加载before_train.pt")
-            contest_network.load("latest.pt")
+        contest_network = self.generate_net()
+        contest_network.load("before_train.pt")
         contest_network.eval()
-        last_mcts = MCTS(contest_network.predict, mode='test', name="之前最优玩家")
+        second_player = MCTS(contest_network.predict, mode='test', name="之前最优玩家")
 
-        wins = 0
-        olds = 0
+        first_win = 0
+        second_win = 0
         draws = 0
-        for i in range(test_number):
-            new_win, old_win, draw, length_of_turn = self._contest_one_time(i, state, new_player, last_mcts,
-                                                                            self.is_image_show)
+        for _ in tqdm(range(test_number // 2)):
+            win1, win2, draw, length_of_turn = self._contest_one_time(state, first_player, second_player,
+                                                                      self.is_image_show)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
-            wins += new_win
-            olds += old_win
+            first_win += win1
+            second_win += win2
             draws += draw
-        return wins, olds, draws
+
+        for _ in tqdm(range(test_number // 2)):
+            win1, win2, draw, length_of_turn = self._contest_one_time(state, second_player, first_player,
+                                                                      self.is_image_show)
+            print(f"♬ 本局进行了{length_of_turn}轮\n")
+            first_win += win2
+            second_win += win1
+            draws += draw
+        return first_win, second_win, draws
 
     @staticmethod
-    def _contest_one_time(i, state, new_player, last_mcts, is_image_show):
+    def _contest_one_time(state, first_player, second_player, is_image_show):
 
-        new_win, old_win, draws = 0, 0, 0
-        new_player.update_tree(-1)
-        last_mcts.update_tree(-1)
-        player_list = [last_mcts, None, new_player]
-        current_player = 1 if i % 2 == 0 else -1
-        start_player = current_player
-        state.reset(start_player)
-        print(f"\n🌟 start {i}th contest, first hand is {start_player}, {player_list[start_player + 1].name}")
+        first_player.update_tree(-1)
+        second_player.update_tree(-1)
+        player_list = [second_player, None, first_player]
+        current_player = 1
+        state.reset()
         length_of_turn = 0
         max_turn = 1000
         state.render("初始化局面")
@@ -207,97 +242,114 @@ class Trainer:
             if player is None:
                 max_act = state.move_random()
             else:
-                probability_new = player.get_action_probability(state, False)
+                probability_new = player.get_action_probability(state, True)
                 max_act = np.argmax(probability_new).item()
-                max_act = np.random.choice(len(probability_new), p=probability_new)
             p_name = player.name if player else '随机玩家'
             state.render(
                 f"Step {length_of_turn} - 当前玩家 {p_name} {state.get_current_player()}, 执行 {state.index_to_move[max_act]}")
             state.do_action(max_act)
             state.render(f"Step {length_of_turn} - 当前玩家 {p_name} 索引{-state.get_current_player()}执行后的局面")
-            new_player.update_tree(max_act)
-            last_mcts.update_tree(max_act)
+            first_player.update_tree(max_act)
+            second_player.update_tree(max_act)
             current_player *= -1
             state.image_show("Contest", is_image_show)
 
+        first_win, second_win, draws = 0, 0, 0
         _, winner = state.is_end()
         if winner == 1:
-            new_win += 1
+            first_win = 1
         elif winner == -1:
-            old_win += 1
+            second_win = 1
         elif winner == 0:
-            draws += 1
+            draws = 1
 
-        print(f"🍑 draws is {draws}, old win is {old_win}, new win is {new_win}")
-        return new_win, old_win, draws, length_of_turn
+        return first_win, second_win, draws, length_of_turn
 
     def test(self, test_number):
-        self.training_network.load("best.pt")
+        state = self.generate_state()
 
-        new_player = MCTS(self.training_network.predict, mode='test', name="最佳玩家")
-        state = Chess(is_render=self.is_render)
+        first_net = self.generate_net()
+        # first_net.load("best.pt")
+        first_player = MCTS(first_net.predict, mode='test', name="玩家1", simulate_times=50)
 
-        contest_network = ChessNetWrapper()
-        random_mcts = MCTS(contest_network.predict, mode='test', name="随机玩家")
+        second_net = self.generate_net()
+        second_net.load("best.pt")
+        second_player = MCTS(second_net.predict, mode='test', name="玩家2", simulate_times=50)
 
-        wins = 0
-        olds = 0
+        first_win1 = 0
+        second_win1 = 0
         draws = 0
-        for i in range(test_number):
-            new_win, old_win, draw, length_of_turn = self._contest_one_time(i, state, new_player, random_mcts,
-                                                                            self.is_image_show)
+        for _ in tqdm(range(test_number // 2)):
+            first_net = self.generate_net()
+            # first_net.load("best.pt")
+            first_player = MCTS(first_net.predict, mode='test', name="玩家1", simulate_times=25)
+            win1, win2, draw, length_of_turn = self._contest_one_time(state, first_player, second_player,
+                                                                      self.is_image_show)
             print(f"♬ 本局进行了{length_of_turn}轮\n")
-            wins += new_win
-            olds += old_win
+            first_win1 += win1
+            second_win1 += win2
             draws += draw
-        all_ = wins + olds + draws
-        self.swanlab.log({
-            "win_new": wins, "win_random": olds, "draws": draws, "win_rate": wins / all_,
-            "pure_rate": wins / (wins + olds)
-        })
-        print(f"🍤 Win Rate {wins / all_}")
+        first_win2 = 0
+        second_win2 = 0
+        print(f"模型1先行：  模型1：{first_win1}, 模型2：{second_win1}, 平局：{draws}")
+        for _ in tqdm(range(test_number // 2)):
+            first_net = TictactoeNetWrapper()
+            # first_net.load("best.pt")
+            first_player = MCTS(first_net.predict, mode='test', name="玩家1", simulate_times=25)
+            win1, win2, draw, length_of_turn = self._contest_one_time(state, second_player, first_player,
+                                                                      self.is_image_show)
+            print(f"♬ 本局进行了{length_of_turn}轮\n")
+            first_win2 += win2
+            second_win2 += win1
+            draws += draw
+        print(f"模型2先行：  模型1：{first_win2}, 模型2：{second_win2}, 平局：{draws}")
+
+        print(f"🍤 模型1：{first_win1 + first_win2}, 模型2：{second_win1 + second_win2}, 平局：{draws}")
 
     def play(self, current_player="AI"):
-        self._wm_play()
-        return
         if current_player not in ["AI", "Human"]:
             raise ValueError("current_player must be 'AI' or 'Human'")
-        self.abstract_game.network.load("best.pt")
-        ai = self.abstract_game.mcts
-        ai.mode = 'test'
-        state = self.abstract_game.state
-
-        ai.update_tree(-1)
-        state.reset()
-        start_player = current_player
-        ano_player = 'Human' if start_player == 'AI' else 'AI'
-        state.is_render = True
-        state.render("当前局面")
-        state.is_render = False
-        while not state.is_end()[0]:
-            if current_player == "AI":
-                print('👀 Now AI play')
-                probability_new = ai.get_action_probability(state, True)
-                max_act = np.argmax(probability_new).item()
-                current_player = "Human"
-            else:
-                print('👀 Now human play')
-                max_act = int(input("please input you action"))
-                current_player = "AI"
-
-            state.do_action(max_act)
-            ai.update_tree(-1)
+        if self.game == 'WHChess':
+            self._wm_play()
+            return
+        elif self.game == 'tictactoe':
+            state = TicTacToe(is_render=True)
+            net = TictactoeNetWrapper()
+            net.load("best.pt")
+            player = MCTS(net.predict, mode='test', name="玩家", simulate_times=50)
+            player.update_tree(-1)
+            state.reset()
+            start_player = current_player
+            ano_player = 'Human' if start_player == 'AI' else 'AI'
             state.is_render = True
             state.render("当前局面")
             state.is_render = False
-        _, winner = state.is_end()
-        ai.mode = 'train'
-        if winner == 0:
-            print("和棋")
-        elif winner == 1:
-            print(f"{start_player} 赢了")
-        elif winner == -1:
-            print(f"{ano_player} 赢了")
+            while not state.is_end()[0]:
+                value, probability = net.predict(state.get_torch_state())
+                print(f"局面 概率 {probability}, {np.argmax(probability)}")
+                if current_player == "AI":
+                    print('👀 Now AI play')
+                    probability_new = player.get_action_probability(state, True)
+                    print(f"mcts策略 {probability_new}")
+                    max_act = np.argmax(probability_new).item()
+                    current_player = "Human"
+                else:
+                    print('👀 Now human play')
+                    max_act = int(input("please input you action"))
+                    current_player = "AI"
+
+                state.do_action(max_act)
+                player.update_tree(-1)
+                state.is_render = True
+                state.render("当前局面")
+                state.is_render = False
+            _, winner = state.is_end()
+            if winner == 0:
+                print("和棋")
+            elif winner == 1:
+                print(f"{start_player} 赢了")
+            elif winner == -1:
+                print(f"{ano_player} 赢了")
 
     def _wm_play(self):
         from game.chess.wm_chess_gui import WMChessGUI
@@ -311,10 +363,20 @@ class Trainer:
         wm = WMChessGUI(mcts, state)
         wm.start()
 
-    def learn(self):
+    def save_history(self):
+        with open(self.training_network.MODEL_SAVE_PATH / "train_history.examples", "wb+") as f:
+            Pickler(f).dump(self.train_sample)
 
-        start_epoch = self.training_network.try_load()
-        is_trained = False
+    def load_history(self):
+        with open(self.training_network.MODEL_SAVE_PATH / "train_history.examples", "rb") as f:
+            self.train_sample = Unpickler(f).load()
+
+    def learn(self):
+        start_epoch = 0
+
+        if self.is_continue:
+            start_epoch = self.training_network.try_load()
+            self.load_history()
         for epoch in range(start_epoch, self.train_config.epoch):
 
             if self.use_pool:
@@ -322,36 +384,41 @@ class Trainer:
             else:
                 train_sample = self._collect()
 
-            self.train_sample.extend(train_sample)
+            self.train_sample.append(train_sample)
+            if len(self.train_sample) > 20:
+                self.train_sample.pop(0)
 
-            if len(self.train_sample) >= 1000:
-                is_trained = True
-                print(f"start training... size of train_sample: {len(self.train_sample)}")
-                np.random.shuffle(self.train_sample)
-                self.training_network.save(epoch, key="before_train.pt")
-                stat = self.training_network.train_net(self.train_sample)
-                self.training_network.save(epoch)
-                for sta in stat:
-                    self.swanlab.log(sta)
+            self.save_history()
+            train_sample = []
+            for x in self.train_sample:
+                train_sample.extend(x)
+            print(f"start training... size of train_sample: {len(train_sample)}")
+            np.random.shuffle(train_sample)
+            self.training_network.save(epoch, key="before_train.pt")
+            stat = self.training_network.train_net(train_sample, self.swanlab)
+            self.training_network.save(epoch)
+            # for sta in stat:
+            #     self.swanlab.log(sta)
 
-            if (epoch + 1) % self.train_config.test_rate == 0 and is_trained:
-                self.training_network.eval()
-                if self.use_pool:
-                    new_win, old_win, draws = self._contest_concurrent()
-                else:
-                    new_win, old_win, draws = self._contest(test_number=self.contest_num)
-                all_ = new_win + old_win + draws
-                sum_ = new_win + old_win
-                clean_rate = new_win / sum_ if sum_ != 0 else -1
-                self.swanlab.log({
-                    "新模型获胜局数": new_win, "旧模型获胜局数": old_win, "和棋数": draws, "胜率": new_win / all_,
-                    "纯净胜率（-1不存在）": clean_rate
-                })
-                if new_win + old_win == 0 or new_win / (new_win + old_win) < 0.7:
-                    print(f"🐑 REJECT Win Rate {new_win / all_}")
-                    self.training_network.load(key="before_train.pt")
-                else:
-                    print(f"🍤 ACCEPT, Win Rate {new_win / all_} model saved")
-                    self.training_network.save(epoch, key="best.pt")
+            self.training_network.eval()
+            if self.use_pool:
+                new_win, old_win, draws = self._contest_concurrent()
+            else:
+                new_win, old_win, draws = self._contest(test_number=self.contest_num)
+            all_ = new_win + old_win + draws
+            sum_ = new_win + old_win
+            clean_rate = new_win / sum_ if sum_ != 0 else -1
+            self.swanlab.log({
+                "新模型获胜局数": new_win, "旧模型获胜局数": old_win, "和棋数": draws, "胜率": new_win / all_,
+                "纯净胜率（-1不存在）": clean_rate
+            })
+            if sum_ == 0 or new_win / sum_ < 0.7:
+                print(f"🐑 REJECT Win Rate {new_win / all_}, draws: {draws}")
+                self.training_network.load(key="before_train.pt")
+                self.swanlab.log({"is_update": 0})
+            else:
+                print(f"🍤 ACCEPT, Win Rate {new_win / sum_} model saved, draws: {draws}")
+                self.training_network.save(epoch, key="best.pt")
+                self.swanlab.log({"is_update": 1})
 
-                self.training_network.train()
+            self.training_network.train()

@@ -1,10 +1,12 @@
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
+from tqdm import tqdm
+import numpy as np
 
 
 class Wrapper:
-    batch = 8
+    batch = 32
 
     def __init__(self, net):
 
@@ -52,27 +54,10 @@ class Wrapper:
         v, p = self.net(state)
         return v.detach().cpu().numpy(), (torch.e ** p).detach().cpu().numpy()[0]
 
-    def train_net(self, train_sample):
+    def train_net(self, train_sample, swanlab):
         self.train()
         n = len(train_sample)
-        state, probability, _, value = list(zip(*train_sample))
-
-        state = torch.stack(state).float()
-        state = state.cuda() if self.is_cuda else state
-
-        probability = torch.stack(probability).float()
-        probability = probability.cuda() if self.is_cuda else probability
-
-        value = torch.stack(value)[:, None].float()
-        value = value.cuda() if self.is_cuda else value
-
-        if state.shape != (
-                n, self.net.input_size, self.net.input_size, self.net.input_channel) or probability.shape != (
-                n, self.net.action_size) or value.shape != (n, 1):
-            raise ValueError(
-                f"state, probability, value shape error, shape is {state.shape}, {probability.shape}, {value.shape}")
-
-        epoch = n // 500 + 1
+        epoch = 10
         print("🏠 Training epoch: ", epoch)
         batch_number = n // self.batch
         return_dict = []
@@ -80,29 +65,27 @@ class Wrapper:
             value_loss_avg = 0
             probability_loss_avg = 0
             entropy_p_avg = 0
-            for step in range(batch_number):
-                start = step * self.batch
-                state_batch = state[start:start + self.batch, :, :, :]
-                probability_batch = probability[start:start + self.batch, :]
-                value_batch = value[start:start + self.batch]
-                v_predict, p_predict = self.net(state_batch)
-                value_loss = self.mse(v_predict, value_batch)
+            t = tqdm(range(batch_number), desc='Training Net')
+            for _ in t:
+                sample_ids = np.random.randint(n, size=self.batch)
+                s, p, _, r = list(zip(*[train_sample[i] for i in sample_ids]))
 
-                probability_loss = self.cross(p_predict, probability_batch)
+                boards = torch.FloatTensor(np.array(s, dtype=np.float64))
+                target_pis = torch.FloatTensor(np.array(p))
+                target_vs = torch.FloatTensor(np.array(r, dtype=np.float64))
 
-                entropy_p = (-torch.e ** p_predict * p_predict).sum(axis=1).mean().item()
+                if self.is_cuda:
+                    boards, target_pis, target_vs = boards.contiguous().cuda(), target_pis.contiguous().cuda(), target_vs.contiguous().cuda()
 
-                value_loss_avg = (value_loss_avg * step + value_loss.item()) / (1 + step)
-                probability_loss_avg = (probability_loss_avg * step + probability_loss.item()) / (1 + step)
-                entropy_p_avg = (entropy_p_avg * step + entropy_p) / (1 + step)
-
-                if torch.isclose(torch.tensor(entropy_p), torch.tensor(0.0)):
-                    print(f"🐰 为什么熵为0，看看张量：{p_predict}")
-
-                loss = value_loss + probability_loss - entropy_p
-
+                out_v, out_pi = self.net(boards)
+                l_pi = self.cross(out_pi, target_pis)
+                l_v = self.mse(target_vs, out_v)
+                total_loss = l_pi + l_v
+                swanlab.log({
+                    '策略损失': l_pi.item(), "价值损失": l_v.item(), "总损失": total_loss.item()
+                })
                 self.opt.zero_grad()
-                loss.backward()
+                total_loss.backward()
                 self.opt.step()
 
             return_dict.append({

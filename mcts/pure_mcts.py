@@ -7,7 +7,7 @@ from utils.math_tool import dirichlet_noise
 
 
 class MCTS:
-    def __init__(self, predict, mode='train', swanlab=None, name=None, simulate_times=60):
+    def __init__(self, predict, mode='train', swanlab=None, name=None, simulate_times=25):
         if mode not in ["train", 'test']:
             raise ValueError("mode must be 'train' or 'test'")
         self.root = Node(1)
@@ -65,7 +65,7 @@ class MCTS:
 
             epison = 0
             if self.mode == 'train' and current_node is self.root:
-                epison = 0.28
+                epison = 0
             ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison, alpha=0.3)
             probability[probability > 0] = ava_py_noise
 
@@ -111,8 +111,11 @@ class MCTS:
         self.win_rate = 0
 
         if is_greedy:
-            max_visit = np.max(probability)
-            probability = np.where(probability == max_visit, 1, 0)
-            return probability
+            bestAs = np.array(np.argwhere(probability == np.max(probability))).flatten()
+            bestA = np.random.choice(bestAs)
+            probs = [0] * len(probability)
+            probs[bestA] = 1
+            print(f"118probability = {probability}")
+            return probs
         visit_list = probability / probability.sum()
         return visit_list
