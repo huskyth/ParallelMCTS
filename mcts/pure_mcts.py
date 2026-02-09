@@ -65,8 +65,8 @@ class MCTS:
 
             epison = 0
             if self.mode == 'train' and current_node is self.root:
-                epison = 0
-            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison, alpha=0.3)
+                epison = 0.0
+            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=epison, alpha=0.03)
             probability[probability > 0] = ava_py_noise
 
             if probability.sum() == 0:
@@ -115,7 +115,6 @@ class MCTS:
             bestA = np.random.choice(bestAs)
             probs = [0] * len(probability)
             probs[bestA] = 1
-            print(f"118probability = {probability}")
-            return probs
+            return np.array(probs)
         visit_list = probability / probability.sum()
         return visit_list

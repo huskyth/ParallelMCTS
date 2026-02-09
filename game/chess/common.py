@@ -63,6 +63,16 @@ ARRAY_TO_IMAGE = {
     20: (3, 3),
     16: (2, 3), 17: (3, 2), 18: (3, 4), 19: (4, 3)
 }
+IMAGE_TO_ARRAY = {v: k for k, v in ARRAY_TO_IMAGE.items()}
+
+def from_torch_to_array(tensor):
+    ret = [0] * 21
+    for i in range(7):
+        for j in range(7):
+            if tensor[i][j] != 0:
+                ret[IMAGE_TO_ARRAY[(i, j)]] = tensor[i][j]
+    return ret
+
 
 
 def from_array_to_input_tensor(point_status, current_player, last_action_list):

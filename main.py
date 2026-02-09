@@ -18,8 +18,8 @@ if __name__ == '__main__':
     parser.add_argument('--is_data_augment', type=bool, default=True)
     parser.add_argument('--is_image_show', type=bool, default=False)
     parser.add_argument('--mode', type=str, default="test", choices=['train', 'test', 'play'])
-    parser.add_argument('--test_number', type=int, default=200)
-    parser.add_argument('--game', type=str, default="WMChess", choices=['WMChess', 'tictactoe'])
+    parser.add_argument('--test_number', type=int, default=100)
+    parser.add_argument('--game', type=str, default="tictactoe", choices=['WMChess', 'tictactoe'])
     print(f"🍬 Start logging {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     args = parser.parse_args()
 
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     t = Trainer(train_config=tn_cfg, number_of_contest=args.number_of_contest,
                 number_of_self_play=args.number_of_self_play,
                 use_pool=args.use_concurrent, is_render=args.is_render, is_data_augment=args.is_data_augment,
-                is_image_show=args.is_image_show, is_continue=True, game=args.game)
+                is_image_show=args.is_image_show, is_continue=False, game=args.game)
     try:
         if args.mode == 'train':
             t.learn()

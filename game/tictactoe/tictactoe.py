@@ -228,14 +228,14 @@ class TicTacToe(AbstractState):
         state[:, :, 1] = torch.flip(state[:, :, 1], (0,))
         state[:, :, 2] = torch.flip(state[:, :, 2], (0,))
         probability = np.reshape(np.flip(probability.reshape(3, 3), (0,)), (9,))
-        return state, probability
+        return state.cpu(), probability
 
     def left_right(self, state, probability):
         state[:, :, 0] = torch.flip(state[:, :, 0], (1,))
         state[:, :, 1] = torch.flip(state[:, :, 1], (1,))
         state[:, :, 2] = torch.flip(state[:, :, 2], (1,))
         probability = np.reshape(np.flip(probability.reshape(3, 3), (1,)), (9,))
-        return state, probability
+        return state.cpu(), probability
 
     def center(self, state, probability):
         s, p = self.top_buttom(state, probability)
