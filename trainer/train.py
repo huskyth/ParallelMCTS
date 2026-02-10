@@ -37,40 +37,42 @@ class Trainer:
         self.is_render = is_render
         self.use_pool = use_pool
         self.current_play_turn = 0
+        self.self_play_num = number_of_self_play
+
         if use_pool:
             self.self_play_parallel_num = number_of_self_play
             self.contest_parallel_num = number_of_contest
         else:
-            self.self_play_num = number_of_self_play
             self.contest_num = number_of_contest
         self.game = game
-        self.training_network = self.generate_net()
+        self.training_network = self.generate_net(self.game)
 
-    def generate_state(self):
+    @staticmethod
+    def generate_state(game):
         state = None
-        if self.game == 'tictactoe':
-            state = TicTacToe(is_render=self.is_render)
-        elif self.game == 'WMChess':
-            state = Chess(is_render=self.is_render)
+        if game == 'tictactoe':
+            state = TicTacToe()
+        elif game == 'WMChess':
+            state = Chess()
         return state
 
-    def generate_net(self):
+    @staticmethod
+    def generate_net(game):
         net = None
-        if self.game == "tictactoe":
+        if game == "tictactoe":
             net = TictactoeNetWrapper()
-        elif self.game == 'WMChess':
+        elif game == 'WMChess':
             net = ChessNetWrapper()
         return net
 
     def _collect_concurrent(self):
-        mcts1 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家1")
-        mcts2 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家2")
-        state = self.generate_state()
-        param = (mcts1, mcts2, state, False, self.is_data_augment, self.is_image_show)
+
+        state = self.generate_state(self.game)
+        param = (state, False, self.is_data_augment, self.is_image_show, self.game)
 
         result = []
         with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
-            future_list = [ppe.submit(self._self_play, i + self.current_play_turn, *param)
+            future_list = [ppe.submit(self.self_play_concurrent, i + self.current_play_turn, *param)
                            for i in range(self.self_play_parallel_num)]
             for item in as_completed(future_list):
                 data_list = item.result()
@@ -83,13 +85,21 @@ class Trainer:
         sample = deque([], maxlen=200000)
         mcts1 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家1")
         mcts2 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家2")
-        state = self.generate_state()
+        state = self.generate_state(self.game)
         for _ in tqdm(range(self.self_play_num), desc='Self Play'):
             temp = self._self_play(self.current_play_turn, mcts1, mcts2, state, self.is_render, self.is_data_augment,
                                    self.is_image_show)
             self.current_play_turn += 1
             sample.extend(temp)
         return sample
+
+    @staticmethod
+    def self_play_concurrent(current_play_turn, state, is_render, is_data_augment, is_image_show, game):
+        net = Trainer.generate_net(game)
+        net.load("best.pt")
+        mcts1 = MCTS(net.predict, mode='train', name="自我对弈玩家1")
+        mcts2 = MCTS(net.predict, mode='train', name="自我对弈玩家2")
+        return Trainer._self_play(current_play_turn, mcts1, mcts2, state, is_render, is_data_augment, is_image_show)
 
     @staticmethod
     def _self_play(current_play_turn, mcts1, mcts2, state, is_render, is_data_augment, is_image_show):
@@ -111,11 +121,14 @@ class Trainer:
         state.image_show(f"测试局面", is_image_show)
         while not state.is_end()[0]:
             turn += 1
-            is_greedy = turn > 500
+            is_greedy = turn > 200
             if turn % 100 == 0:
                 print(f"😊 第{current_play_turn + 1}次self_play 共进行 {turn} 轮")
 
             probability = player_list[start_player + 1].get_action_probability(state=state, is_greedy=is_greedy)
+
+            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=0.2, alpha=0.03)
+            probability[probability > 0] = ava_py_noise
 
             action = np.random.choice(len(probability), p=probability)
             train_sample.append(
@@ -166,46 +179,13 @@ class Trainer:
         return train_sample
 
     def _contest_concurrent(self):
-        new_win, old_win, draws = 0, 0, 0
-
-        new_player = MCTS(self.training_network.predict, mode='test', name="当前训练玩家")
-        state = self.generate_state()
-
-        contest_network = self.generate_net()
-        contest_network.load("before_train.pt")
-        contest_network.eval()
-        last_mcts = MCTS(contest_network.predict, mode='test', name="之前最优玩家")
-
-        param = (state, new_player, last_mcts, None)
-
-        with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
-            future_list = [ppe.submit(self._contest_one_time, *param) for _ in range(self.contest_parallel_num // 2)]
-            for item in as_completed(future_list):
-                data_list = item.result()
-                new_win_, old_win_, draws_, length_of_turn_ = data_list
-                new_win += new_win_
-                old_win += old_win_
-                draws += draws_
-                print(f"♬ 训练玩家先行 本局进行了{length_of_turn_}轮 new_win_ {new_win_}，old_win_ {old_win_}\n")
-        print(f"♬ 训练玩家先行 中间结果 new_win {new_win}，old_win {old_win} draws {draws}\n")
-        param = (state, last_mcts, new_player, None)
-        with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
-            future_list = [ppe.submit(self._contest_one_time, *param) for _ in range(self.contest_parallel_num // 2)]
-            for item in as_completed(future_list):
-                data_list = item.result()
-                new_win_, old_win_, draws_, length_of_turn_ = data_list
-                new_win += old_win_
-                old_win += new_win_
-                draws += draws_
-                print(f"♬ 之前玩家先行 本局进行了{length_of_turn_}轮，new_win_ {new_win_}，old_win_ {old_win_}\n")
-        print(f"♬ 之前玩家先行 最终结果 new_win {new_win}，old_win {old_win} draws {draws}\n")
-        return new_win, old_win, draws
+        return self.test_concurrent(self.contest_parallel_num, self._contest_one_time_concurrent)
 
     def _contest(self, test_number=1000):
         first_player = MCTS(self.training_network.predict, mode='test', name="当前训练玩家")
-        state = self.generate_state()
+        state = self.generate_state(self.game)
 
-        contest_network = self.generate_net()
+        contest_network = self.generate_net(self.game)
         contest_network.load("before_train.pt")
         contest_network.eval()
         second_player = MCTS(contest_network.predict, mode='test', name="之前最优玩家")
@@ -243,9 +223,8 @@ class Trainer:
         state.image_show("Contest", is_image_show)
         while not state.is_end()[0]:
             length_of_turn += 1
-            if length_of_turn >= max_turn:
-                print(f"🍑 draws is 1, old win is 0, new win is 0")
-                return 0, 0, 1, length_of_turn
+            if length_of_turn % 100 == 0:
+                print(f"🍑 当前步数为 {length_of_turn}")
             player = player_list[current_player + 1]
             if player is None:
                 max_act = state.move_random()
@@ -274,74 +253,48 @@ class Trainer:
         return first_win, second_win, draws, length_of_turn
 
     @staticmethod
-    def _contest_one_time_concurrent(state, first_start, is_image_show):
-        first_net = TictactoeNetWrapper()
-        second_net = TictactoeNetWrapper()
+    def _test_one_time_concurrent(state, first_start, is_image_show, game):
+        first_net = Trainer.generate_net(game)
+        second_net = Trainer.generate_net(game)
         second_net.load("best.pt")
-        first_player = MCTS(first_net.predict, mode='test', name="玩家1", simulate_times=25)
-        second_player = MCTS(second_net.predict, mode='test', name="玩家2", simulate_times=25)
+        first_player = MCTS(first_net.predict, mode='test', name="玩家1")
+        second_player = MCTS(second_net.predict, mode='test', name="玩家2")
         if first_start == 1:
             first_player, second_player = second_player, first_player
 
-        first_player.update_tree(-1)
-        second_player.update_tree(-1)
-        player_list = [second_player, None, first_player]
-        current_player = 1
-        state.reset()
-        length_of_turn = 0
-        max_turn = 1000
-        state.render("初始化局面")
-        state.image_show("Contest", is_image_show)
-        while not state.is_end()[0]:
-            length_of_turn += 1
-            if length_of_turn >= max_turn:
-                print(f"🍑 draws is 1, old win is 0, new win is 0")
-                return 0, 0, 1, length_of_turn
-            player = player_list[current_player + 1]
-            if player is None:
-                max_act = state.move_random()
-            else:
-                probability_new = player.get_action_probability(state, True)
-                max_act = np.argmax(probability_new).item()
-            p_name = player.name if player else '随机玩家'
-            state.render(
-                f"Step {length_of_turn} - 当前玩家 {p_name} {state.get_current_player()}, 执行 {state.index_to_move[max_act]}")
-            state.do_action(max_act)
-            state.render(f"Step {length_of_turn} - 当前玩家 {p_name} 索引{-state.get_current_player()}执行后的局面")
-            first_player.update_tree(max_act)
-            second_player.update_tree(max_act)
-            current_player *= -1
-            state.image_show("Contest", is_image_show)
+        return Trainer._contest_one_time(state, first_player, second_player, is_image_show)
 
-        first_win, second_win, draws = 0, 0, 0
-        _, winner = state.is_end()
-        if winner == 1:
-            first_win = 1
-        elif winner == -1:
-            second_win = 1
-        elif winner == 0:
-            draws = 1
+    @staticmethod
+    def _contest_one_time_concurrent(state, first_start, is_image_show, game):
+        first_net = Trainer.generate_net(game)
+        second_net = Trainer.generate_net(game)
+        first_net.load("latest.pt")
+        second_net.load("before_train.pt")
+        first_player = MCTS(first_net.predict, mode='test', name="玩家1")
+        second_player = MCTS(second_net.predict, mode='test', name="玩家2")
+        if first_start == 1:
+            first_player, second_player = second_player, first_player
 
-        return first_win, second_win, draws, length_of_turn
+        return Trainer._contest_one_time(state, first_player, second_player, is_image_show)
 
     def test_(self, test_number):
-        state = self.generate_state()
+        state = self.generate_state(self.game)
 
-        first_net = self.generate_net()
+        first_net = self.generate_net(self.game)
         # first_net.load("best.pt")
 
-        second_net = self.generate_net()
+        second_net = self.generate_net(self.game)
         second_net.load("best.pt")
 
         first_win = 0
         second_win = 0
         draws = 0
         for _ in tqdm(range(test_number // 2)):
-            first_net = self.generate_net()
+            first_net = self.generate_net(self.game)
             # first_net.load("best.pt")
-            first_player = MCTS(first_net.predict, mode='test', name="玩家1", simulate_times=25)
+            first_player = MCTS(first_net.predict, mode='test', name="玩家1")
 
-            second_player = MCTS(second_net.predict, mode='test', name="玩家2", simulate_times=25)
+            second_player = MCTS(second_net.predict, mode='test', name="玩家2")
 
             win1, win2, draw, length_of_turn = self._contest_one_time(state, first_player, second_player,
                                                                       self.is_image_show)
@@ -355,11 +308,11 @@ class Trainer:
         after_second = 0
         after_draw = 0
         for _ in tqdm(range(test_number // 2)):
-            first_net = self.generate_net()
+            first_net = self.generate_net(self.game)
             # first_net.load("best.pt")
-            first_player = MCTS(first_net.predict, mode='test', name="玩家1", simulate_times=25)
+            first_player = MCTS(first_net.predict, mode='test', name="玩家1")
 
-            second_player = MCTS(second_net.predict, mode='test', name="玩家2", simulate_times=25)
+            second_player = MCTS(second_net.predict, mode='test', name="玩家2")
 
             win1, win2, draw, length_of_turn = self._contest_one_time(state, second_player, first_player,
                                                                       self.is_image_show)
@@ -375,16 +328,20 @@ class Trainer:
 
         print(f"最终结果：  模型1：{first_win}, 模型2：{second_win}, 平局：{draws}")
 
-    def test_concurrent(self, test_number):
-        state = self.generate_state()
+    def test_concurrent(self, test_number, test_fun):
+
+        state = self.generate_state(self.game)
         new_win = 0
         old_win = 0
         draws = 0
         with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
             future_list = []
-            for _ in range(test_number // 2):
-                param = (state, 0, None)
-                future_list.append(ppe.submit(self._contest_one_time_concurrent, *param))
+            for i in range(test_number // 2):
+                show = None
+                if i == 0:
+                    show = True
+                param = (state, 0, show, self.game)
+                future_list.append(ppe.submit(test_fun, *param))
             for item in as_completed(future_list):
                 data_list = item.result()
                 new_win_, old_win_, draws_, length_of_turn_ = data_list
@@ -396,8 +353,8 @@ class Trainer:
         with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
             future_list = []
             for _ in range(test_number // 2):
-                param = (state, 1, None)
-                future_list.append(ppe.submit(self._contest_one_time_concurrent, *param))
+                param = (state, 1, None, self.game)
+                future_list.append(ppe.submit(test_fun, *param))
             for item in as_completed(future_list):
                 data_list = item.result()
                 new_win_, old_win_, draws_, length_of_turn_ = data_list
@@ -406,10 +363,11 @@ class Trainer:
                 draws += draws_
                 print(f"♬ 之前玩家先行 本局进行了{length_of_turn_}轮，new_win_ {new_win_}，old_win_ {old_win_}\n")
         print(f"♬ 之前玩家先行 最终结果 new_win {new_win}，old_win {old_win} draws {draws}\n")
+        return new_win, old_win, draws
 
     def test(self, test_number):
         if self.use_pool:
-            self.test_concurrent(test_number)
+            self.test_concurrent(test_number, self._test_one_time_concurrent)
         else:
             self.test_(test_number)
 
@@ -423,7 +381,7 @@ class Trainer:
             state = TicTacToe(is_render=True)
             net = TictactoeNetWrapper()
             net.load("best.pt")
-            player = MCTS(net.predict, mode='test', name="玩家", simulate_times=50)
+            player = MCTS(net.predict, mode='test', name="玩家")
             player.update_tree(-1)
             state.reset()
             start_player = current_player
@@ -486,10 +444,7 @@ class Trainer:
             self.load_history()
         for epoch in range(start_epoch, self.train_config.epoch):
 
-            if self.use_pool:
-                train_sample = self._collect_concurrent()
-            else:
-                train_sample = self._collect()
+            train_sample = self._collect()
 
             self.train_sample.append(train_sample)
             if len(self.train_sample) > 20:

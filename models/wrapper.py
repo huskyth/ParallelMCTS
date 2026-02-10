@@ -57,7 +57,7 @@ class Wrapper:
     def train_net(self, train_sample, swanlab):
         self.train()
         n = len(train_sample)
-        epoch = 10
+        epoch = 1
         print("🏠 Training epoch: ", epoch)
         batch_number = n // self.batch
         return_dict = []

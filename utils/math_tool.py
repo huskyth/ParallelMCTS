@@ -25,8 +25,13 @@ def dirichlet_noise(origin_p, alpha=0.3, epison=0.3):
 
 if __name__ == '__main__':
     bef = np.array([0, 0, 0, 0.1, 0.5, 0.4, 0, 0])
+    c = np.argmax(bef)
+    call = 1000
     print(f"原始 最大索引 {np.argmax(bef)}")
-    y = dirichlet_noise(bef, alpha=0.3, epison=0.9)
-
-    print(y)
-    print(f"加噪音 最大索引 {np.argmax(y)}")
+    ct = 0
+    for _ in range(call):
+        y = dirichlet_noise(bef[bef > 0], alpha=0.1, epison=0.03)
+        bef[bef > 0] = y
+        if np.argmax(bef) == c:
+            ct += 1
+    print(ct / call)

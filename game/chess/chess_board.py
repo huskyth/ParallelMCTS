@@ -14,14 +14,15 @@ class ChessBoard:
         self.init_distance()
         self.init_point_status()
         self.init_game_map()
-        self.is_simple = True
-        # self.draw_checker = {}
-        # self.reset_draw_checker()
+        self.is_simple = False
+        self.draw_checker = {}
+        self.reset_draw_checker()
+        self.turn = 0
 
     def reset_draw_checker(self):
         str_point = [str(t) for t in self.pointStatus] + [str(self.get_current_player())]
         str_point = "".join(str_point)
-        self.draw_checker = {str_point: 1}
+        self.draw_checker = {}
 
     def get_game_map(self):
         return self.gameMap
@@ -64,6 +65,7 @@ class ChessBoard:
         return legal_moves_list
 
     def execute_move(self, move, color):
+        self.turn += 1
         if isinstance(move, int):
             move = INDEX_TO_MOVE_DICT[move]
 
@@ -83,10 +85,7 @@ class ChessBoard:
             bake_point_status, self.distance)
 
     def check_winner(self, mock):
-        # if 'has' in self.draw_checker:
-        #     if mock:
-        #         print(f"用于调试 {self.draw_checker}")
-        #     return 0
+
         black_num = 0
         white_num = 0
         winner = None
@@ -107,4 +106,20 @@ class ChessBoard:
             else:
                 winner = BLACK
 
-        return winner
+        if winner:
+            return winner
+
+        if 'has' in self.draw_checker:
+            if mock:
+                print(f"用于调试 {self.draw_checker}")
+            return 0
+
+        if self.turn >= 200:
+            if black_num == white_num:
+                return 0
+            elif black_num > white_num:
+                return BLACK
+            else:
+                return WHITE
+
+        return None

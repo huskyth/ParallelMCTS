@@ -22,7 +22,7 @@ CHESSMAN_WIDTH = 20
 CHESSMAN_HEIGHT = 20
 BLACK = 1
 WHITE = -1
-MAX_DRAW_TIME = 5
+MAX_DRAW_TIME = 3
 
 
 class Chess(ChessBoard):
@@ -89,15 +89,15 @@ class Chess(ChessBoard):
         self.execute_move(action, self.current_player)
         self.current_player *= -1
 
-        # str_point = [str(t) for t in self.pointStatus] + [str(self.get_current_player())]
-        # str_point = "".join(str_point)
-        #
-        # if str_point not in self.draw_checker:
-        #     self.draw_checker[str_point] = 1
-        # else:
-        #     self.draw_checker[str_point] += 1
-        #     if self.draw_checker[str_point] == MAX_DRAW_TIME:
-        #         self.draw_checker['has'] = True
+        str_point = [str(t) for t in self.pointStatus] + [str(self.get_current_player())]
+        str_point = "".join(str_point)
+
+        if str_point not in self.draw_checker:
+            self.draw_checker[str_point] = 1
+        else:
+            self.draw_checker[str_point] += 1
+            if self.draw_checker[str_point] == MAX_DRAW_TIME:
+                self.draw_checker['has'] = True
 
     def get_current_player(self):
         return self.current_player
@@ -106,7 +106,8 @@ class Chess(ChessBoard):
         self.init_point_status()
         self.current_player = start_player
         self.last_action = deque(maxlen=MAX_HISTORY_STEPS)
-        # self.reset_draw_checker()
+        self.reset_draw_checker()
+        self.turn = 0
 
     def move_random(self):
         import random
@@ -125,7 +126,7 @@ class Chess(ChessBoard):
             new_pi = torch.from_numpy(new_pi).float()
         return new_board, new_pi
 
-    def image_show(self, key, is_image_show, wait_key=1):
+    def image_show(self, key, is_image_show, wait_key=5):
         if not is_image_show:
             return
         img = self._write_point()
@@ -161,28 +162,37 @@ if __name__ == '__main__':
     print(abv)
     import os
 
-    sta = Chess(-1)
-    sta.do_action((7, 5))
-    sta.do_action((8, 9))
-    sta.do_action((12, 19))
-    sta.do_action((3, 8))
-    sta.do_action((15, 12))
-    sta.do_action((0, 3))
-    sta.do_action((13, 15))
-    sta.do_action((1, 0))
-    sta.do_action((11, 10))
+    op = np.array([0.1, 0.14, 0.4, 0, 0, 0.34, 0.07, 0.05, 0, 0.05, 0, 0, 0, 0.03])
+    print(np.sum(op))
+    sta = Chess()
 
-    print(os.name)
-    s = sta.get_torch_state()
-    print(s[:, :, 0])
-    print(s[:, :, 1])
-    print(s[:, :, 2])
-    print(s[:, :, 3])
-    print(s[:, :, 4])
-    print(s[:, :, 5])
-    print(s[:, :, 6])
-    print(s[:, :, 7])
-    print(s[:, :, 8])
-    print(s[:, :, 9])
-    print(s[:, :, 10])
+    legal_moves = list(sta.get_legal_moves(sta.get_current_player()))
+    noise = 0.1 * np.random.dirichlet(0.03 * np.ones(np.count_nonzero(legal_moves)))
 
+    prob = 0.9 * op
+    j = 0
+    for i in range(len(prob)):
+        if legal_moves[i] == 1:
+            prob[i] += noise[j]
+            j += 1
+    prob /= np.sum(prob)
+
+    # sta.do_action((15, 12))
+    # sta.do_action((0, 3))
+    # sta.do_action((13, 15))
+    # sta.do_action((1, 0))
+    # sta.do_action((11, 10))
+
+    # print(os.name)
+    # s = sta.get_torch_state()
+    # print(s[:, :, 0])
+    # print(s[:, :, 1])
+    # print(s[:, :, 2])
+    # print(s[:, :, 3])
+    # print(s[:, :, 4])
+    # print(s[:, :, 5])
+    # print(s[:, :, 6])
+    # print(s[:, :, 7])
+    # print(s[:, :, 8])
+    # print(s[:, :, 9])
+    # print(s[:, :, 10])

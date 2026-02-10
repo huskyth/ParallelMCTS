@@ -10,7 +10,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import torch
 
-MAX_HISTORY_STEPS = 8
+MAX_HISTORY_STEPS = 1
 
 
 def create_directory(path):
