@@ -41,7 +41,7 @@ with open(ChessNetWrapper.MODEL_SAVE_PATH / "train_history.examples", "rb") as f
 import numpy as np
 
 cm = ChessNetWrapper()
-cm.load("best.pt")
+cm.load("latest.pt")
 
 n = 0
 cs = Chess()
