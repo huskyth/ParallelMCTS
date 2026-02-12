@@ -125,9 +125,9 @@ class Trainer:
             if turn % 100 == 0:
                 print(f"😊 第{current_play_turn + 1}次self_play 共进行 {turn} 轮")
 
-            probability = player_list[start_player + 1].get_action_probability(state=state, is_greedy=is_greedy)
+            probability = player_list[start_player + 1].get_action_probability(state=state, is_greedy=False)
 
-            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=0.2, alpha=0.03)
+            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=0.4, alpha=0.4)
             probability[probability > 0] = ava_py_noise
 
             action = np.random.choice(len(probability), p=probability)
@@ -255,8 +255,8 @@ class Trainer:
     @staticmethod
     def _test_one_time_concurrent(state, first_start, is_image_show, game):
         first_net = Trainer.generate_net(game)
+        first_net.load("best.pt")
         second_net = Trainer.generate_net(game)
-        second_net.load("best.pt")
         first_player = MCTS(first_net.predict, mode='test', name="玩家1")
         second_player = MCTS(second_net.predict, mode='test', name="玩家2")
         if first_start == 1:
@@ -422,7 +422,7 @@ class Trainer:
         self.training_network.load("best.pt")
         self.training_network.eval()
 
-        mcts = MCTS(self.training_network.predict, mode='test', name="AI", simulate_times=60)
+        mcts = MCTS(self.training_network.predict, mode='test', name="AI", simulate_times=800)
 
         state.reset()
         wm = WMChessGUI(mcts, state)

@@ -174,7 +174,7 @@ class WMChessGUI:
                             # draw
 
                 else:
-                    pi = self.mcts_player.get_action_probability(self.play_state, False)
+                    pi = self.mcts_player.get_action_probability(self.play_state, True)
                     move_idx = np.argmax(pi)
                     state = self.play_state.get_torch_state()
                     v, p = self.mcts_player.predict(state)

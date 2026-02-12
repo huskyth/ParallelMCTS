@@ -112,9 +112,14 @@ class ChessBoard:
         if 'has' in self.draw_checker:
             if mock:
                 print(f"用于调试 {self.draw_checker}")
-            return 0
+            if black_num == white_num:
+                return 0
+            elif black_num > white_num:
+                return BLACK
+            else:
+                return WHITE
 
-        if self.turn >= 200:
+        if self.turn >= 400:
             if black_num == white_num:
                 return 0
             elif black_num > white_num:
