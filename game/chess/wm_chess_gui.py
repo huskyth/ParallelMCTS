@@ -145,7 +145,7 @@ class WMChessGUI:
                 # human play
                 if self.is_human:
                     if event.type == pygame.MOUSEBUTTONDOWN:
-                        print("🌿 Mouse button down")
+                        # print("🌿 Mouse button down")
                         mouse_x, mouse_y = pygame.mouse.get_pos()
                         chessman = self._chosen_chessman(mouse_x, mouse_y)
                         if chessman is None:
@@ -155,7 +155,7 @@ class WMChessGUI:
                                 self.chosen_chessman_color = self.board[chessman]
                                 self.chessman_in_hand = True
                                 self.chosen_chessman = chessman
-                                print(f"🌿 chessman in hand human_color is {self.human_color}")
+                                # print(f"🌿 chessman in hand human_color is {self.human_color}")
 
                         else:
                             if self.board[chessman] == 0 and \
@@ -178,13 +178,11 @@ class WMChessGUI:
                     move_idx = np.argmax(pi)
                     state = self.play_state.get_torch_state()
                     v, p = self.mcts_player.predict(state)
-                    print(f"当前玩家 {self.play_state.get_current_player()} 的 MCTS 模拟概率为:\n\n {pi} \n\n "
-                          f"直接预测的价值为 {v} \n\n"
-                          f"直接预测的概率为 \n\n {p} \n\n"
-                          f"直接预测会选择的行为 {np.argmax(p)} ，蒙特卡洛预测行为 {move_idx}\n\n"
-                          f"当前第一维度：\n\n {state[:, :, 0]}\n\n\n"
-                          f"当前第二维度：\n\n {state[:, :, 1]}\n\n\n"
-                          f"当前第三维度：\n\n {state[:, :, 2]}\n\n\n")
+                    v_mcs = np.mean(
+                        np.array([item.q for idx, item in self.mcts_player.root.children.items() if item.p > 0]))
+                    print(f"{'=' * 200}\n"
+                          f"当前玩家： {self.play_state.get_current_player()}，直接预测的价值： {v}，mcts估计的价值： {v_mcs}，"
+                          f"直接预测选择的行为：{np.argmax(p)} ，蒙特卡洛预测行为 {move_idx}\n{'=' * 200}\n")
                     self.mcts_player.update_tree(move_idx)
                     move = self.play_state.index_to_move[move_idx]
                     self.execute_move(-self.human_color, move, info="AI")
@@ -202,7 +200,7 @@ class WMChessGUI:
         x, y = x / (SCREEN_WIDTH + 0.0), y / (SCREEN_HEIGHT + 0.0)
         for point in range(21):
             if abs(x - GAME_MAP[point][0]) < 0.05 and abs(y - GAME_MAP[point][1]) < 0.05:
-                print(f"🌿 choose {point}")
+                # print(f"🌿 choose {point}")
                 return point
         return None
 

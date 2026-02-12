@@ -25,6 +25,8 @@
 # state.image_show("test", True, wait_key=0)
 #
 # print(state.is_end())
+import torch
+
 from game.chess.chess import Chess
 from game.chess.common import from_torch_to_array
 from models.tictactoe.network_wrapper import TictactoeNetWrapper
@@ -38,17 +40,24 @@ with open(ChessNetWrapper.MODEL_SAVE_PATH / "train_history.examples", "rb") as f
     temp = Unpickler(f).load()
 import numpy as np
 
+cm = ChessNetWrapper()
+cm.load("best.pt")
+
 n = 0
 cs = Chess()
-for t in [temp[-1]]:
+
+ct = 0
+vt = 0
+for t in temp:
     n += len(t)
     for i, ti in enumerate(t):
         state, pi, cp, r = ti
-        if i % 4 == 0:
-            print(f"第{i // 4}步骤")
-            st = (ti[0][:, :, 0] * cp + ti[0][:, :, 1] * -cp).data.numpy()
-            cs.pointStatus = from_torch_to_array(st)
-            cs.image_show("test", True, wait_key=0)
+        # if i % 4 == 0:
+        if True:
+            # if abs(r) == 1:continue
+            # print(f"第{i // 4}步骤")
+            # st = (ti[0][:, :, 0] * cp + ti[0][:, :, 1] * -cp).data.numpy()
+            # cs.pointStatus = from_torch_to_array(st)
             # if abs(st[1, 1]) == 1 and len(np.argwhere(st != 0)) == 2 and (abs(st[0, 0]) == 1 or
             #                                              abs(st[0, 2]) == 1 or
             #                                              abs(st[2, 0]) == 1 or
@@ -60,8 +69,16 @@ for t in [temp[-1]]:
             #                                              abs(befo[2, 0]) == 1 or
             #                                              abs(befo[2, 2]) == 1) and len(np.argwhere(befo != 0)) == 1:
             #         pass
-            print(st)
-            print(f"策略: {pi}, 奖励: {r}, 当前玩家: {cp}， max a {np.argmax(pi)}")
-            print("=" * 120)
+            # print(st)
+            # print(state)
+            a, b = cm.predict(state.cuda())
+            vt += (a.item() - r) ** 2
+            if np.argmax(b) == np.argmax(pi):
+                # print("==")
+                ct += 1
+            # print(f"模型预测{'=' * 100} \n {a} \n {b} ,{np.argmax(b)}\n {'=' * 100}")
+            # print(f"策略: {pi}, 奖励: {r}, 当前玩家: {cp}， max a {np.argmax(pi)}")
+            # print("=" * 120)
+            # cs.image_show("test", True, wait_key=0)
 
-print(f"一共{n}步, {len(temp)}")
+print(f"一共{n}步, {len(temp)}, 精度: {ct / n}, 价值精度 {vt / n}")

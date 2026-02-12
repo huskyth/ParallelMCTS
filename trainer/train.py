@@ -87,10 +87,14 @@ class Trainer:
         mcts2 = MCTS(self.training_network.predict, mode='train', name="自我对弈玩家2")
         state = self.generate_state(self.game)
         for _ in tqdm(range(self.self_play_num), desc='Self Play'):
-            temp = self._self_play(self.current_play_turn, mcts1, mcts2, state, self.is_render, self.is_data_augment,
-                                   self.is_image_show)
+            temp, eat_all = self._self_play(self.current_play_turn, mcts1, mcts2, state, self.is_render,
+                                            self.is_data_augment,
+                                            self.is_image_show)
             self.current_play_turn += 1
             sample.extend(temp)
+            self.swanlab.log({
+                "自我对弈吃子数": eat_all
+            })
         return sample
 
     @staticmethod
@@ -105,6 +109,7 @@ class Trainer:
     def _self_play(current_play_turn, mcts1, mcts2, state, is_render, is_data_augment, is_image_show):
         train_sample = []
         turn = 0
+        eat_all = 0
         mcts1.update_tree(-1)
         mcts2.update_tree(-1)
         if (current_play_turn + 1) % 2 == 0:
@@ -117,7 +122,7 @@ class Trainer:
             f"😊 开始第{current_play_turn + 1}轮self_play"
             f"先手name是 {player_list[start_player + 1].name}，"
             f"进程ID {os.getpid()}")
-
+        update_time = 1 if not is_data_augment else 4
         state.image_show(f"测试局面", is_image_show)
         while not state.is_end()[0]:
             turn += 1
@@ -140,26 +145,27 @@ class Trainer:
                 train_sample.append([s1, p1, state.get_current_player(), action])
                 train_sample.append([s2, p2, state.get_current_player(), action])
                 train_sample.append([s3, p3, state.get_current_player(), action])
-            state.do_action(action)
+            eats = state.do_action(action)
+            eat_all += eats
+            for i in range(update_time):
+                train_sample[-i - 1].append(torch.tensor(eats * 0.15))
             start_player *= -1
             mcts1.update_tree(action)
             mcts2.update_tree(action)
             state.image_show(f"测试局面", is_image_show)
 
-        episode_length = len(train_sample)
-        gama = 1
         print(f'☃️ 一共 {turn}轮')
         _, winner = state.is_end()
         print(f'☃️ 一共 {turn}轮, 结果为 {winner}')
         assert winner is not None
         for idx, item in enumerate(train_sample):
-            rate = gama ** (episode_length - 1 - idx)
             if winner == 0:
-                item.append(torch.tensor(0.0))
-            elif item[-2] == winner:
-                item.append(torch.tensor(1.0 * rate))
+                temp = torch.tensor(0.0)
+            elif item[-3] == winner:
+                temp = torch.tensor(1.0)
             else:
-                item.append(torch.tensor(-1.0 * rate))
+                temp = torch.tensor(-1.0)
+            item[-1] = item[-1] + temp
 
         if is_render:
             title = ["原始", "上下", "左右", "中心对称"]
@@ -176,7 +182,7 @@ class Trainer:
             print("=" * 150 + "训练数据")
         for idx in range(len(train_sample)):
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
-        return train_sample
+        return train_sample, eat_all
 
     def _contest_concurrent(self):
         return self.test_concurrent(self.contest_parallel_num, self._contest_one_time_concurrent)
@@ -221,16 +227,23 @@ class Trainer:
         max_turn = 1000
         state.render("初始化局面")
         state.image_show("Contest", is_image_show)
+        is_greedy = False
         while not state.is_end()[0]:
             length_of_turn += 1
             if length_of_turn % 100 == 0:
                 print(f"🍑 当前步数为 {length_of_turn}")
+
+            if length_of_turn > 15:
+                is_greedy = True
             player = player_list[current_player + 1]
             if player is None:
                 max_act = state.move_random()
             else:
-                probability_new = player.get_action_probability(state, True)
-                max_act = np.argmax(probability_new).item()
+                probability_new = player.get_action_probability(state, is_greedy)
+                if is_greedy:
+                    max_act = np.argmax(probability_new).item()
+                else:
+                    max_act = np.random.choice(len(probability_new), p=probability_new)
             p_name = player.name if player else '随机玩家'
             state.render(
                 f"Step {length_of_turn} - 当前玩家 {p_name} {state.get_current_player()}, 执行 {state.index_to_move[max_act]}")
@@ -337,10 +350,7 @@ class Trainer:
         with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
             future_list = []
             for i in range(test_number // 2):
-                show = None
-                if i == 0:
-                    show = True
-                param = (state, 0, show, self.game)
+                param = (state, 0, False, self.game)
                 future_list.append(ppe.submit(test_fun, *param))
             for item in as_completed(future_list):
                 data_list = item.result()

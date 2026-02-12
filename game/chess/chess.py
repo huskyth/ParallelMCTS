@@ -86,6 +86,9 @@ class Chess(ChessBoard):
         return state
 
     def do_action(self, action):
+        one_time = np.sum(np.array(self.pointStatus) == 1)
+        neg_one_time = np.sum(np.array(self.pointStatus) == -1)
+
         self.execute_move(action, self.current_player)
         self.current_player *= -1
 
@@ -98,6 +101,11 @@ class Chess(ChessBoard):
             self.draw_checker[str_point] += 1
             if self.draw_checker[str_point] == MAX_DRAW_TIME:
                 self.draw_checker['has'] = True
+
+        one_time_after = np.sum(np.array(self.pointStatus) == 1)
+        neg_one_time_after = np.sum(np.array(self.pointStatus) == -1)
+        assert abs(one_time_after - one_time) == 0 or abs(neg_one_time - neg_one_time_after) == 0
+        return abs(one_time_after - one_time) + abs(neg_one_time - neg_one_time_after)
 
     def get_current_player(self):
         return self.current_player
