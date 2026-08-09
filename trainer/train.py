@@ -13,7 +13,6 @@ from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pickle import Pickler, Unpickler
 
-from utils.math_tool import dirichlet_noise
 
 
 class Trainer:
@@ -135,10 +134,8 @@ class Trainer:
             train_sample.append(
                 [state.get_torch_state().cpu(), torch.tensor(probability), state.get_current_player(), action])
 
-            eats = state.do_action(action)
-            eat_all += eats
             for i in range(update_time):
-                train_sample[-i - 1].append(torch.tensor(eats * 0.15))
+                train_sample[-i - 1].append(torch.tensor(0))
             start_player *= -1
             mcts1.update_tree()
             mcts2.update_tree()
@@ -430,7 +427,7 @@ class Trainer:
             self.load_history()
         for epoch in range(start_epoch, self.train_config.epoch):
 
-            train_sample = self._collect()
+            train_sample = self._collect_concurrent()
 
             self.train_sample.append(train_sample)
             if len(self.train_sample) > 20:
