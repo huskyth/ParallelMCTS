@@ -126,7 +126,6 @@ class Trainer:
         state.image_show(f"测试局面", is_image_show)
         while not state.is_end()[0]:
             turn += 1
-            is_greedy = turn > 200
             if turn % 100 == 0:
                 print(f"😊 第{current_play_turn + 1}次self_play 共进行 {turn} 轮")
 
