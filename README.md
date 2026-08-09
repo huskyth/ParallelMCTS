@@ -2,4 +2,4 @@
 
 ### 训练代码
 
-python main.py --number_of_self_play 10 --number_of_contest 10 --mode train --use_concurrent True
+python main.py --number_of_self_play 10 --number_of_contest 10 --mode train --use_concurrent True --is_data_augment False
