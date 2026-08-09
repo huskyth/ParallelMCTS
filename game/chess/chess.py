@@ -34,8 +34,8 @@ class Chess(ChessBoard):
         self.is_render = is_render
         self.last_action = deque(maxlen=MAX_HISTORY_STEPS)
 
-    def is_end(self, mock=False):
-        winner = self.check_winner(mock)
+    def is_end(self):
+        winner = self.check_winner()
         is_end = winner is not None
         return is_end, winner
 

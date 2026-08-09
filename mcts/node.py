@@ -27,7 +27,7 @@ class Node:
             temp.parent = self
             self.children[idx] = temp
 
-    def select(self, mode, state):
+    def select(self, state):
         values = [item.get_value(state, idx) for idx, item in self.children.items() if item.p > 0]
         items = [item for _, item in self.children.items() if item.p > 0]
         its = [idx for idx, item in self.children.items() if item.p > 0]

@@ -12,33 +12,25 @@ class MCTS:
         self.root = Node(1)
         self.predict = predict
         self.simulate_times = simulate_times
-        self.mode = mode
         self.swanlab = swanlab
         self.name = name
 
-    def _simulate(self, state, i):
+    def _simulate(self, state):
         current_node = self.root
         while True:
             if current_node.is_leaf():
                 break
-            action, current_node = current_node.select(self.mode, state)
-            state.render(
-                f"{self.name} 第{i}次模拟过程（select在前面调用，这行日志在循环里面），当前玩家 {state.get_current_player()}执行动作 {action}")
+            action, current_node = current_node.select(state)
             state.do_action(action)
 
         is_end, winner = state.is_end()
         if is_end is True:
-            state.render(f"{self.name} 第{i}次模拟，游戏结束,结果 {winner}")
             assert winner is not None
             value = 1 if winner == state.get_current_player() else -1
             if winner == 0:
                 value = 0
         else:
-            state.render(f"{self.name} 第{i}次模拟到终点，游戏没有结束")
             value, probability = self.predict(state.get_torch_state())
-            state.render(
-                f"这是Raw模型输出,当前对于玩家,{state.get_current_player()}游戏,"
-                f"价值：{value},策略：\n{probability}\n，应该的行为：{np.argmax(probability)}")
             available_action = state.get_legal_moves(state.get_current_player())
             available_ = set()
             for move in available_action:
@@ -68,10 +60,9 @@ class MCTS:
     def get_action_probability(self, state, is_greedy):
         for i in range(self.simulate_times):
             state_copy = copy.deepcopy(state)
-            self._simulate(state_copy, i)
+            self._simulate(state_copy)
 
         probability = np.array([item.visit for item in self.root.children.values()])
-        state.render(f"{self.name}模拟出来的行为概率为 {probability}")
 
 
         if is_greedy:

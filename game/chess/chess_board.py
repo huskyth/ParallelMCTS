@@ -2,7 +2,6 @@ import copy
 import numpy as np
 from game.chess.common import GAME_MAP, LENGTH_OF_BOARD, BLACK, WHITE, DISTANCE, get_neighbours, shiftOutChessman, \
     INDEX_TO_MOVE_DICT
-from game.abstract_state import AbstractState
 
 
 class ChessBoard:
@@ -84,7 +83,7 @@ class ChessBoard:
         self.pointStatus = shiftOutChessman(
             bake_point_status, self.distance)
 
-    def check_winner(self, mock):
+    def check_winner(self):
 
         black_num = 0
         white_num = 0
@@ -110,8 +109,6 @@ class ChessBoard:
             return winner
 
         if 'has' in self.draw_checker:
-            if mock:
-                print(f"用于调试 {self.draw_checker}")
             if black_num == white_num:
                 return 0
             elif black_num > white_num:
