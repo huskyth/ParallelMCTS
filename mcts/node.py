@@ -16,9 +16,6 @@ class Node:
         if isinstance(value, np.ndarray):
             value = value.item()
 
-        state.render(
-            f"当前 q = {self.q}, c = {self.c}, p = {self.p}, f_visit = {father_visit}, visit = {self.visit},"
-            f" 当前玩家 {state.get_current_player()} value = {value}, 这个move = {idx}")
         return value
 
     def expand(self, probability):

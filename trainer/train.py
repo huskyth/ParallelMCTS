@@ -131,19 +131,10 @@ class Trainer:
 
             probability = player_list[start_player + 1].get_action_probability(state=state, is_greedy=False)
 
-            ava_py_noise = dirichlet_noise(probability[probability > 0], epison=0.4, alpha=0.4)
-            probability[probability > 0] = ava_py_noise
-
             action = np.random.choice(len(probability), p=probability)
             train_sample.append(
                 [state.get_torch_state().cpu(), torch.tensor(probability), state.get_current_player(), action])
-            if is_data_augment:
-                s1, p1 = state.top_buttom(state.get_torch_state(), probability)
-                s2, p2 = state.left_right(state.get_torch_state(), probability)
-                s3, p3 = state.center(state.get_torch_state(), probability)
-                train_sample.append([s1, p1, state.get_current_player(), action])
-                train_sample.append([s2, p2, state.get_current_player(), action])
-                train_sample.append([s3, p3, state.get_current_player(), action])
+
             eats = state.do_action(action)
             eat_all += eats
             for i in range(update_time):
@@ -151,7 +142,6 @@ class Trainer:
             start_player *= -1
             mcts1.update_tree(action)
             mcts2.update_tree(action)
-            state.image_show(f"测试局面", is_image_show)
 
         print(f'☃️ 一共 {turn}轮')
         _, winner = state.is_end()
@@ -166,19 +156,6 @@ class Trainer:
                 temp = torch.tensor(-1.0)
             item[-1] = item[-1] + temp
 
-        if is_render:
-            title = ["原始", "上下", "左右", "中心对称"]
-            print("=" * 150 + f"训练数据， 当前训练数据有 {len(train_sample)} 比")
-            rate_ = 4 if is_data_augment else 1
-            for idx, item in enumerate(train_sample):
-                state, p, player, act, value = item
-
-                print(
-                    f"\n\n" + "*" * 100 + " " + str(idx % rate_) + f" {title[idx % rate_]}"
-                                                                   f"当前状态为\n{state[:, :, 0]}\n {state[:, :, 1]}\n\n {state[:, :, 2]}"
-                                                                   f"\n（改了，改成了单一概率，是随机采样后修改为只有一个1的概率，看到不要惊讶）概率为{p}\n当前玩家{player} value = {value} 执行 {act}（仅对第一组有效）,应该执行的行为（最大概率） {np.argmax(p)}"
-                    + '\n' + f"#" * 150)
-            print("=" * 150 + "训练数据")
         for idx in range(len(train_sample)):
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
         return train_sample, eat_all
