@@ -64,10 +64,10 @@ class Trainer:
             net = ChessNetWrapper()
         return net
 
-    def _collect_concurrent(self):
+    def _collect_concurrent(self, is_first):
 
         state = self.generate_state(self.game)
-        param = (state, False, self.is_data_augment, self.is_image_show, self.game)
+        param = (state, False, self.is_data_augment, self.is_image_show, self.game, is_first)
 
         result = []
         with ProcessPoolExecutor(max_workers=min(4, os.cpu_count())) as ppe:
@@ -97,9 +97,10 @@ class Trainer:
         return sample
 
     @staticmethod
-    def self_play_concurrent(current_play_turn, state, is_render, is_data_augment, is_image_show, game):
+    def self_play_concurrent(current_play_turn, state, is_render, is_data_augment, is_image_show, game, is_first):
         net = Trainer.generate_net(game)
-        net.load("best.pt")
+        if not is_first:
+            net.load("best.pt")
         mcts1 = MCTS(net.predict, mode='train', name="自我对弈玩家1")
         mcts2 = MCTS(net.predict, mode='train', name="自我对弈玩家2")
         return Trainer._self_play(current_play_turn, mcts1, mcts2, state, is_render, is_data_augment, is_image_show)
@@ -425,9 +426,12 @@ class Trainer:
         if self.is_continue:
             start_epoch = self.training_network.try_load()
             self.load_history()
+
+        is_first = 0
         for epoch in range(start_epoch, self.train_config.epoch):
 
-            train_sample = self._collect_concurrent()
+            train_sample = self._collect_concurrent(is_first == 0)
+            is_first += 1
 
             self.train_sample.append(train_sample)
             if len(self.train_sample) > 20:
