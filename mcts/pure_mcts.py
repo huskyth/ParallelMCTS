@@ -20,7 +20,7 @@ class MCTS:
         while True:
             if current_node.is_leaf():
                 break
-            action, current_node = current_node.select(state)
+            action, current_node = current_node.select()
             state.do_action(action)
 
         is_end, winner = state.is_end()
@@ -47,15 +47,9 @@ class MCTS:
             current_node.expand(probability)
         current_node.update(-value)
 
-    def update_tree(self, move):
-        if move not in self.root.children:
-            self.root = Node(1)
-        else:
-            if self.root.children[move].p > 0:
-                self.root = self.root.children[move]
-                self.root.parent = None
-            else:
-                self.root = Node(1)
+    def update_tree(self):
+        self.root = Node(1)
+
 
     def get_action_probability(self, state, is_greedy):
         for i in range(self.simulate_times):

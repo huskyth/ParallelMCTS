@@ -110,8 +110,8 @@ class Trainer:
         train_sample = []
         turn = 0
         eat_all = 0
-        mcts1.update_tree(-1)
-        mcts2.update_tree(-1)
+        mcts1.update_tree()
+        mcts2.update_tree()
         if (current_play_turn + 1) % 2 == 0:
             player_list = [mcts2, None, mcts1]
         else:
@@ -140,8 +140,8 @@ class Trainer:
             for i in range(update_time):
                 train_sample[-i - 1].append(torch.tensor(eats * 0.15))
             start_player *= -1
-            mcts1.update_tree(action)
-            mcts2.update_tree(action)
+            mcts1.update_tree()
+            mcts2.update_tree()
 
         print(f'☃️ 一共 {turn}轮')
         _, winner = state.is_end()
@@ -194,8 +194,8 @@ class Trainer:
 
     @staticmethod
     def _contest_one_time(state, first_player, second_player, is_image_show):
-        first_player.update_tree(-1)
-        second_player.update_tree(-1)
+        first_player.update_tree()
+        second_player.update_tree()
         player_list = [second_player, None, first_player]
         current_player = 1
         state.reset()
@@ -225,8 +225,8 @@ class Trainer:
                 f"Step {length_of_turn} - 当前玩家 {p_name} {state.get_current_player()}, 执行 {state.index_to_move[max_act]}")
             state.do_action(max_act)
             state.render(f"Step {length_of_turn} - 当前玩家 {p_name} 索引{-state.get_current_player()}执行后的局面")
-            first_player.update_tree(max_act)
-            second_player.update_tree(max_act)
+            first_player.update_tree()
+            second_player.update_tree()
             current_player *= -1
             state.image_show("Contest", is_image_show)
 
@@ -368,7 +368,7 @@ class Trainer:
             net = TictactoeNetWrapper()
             net.load("best.pt")
             player = MCTS(net.predict, mode='test', name="玩家")
-            player.update_tree(-1)
+            player.update_tree()
             state.reset()
             start_player = current_player
             ano_player = 'Human' if start_player == 'AI' else 'AI'
@@ -390,7 +390,7 @@ class Trainer:
                     current_player = "AI"
 
                 state.do_action(max_act)
-                player.update_tree(-1)
+                player.update_tree()
                 state.is_render = True
                 state.render("当前局面")
                 state.is_render = False

@@ -10,7 +10,7 @@ class Node:
         self.children = {}
         self.parent = None
 
-    def get_value(self, state, idx):
+    def get_value(self):
         father_visit = self.parent.visit
         value = self.q + self.c * self.p * father_visit ** 0.5 / (1 + self.visit)
         if isinstance(value, np.ndarray):
@@ -24,8 +24,8 @@ class Node:
             temp.parent = self
             self.children[idx] = temp
 
-    def select(self, state):
-        values = [item.get_value(state, idx) for idx, item in self.children.items() if item.p > 0]
+    def select(self):
+        values = [item.get_value() for idx, item in self.children.items() if item.p > 0]
         items = [item for _, item in self.children.items() if item.p > 0]
         its = [idx for idx, item in self.children.items() if item.p > 0]
         max_idx = np.argmax(values)
