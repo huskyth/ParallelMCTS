@@ -440,10 +440,7 @@ class Trainer:
             print(f"start training... size of train_sample: {len(train_sample)}")
             np.random.shuffle(train_sample)
             self.training_network.save(epoch, key="before_train.pt")
-            stat = self.training_network.train_net(train_sample, self.swanlab)
             self.training_network.save(epoch)
-            # for sta in stat:
-            #     self.swanlab.log(sta)
 
             self.training_network.eval()
             if self.use_pool:
