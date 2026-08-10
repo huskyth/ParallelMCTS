@@ -79,8 +79,9 @@ def computerMove(pointStatus, level):
 class AStarPlayer:
 
     @staticmethod
-    def select(pont):
-        return computerMove(pont, 1)
+    def select(state):
+        act,_ =  computerMove(copy.deepcopy(state.pointStatus), 1 if state.get_current_player() == BLACK else 2)
+        return act, _
 
     def update_tree(self):
         pass

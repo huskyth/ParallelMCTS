@@ -206,8 +206,6 @@ class Trainer:
         state.reset()
         length_of_turn = 0
         max_turn = 400
-        state.render("初始化局面")
-        state.image_show("Contest", is_image_show)
         while not state.is_end()[0]:
             length_of_turn += 1
             if length_of_turn % 100 == 0:
@@ -219,19 +217,19 @@ class Trainer:
             if player is None:
                 max_act = state.move_random()
             elif isinstance(player, AStarPlayer):
-                max_act, _ = player.select(state.pointStatus)
+                max_act, _ = player.select(state)
             else:
                 probability_new = player.get_action_probability(state, is_greedy)
                 if is_greedy:
                     max_act = np.argmax(probability_new).item()
                 else:
                     max_act = np.random.choice(len(probability_new), p=probability_new)
+
             state.do_action(max_act)
             first_player.update_tree()
             second_player.update_tree()
             current_player *= -1
             state.image_show("Contest", is_image_show)
-
         first_win, second_win, draws = 0, 0, 0
         _, winner = state.is_end()
         if winner == 1:
@@ -258,9 +256,9 @@ class Trainer:
     @staticmethod
     def _contest_one_time_concurrent(state, first_start, is_image_show, game):
         first_net = Trainer.generate_net(game)
-        second_net = Trainer.generate_net(game)
+        # second_net = Trainer.generate_net(game)
         first_net.load("latest.pt")
-        second_net.load("before_train.pt")
+        # second_net.load("before_train.pt")
         first_player = MCTS(first_net.predict, mode='test', name="玩家1")
         second_player = AStarPlayer()
         if first_start == 1:
