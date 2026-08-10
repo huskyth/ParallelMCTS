@@ -1,3 +1,4 @@
+import copy
 import os
 from collections import deque
 import swanlab
@@ -13,6 +14,8 @@ from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pickle import Pickler, Unpickler
 
+from utils.math_tool import dirichlet_noise
+from utils.visual_tool import compare_distributions
 
 
 class Trainer:
@@ -129,9 +132,14 @@ class Trainer:
             if turn % 100 == 0:
                 print(f"😊 第{current_play_turn + 1}次self_play 共进行 {turn} 轮")
 
-            probability = player_list[start_player + 1].get_action_probability(state=state, is_greedy=False)
+            p_ori = player_list[start_player + 1].get_action_probability(state=state, is_greedy=False)
+            probability = copy.deepcopy(p_ori)
+            pro_dich = dirichlet_noise(p_ori[p_ori > 0], alpha=0.3, epison=0.3)
+            probability[probability > 0] = pro_dich
+
 
             action = np.random.choice(len(probability), p=probability)
+            state.do_action(action)
             train_sample.append(
                 [state.get_torch_state().cpu(), torch.tensor(probability), state.get_current_player(), action])
 

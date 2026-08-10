@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 
+from utils.visual_tool import compare_distributions
+
 
 def dirichlet_noise(origin_p, alpha=0.3, epison=0.3):
     if not isinstance(origin_p, list) and not isinstance(origin_p, np.ndarray) and not isinstance(origin_p,
@@ -24,14 +26,6 @@ def dirichlet_noise(origin_p, alpha=0.3, epison=0.3):
 
 
 if __name__ == '__main__':
-    bef = np.array([0, 0, 0, 0.1, 0.5, 0.4, 0, 0])
-    c = np.argmax(bef)
-    call = 1000
-    print(f"原始 最大索引 {np.argmax(bef)}")
-    ct = 0
-    for _ in range(call):
-        y = dirichlet_noise(bef[bef > 0], alpha=0.1, epison=0.03)
-        bef[bef > 0] = y
-        if np.argmax(bef) == c:
-            ct += 1
-    print(ct / call)
+    bef = np.array([0, 0, 0, 0.1, 0.8, 0.1, 0, 0]).tolist()
+    y = dirichlet_noise(bef, alpha=0.3, epison=0.3).tolist()
+    compare_distributions(bef, y)

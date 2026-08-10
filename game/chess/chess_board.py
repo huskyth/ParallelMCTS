@@ -13,7 +13,7 @@ class ChessBoard:
         self.init_distance()
         self.init_point_status()
         self.init_game_map()
-        self.is_simple = False
+        self.is_simple = True
         self.draw_checker = {}
         self.reset_draw_checker()
         self.turn = 0
@@ -107,21 +107,5 @@ class ChessBoard:
 
         if winner:
             return winner
-
-        if 'has' in self.draw_checker:
-            if black_num == white_num:
-                return 0
-            elif black_num > white_num:
-                return BLACK
-            else:
-                return WHITE
-
-        if self.turn >= 400:
-            if black_num == white_num:
-                return 0
-            elif black_num > white_num:
-                return BLACK
-            else:
-                return WHITE
 
         return None
