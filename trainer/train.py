@@ -420,12 +420,12 @@ class Trainer:
         wm = WMChessGUI(mcts, state)
         wm.start()
 
-    def save_history(self):
-        with open(self.training_network.MODEL_SAVE_PATH / "train_history.examples", "wb+") as f:
+    def save_history(self, epoch):
+        with open(self.training_network.MODEL_SAVE_PATH / f"train_history_{epoch}.examples", "wb+") as f:
             Pickler(f).dump(self.train_sample)
 
-    def load_history(self):
-        with open(self.training_network.MODEL_SAVE_PATH / "train_history.examples", "rb") as f:
+    def load_history(self, epoch):
+        with open(self.training_network.MODEL_SAVE_PATH / f"train_history_{epoch}.examples", "rb") as f:
             self.train_sample = Unpickler(f).load()
 
     def learn(self):
@@ -445,7 +445,7 @@ class Trainer:
             if len(self.train_sample) > 20:
                 self.train_sample.pop(0)
 
-            self.save_history()
+            self.save_history(epoch)
             train_sample = []
             for x in self.train_sample:
                 train_sample.extend(x)
