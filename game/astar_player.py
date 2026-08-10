@@ -74,3 +74,10 @@ def computerMove(pointStatus, level):
             # revoke the change
             pointStatus = copy.deepcopy(bakPointStatus)
         return bestMove, maxScore
+
+
+class AStarPlayer:
+
+    @staticmethod
+    def select(pont):
+        return computerMove(pont, 1)

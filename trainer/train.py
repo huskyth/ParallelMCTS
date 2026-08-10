@@ -5,6 +5,7 @@ import swanlab
 import numpy as np
 import torch
 from constants import ROOT_PATH
+from game.astar_player import AStarPlayer
 from game.chess.chess import Chess
 from game.tictactoe.tictactoe import TicTacToe
 from mcts.pure_mcts import MCTS
@@ -217,6 +218,8 @@ class Trainer:
             player = player_list[current_player + 1]
             if player is None:
                 max_act = state.move_random()
+            elif isinstance(player, AStarPlayer):
+                max_act, _ = player.select(state.pointStatus)
             else:
                 probability_new = player.get_action_probability(state, is_greedy)
                 if is_greedy:
@@ -259,7 +262,7 @@ class Trainer:
         first_net.load("latest.pt")
         second_net.load("before_train.pt")
         first_player = MCTS(first_net.predict, mode='test', name="玩家1")
-        second_player = MCTS(second_net.predict, mode='test', name="玩家2")
+        second_player = AStarPlayer()
         if first_start == 1:
             first_player, second_player = second_player, first_player
 
@@ -445,10 +448,10 @@ class Trainer:
             print(f"start training... size of train_sample: {len(train_sample)}")
             np.random.shuffle(train_sample)
             self.training_network.save(epoch, key="before_train.pt")
-            self.training_network.save(epoch)
 
             self.training_network.train_net(train_sample, self.swanlab)
 
+            self.training_network.save(epoch)
 
             self.training_network.eval()
             if self.use_pool:
