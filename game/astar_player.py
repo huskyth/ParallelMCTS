@@ -1,21 +1,21 @@
 import copy
 
-from game.chess.common import BLACK, WHITE, get_neighbours, shiftOutChessman
+from game.chess.common import BLACK, WHITE, get_neighbours, shiftOutChessman, DISTANCE
 
 # difficulty of the game
 DEEPEST_LEVEL = 3
 
 
-def getScore(pointStatus, distance):
+def getScore(pointStatus):
     score = 0
     scoreLevel = [1, 2, 4, 6]
-    black = [x for x in distance if x == BLACK]
+    black = [x for x in DISTANCE if x == BLACK]
     # if chessman was eaten, sub 8 score for each one
     score -= 8 * (6 - len(black))
     for chessman, color in enumerate(pointStatus):
         advantg = 0
         disadvtg = 0
-        neighboors = get_neighbours(chessman, distance)
+        neighboors = get_neighbours(chessman, DISTANCE)
         for eachNeighboor in neighboors:
             # computer use black chessman as default
             if pointStatus[eachNeighboor] == BLACK and color == WHITE:
@@ -36,7 +36,7 @@ def getScore(pointStatus, distance):
             '''
     return score
 
-def computerMove(pointStatus, distance, level):
+def computerMove(pointStatus, level):
     move = []
     maxScore = -48
     bestMove = None
@@ -50,12 +50,12 @@ def computerMove(pointStatus, distance, level):
         opponentColor = WHITE
     # In the deepest level, the best move is itself, replace it with None
     if level > DEEPEST_LEVEL:
-        score = getScore(pointStatus, distance)
+        score = getScore(pointStatus)
         return [], score
     else:
         for chessman, color in enumerate(pointStatus):
             if color == selfColor:
-                for neighboorChessman in get_neighbours(chessman, distance):
+                for neighboorChessman in get_neighbours(chessman, DISTANCE):
                     if pointStatus[neighboorChessman] == 0:
                         move.append((chessman, neighboorChessman))
         if not move:
@@ -64,10 +64,10 @@ def computerMove(pointStatus, distance, level):
         for eachMove in move:
             pointStatus[eachMove[1]] = selfColor
             pointStatus[eachMove[0]] = 0
-            pointStatus = shiftOutChessman(pointStatus, distance)
+            pointStatus = shiftOutChessman(pointStatus, DISTANCE)
             # newMove is useless, just for return the best move in the first
             # level
-            newMove, score = computerMove(pointStatus, distance, level + 1)
+            newMove, score = computerMove(pointStatus, DISTANCE, level + 1)
             if score > maxScore:
                 maxScore = score
                 bestMove = eachMove
