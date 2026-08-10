@@ -16,6 +16,7 @@ if __name__ == '__main__':
     parser.add_argument('--no_concurrent', action='store_false', default=True)
     parser.add_argument('--is_render', type=bool, default=False)
     parser.add_argument('--no_data_augment', action='store_false', default=True)
+    parser.add_argument('--resume', action='store_true', default=False)
     parser.add_argument('--no_swanlab', action='store_false', default=True)
     parser.add_argument('--is_image_show', type=bool, default=False)
     parser.add_argument('--mode', type=str, default="play", choices=['train', 'test', 'play'])
@@ -33,7 +34,7 @@ if __name__ == '__main__':
     t = Trainer(train_config=tn_cfg, number_of_contest=args.number_of_contest,
                 number_of_self_play=args.number_of_self_play,
                 use_pool=args.no_concurrent, is_render=args.is_render, is_data_augment=args.no_data_augment,
-                is_image_show=args.is_image_show, is_continue=False, game=args.game, use_swanlab=args.no_swanlab)
+                is_image_show=args.is_image_show, is_continue=args.resume, game=args.game, use_swanlab=args.no_swanlab)
     try:
         if args.mode == 'train':
             t.learn()

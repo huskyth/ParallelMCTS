@@ -15,7 +15,6 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pickle import Pickler, Unpickler
 
 from utils.math_tool import dirichlet_noise
-from utils.visual_tool import compare_distributions
 
 
 class Trainer:
@@ -206,17 +205,16 @@ class Trainer:
         current_player = 1
         state.reset()
         length_of_turn = 0
-        max_turn = 1000
+        max_turn = 400
         state.render("初始化局面")
         state.image_show("Contest", is_image_show)
-        is_greedy = False
         while not state.is_end()[0]:
             length_of_turn += 1
             if length_of_turn % 100 == 0:
                 print(f"🍑 当前步数为 {length_of_turn}")
-
-            if length_of_turn > 15:
-                is_greedy = True
+            if length_of_turn >= max_turn:
+                return 0, 0, 1, max_turn
+            is_greedy = True
             player = player_list[current_player + 1]
             if player is None:
                 max_act = state.move_random()
@@ -433,7 +431,7 @@ class Trainer:
 
         if self.is_continue:
             start_epoch = self.training_network.try_load()
-            self.load_history()
+            self.load_history(start_epoch)
 
         is_first = 0
         for epoch in range(start_epoch, self.train_config.epoch):
@@ -453,6 +451,9 @@ class Trainer:
             np.random.shuffle(train_sample)
             self.training_network.save(epoch, key="before_train.pt")
             self.training_network.save(epoch)
+
+            self.training_network.train_net(train_sample, self.swanlab)
+
 
             self.training_network.eval()
             if self.use_pool:
