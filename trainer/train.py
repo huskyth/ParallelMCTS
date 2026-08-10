@@ -223,11 +223,7 @@ class Trainer:
                     max_act = np.argmax(probability_new).item()
                 else:
                     max_act = np.random.choice(len(probability_new), p=probability_new)
-            p_name = player.name if player else '随机玩家'
-            state.render(
-                f"Step {length_of_turn} - 当前玩家 {p_name} {state.get_current_player()}, 执行 {state.index_to_move[max_act]}")
             state.do_action(max_act)
-            state.render(f"Step {length_of_turn} - 当前玩家 {p_name} 索引{-state.get_current_player()}执行后的局面")
             first_player.update_tree()
             second_player.update_tree()
             current_player *= -1

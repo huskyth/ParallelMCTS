@@ -26,7 +26,7 @@ class Wrapper:
         print(f"{key} 模型已经保存")
 
     def load(self, key):
-        model = torch.load(str(self.MODEL_SAVE_PATH / key))
+        model = torch.load(str(self.MODEL_SAVE_PATH / key), weights_only=True)
         self.net.load_state_dict(model["state_dict"])
         self.opt.load_state_dict(model["optimizer"])
         print(f"{key} 模型已经加载")
