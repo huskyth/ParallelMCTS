@@ -81,3 +81,6 @@ class AStarPlayer:
     @staticmethod
     def select(pont):
         return computerMove(pont, 1)
+
+    def update_tree(self):
+        pass
