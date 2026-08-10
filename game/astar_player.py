@@ -67,7 +67,7 @@ def computerMove(pointStatus, level):
             pointStatus = shiftOutChessman(pointStatus, DISTANCE)
             # newMove is useless, just for return the best move in the first
             # level
-            newMove, score = computerMove(pointStatus, DISTANCE, level + 1)
+            newMove, score = computerMove(pointStatus, level + 1)
             if score > maxScore:
                 maxScore = score
                 bestMove = eachMove
