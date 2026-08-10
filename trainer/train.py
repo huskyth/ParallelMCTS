@@ -111,7 +111,6 @@ class Trainer:
     def _self_play(current_play_turn, mcts1, mcts2, state, is_render, is_data_augment, is_image_show):
         train_sample = []
         turn = 0
-        eat_all = 0
         mcts1.update_tree()
         mcts2.update_tree()
         if (current_play_turn + 1) % 2 == 0:
@@ -163,7 +162,7 @@ class Trainer:
 
         for idx in range(len(train_sample)):
             train_sample[idx] = train_sample[idx][:3] + [train_sample[idx][4]]
-        return train_sample, eat_all
+        return train_sample
 
     def _contest_concurrent(self):
         return self.test_concurrent(self.contest_parallel_num, self._contest_one_time_concurrent)
