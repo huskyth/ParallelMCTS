@@ -112,12 +112,10 @@ static void shiftOutChessman(float* g) {
 
 const int numActions(void) {
     init_actions();
-    printf("numActions = %d\n", NUM_ACTIONS);  // 加这行
     return NUM_ACTIONS;
 }
 
 const int gameLength(void) {
-    printf("gameLength = %d\n", BOARD_SIZE + 1);
     return BOARD_SIZE + 1;   // 玩家 + 棋盘
 }
 
@@ -191,7 +189,6 @@ int getValidActions(int* const actions, const float* const g) {
             actions[count++] = a;
         }
     }
-    printf("count = %d\n", count);
     return count;
 }
 
