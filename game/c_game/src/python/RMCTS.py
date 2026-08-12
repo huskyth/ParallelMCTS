@@ -155,7 +155,8 @@ class MCTS:
     def __init__(self, root_states, numSims, c_puct, nnet):
         assert numSims >= 2 #  TODO
         self.root_states = np.array(root_states, dtype=np.float32)
-
+        print(root_states)
+        print(self.root_states)
         # assert that root states are not terminal
         for i in range(self.root_states.shape[0]):
             ended, score = game.gameEnded(self.root_states[i])
