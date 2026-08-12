@@ -81,30 +81,46 @@ static inline void set_player(float* g, int p) {
     g[0] = (float)p;
 }
 
-// ---------- 围死判定 ----------
-static int is_dead(const float* g, int idx, int color) {
-    int has_empty = 0, has_friend = 0;
+// ---------- 递归检查连通性（模仿 Python 的 check） ----------
+static int check(int chessman, const float* g, int* visited) {
+    visited[chessman] = 1;
+    int color = (int)g[chessman + 1];
+    int dead = 1;
     for (int j = 0; j < BOARD_SIZE; j++) {
-        if (distance[idx][j] == 1) {
-            int p = (int)g[j+1];
-            if (p == 0) has_empty = 1;
-            else if (p == color) has_friend = 1;
+        if (distance[chessman][j] != 1) continue;
+        if (!visited[j]) {
+            int piece = (int)g[j + 1];
+            if (piece == color) {
+                // 同色，递归检查
+                dead = check(j, g, visited);
+                if (dead == 0) return 0;
+            } else if (piece == 0) {
+                // 找到空位，有气
+                dead = 0;
+                return 0;
+            }
         }
     }
-    return (!has_empty && !has_friend);
+    return dead;
+}
+
+// ---------- is_dead：判断棋子是否死亡 ----------
+static int is_dead(const float* g, int idx, int color) {
+    int visited[BOARD_SIZE] = {0};
+    return check(idx, g, visited);
 }
 
 // ---------- 移位逻辑 ----------
 static void shiftOutChessman(float* g) {
     int dead[BOARD_SIZE] = {0};
     for (int i = 0; i < BOARD_SIZE; i++) {
-        int color = (int)g[i+1];
+        int color = (int)g[i + 1];
         if (color != 0 && is_dead(g, i, color)) {
             dead[i] = 1;
         }
     }
     for (int i = 0; i < BOARD_SIZE; i++) {
-        if (dead[i]) g[i+1] = 0.0f;
+        if (dead[i]) g[i + 1] = 0.0f;
     }
 }
 
