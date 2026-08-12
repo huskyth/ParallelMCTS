@@ -184,7 +184,7 @@ int isValidAction(const float* const g, int const a) {
 
 int getValidActions(int* const actions, const float* const g) {
     init_actions();
-    int player = get_player(g);
+//    int player = get_player(g);
     int count = 0;
     for (int a = 0; a < NUM_ACTIONS; a++) {
         if (isValidAction(g, a)) {
