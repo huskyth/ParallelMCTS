@@ -155,7 +155,7 @@ def train():
     # ---- 训练循环 ----
     for epoch in range(num_epochs):
         # ---- 自对弈生成数据 ----
-        for _ in range(num_selfplay_games):
+        for idx in range(num_selfplay_games):
             def nnet(states):
                 with torch.no_grad():
                     states_t = torch.from_numpy(states).float().to(device)
@@ -165,6 +165,8 @@ def train():
 
             for state, policy, z in self_play(nnet, num_sims, c_puct):
                 replay_buffer.push(state, policy, z)
+
+            print(f"{idx} Self-play done, buffer size: {len(replay_buffer)}")
 
         print(f"Epoch {epoch}, buffer size: {len(replay_buffer)}")
 
