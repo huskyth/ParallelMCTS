@@ -69,17 +69,23 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3):
 # ------------------------------------------------------------
 # 2. 对战与评估函数
 # ------------------------------------------------------------
-def play_game(net1, net2, num_sims, c_puct, device):
+def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
     """
     一局对战：net1 先手，net2 后手。
     返回终局得分（+1 表示 net1 赢，-1 表示 net2 赢，0 平局）。
+    加入最大步数和三次重复判和。
     """
     state = game.rootState()
     player = game.playerId(state)
-    while True:
+    step = 0
+    position_count = {}  # 记录局面出现次数
+
+    while step < max_steps:
+        step += 1
         actions = game.getValidActions(state)
         if len(actions) == 0:
             break
+
         # 选择当前玩家对应的网络
         net = net1 if player == 1 else net2
 
@@ -98,22 +104,36 @@ def play_game(net1, net2, num_sims, c_puct, device):
         state = game.nextState(state, best_action)
         player = game.playerId(state)
 
+        # 检查游戏是否结束
         ended, score = game.gameEnded(state)
         if ended:
             break
+
+        # 记录局面，检测重复（三次重复判和）
+        # 将 state 转为不可变的字符串（浮点数转为整数避免精度问题）
+        s = ','.join(str(int(x)) for x in state.tolist())
+        position_count[s] = position_count.get(s, 0) + 1
+        if position_count[s] >= 3:
+            print(f"重复局面出现 {position_count[s]} 次，判平局")
+            score = 0.0
+            break
+
+    else:
+        # 超过最大步数，判平局
+        print(f"达到最大步数 {max_steps}，判平局")
+        score = 0.0
+
     return score  # net1 作为玩家1，得分 +1 表示胜
 
-
-def evaluate(net, baseline_net, num_games, num_sims, c_puct, device):
+def evaluate(net, baseline_net, num_games, num_sims, c_puct, device, max_steps=500):
     """评估当前网络 vs 基线网络，返回胜率（当前网络先手胜率）"""
     wins = 0
-    for _ in range(num_games):
-        result = play_game(net, baseline_net, num_sims, c_puct, device)
-        print(f"Play Done result {result}")
+    for i in range(num_games):
+        result = play_game(net, baseline_net, num_sims, c_puct, device, max_steps=max_steps)
+        print(f"{i} evaluate ended result : {result}")
         if result == 1:
             wins += 1
     return wins / num_games
-
 
 # ------------------------------------------------------------
 # 3. 主训练循环
