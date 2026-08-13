@@ -15,31 +15,34 @@ sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 # ------------------------------------------------------------
 # 1. 自对弈函数（生成训练数据）
 # ------------------------------------------------------------
-def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3):
+def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_steps=500):
     """
-    使用 RMCTS 进行一盘自对弈，生成 (state, policy, z) 训练样本。
+    使用 RMCTS 进行一盘自对弈，生成训练样本。
+    加入最大步数限制和重复局面检测，防止死循环。
     """
     state = game.rootState()
     history = []
-    player = game.playerId(state)  # +1 或 -1
+    player = game.playerId(state)
+    score = 0.0
+    step = 0
+    position_count = {}  # 新增：记录重复局面
 
-    while True:
+    while step < max_steps:  # 新增：最大步数限制
+        step += 1
         actions = game.getValidActions(state)
         if len(actions) == 0:
+            score = -player
             break
 
-        # 搜索
         root = state[np.newaxis, :]
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
-        pi = pi[0]  # 去掉 batch 维度
+        pi = pi[0]
 
-        # 添加 Dirichlet 噪声
         if temperature == 1.0:
             noise = np.random.dirichlet([dirichlet_alpha] * len(actions))
             for i, a in enumerate(actions):
                 pi[a] = 0.75 * pi[a] + 0.25 * noise[i]
 
-        # 采样动作
         if temperature == 0:
             a = actions[np.argmax(pi[actions])]
         else:
@@ -47,20 +50,28 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3):
             probs /= np.sum(probs)
             a = np.random.choice(actions, p=probs)
 
-        # 记录
         history.append((state.copy(), pi.copy(), player))
-
-        # 执行动作
         state = game.nextState(state, a)
         player = game.playerId(state)
 
-        # 检查终局
         ended, score = game.gameEnded(state)
         if ended:
             break
 
+        # ---------- 🔥 新增：重复局面检测（三次重复判和） ----------
+        s = ','.join(str(int(x)) for x in state.tolist())
+        position_count[s] = position_count.get(s, 0) + 1
+        if position_count[s] >= 3:
+            print(f"Self-play 重复局面 {position_count[s]} 次，判平局")
+            score = 0.0
+            break
+    else:
+        # 如果超过最大步数，判平局
+        print(f"Self-play 达到最大步数 {max_steps}，判平局")
+        score = 0.0
+
     # 生成训练样本
-    z_abs = score  # 相对于玩家1
+    z_abs = score
     for s, p, pl in history:
         z = z_abs * pl
         yield s, p, z
@@ -145,8 +156,8 @@ def train():
     batch_size = 256
     num_selfplay_games = 32
     num_epochs = 1000
-    learning_rate = 0.001
-    eval_interval = 20          # 每20个epoch评估一次
+    learning_rate = 0.0001
+    eval_interval = 5          # 每20个epoch评估一次
     eval_games = 50             # 每评估50盘
     eval_sims = 200             # 评估时搜索次数（可小于训练值）
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -193,36 +204,85 @@ def train():
 
         # ---- 训练网络 ----
         if len(replay_buffer) >= batch_size:
-            states, target_policies, target_values = replay_buffer.sample(batch_size)
+            # 动态调整更新次数
+            if len(replay_buffer) < 50000:
+                num_updates = min(len(replay_buffer) // batch_size, 32)
+            else:
+                num_updates = min(len(replay_buffer) // batch_size, 32)
 
-            states_t = torch.from_numpy(states).float().to(device)
-            target_policies_t = torch.from_numpy(target_policies).float().to(device)
-            target_values_t = torch.from_numpy(target_values).float().to(device).unsqueeze(1)
+            # 用于累积指标
+            total_loss = 0.0
+            total_policy_loss = 0.0
+            total_value_loss = 0.0
+            total_pred_entropy = 0.0
+            total_target_entropy = 0.0
 
-            logits, values = net(states_t)
-            log_probs = torch.log_softmax(logits, dim=1)
-            policy_loss = -torch.mean(torch.sum(target_policies_t * log_probs, dim=1))
-            value_loss = torch.mean((values - target_values_t) ** 2)
-            loss = policy_loss + value_loss
+            for _ in range(num_updates):
+                states, target_policies, target_values = replay_buffer.sample(batch_size)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                states_t = torch.from_numpy(states).float().to(device)
+                target_policies_t = torch.from_numpy(target_policies).float().to(device)
+                target_values_t = torch.from_numpy(target_values).float().to(device).unsqueeze(1)
 
-            # 记录训练损失
+                logits, values = net(states_t)
+                probs = torch.softmax(logits, dim=1)  # 预测策略
+                log_probs = torch.log_softmax(logits, dim=1)
+
+                policy_loss = -torch.mean(torch.sum(target_policies_t * log_probs, dim=1))
+                value_loss = torch.mean((values - target_values_t) ** 2)
+
+                # 3. 🔥 熵正则化（鼓励探索）
+                # 计算当前预测策略的熵: -sum(p * log(p))
+                entropy = -torch.mean(torch.sum(probs * log_probs, dim=1))
+                # beta 是正则化系数，通常设一个很小的数，比如 0.01 或 0.005
+                beta = 0.01
+                entropy_loss = -beta * entropy  # 注意是减号，因为要让熵变大（即 loss 中减去熵）
+
+                loss = policy_loss + value_loss + entropy_loss
+
+                # 计算熵
+                # 预测策略熵：-sum(p * log(p))
+                pred_entropy = -torch.mean(torch.sum(probs * log_probs, dim=1)).item()
+                # 目标策略熵：用同样的方式计算 target_policies 的熵（注意 target_policies 是概率分布）
+                # 为了避免 log(0)，加一个小 epsilon
+                target_log_probs = torch.log(target_policies_t + 1e-10)
+                target_entropy = -torch.mean(torch.sum(target_policies_t * target_log_probs, dim=1)).item()
+
+                optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+                optimizer.step()
+
+                total_loss += loss.item()
+                total_policy_loss += policy_loss.item()
+                total_value_loss += value_loss.item()
+                total_pred_entropy += pred_entropy
+                total_target_entropy += target_entropy
+
+            # 计算平均值
+            avg_loss = total_loss / num_updates
+            avg_policy_loss = total_policy_loss / num_updates
+            avg_value_loss = total_value_loss / num_updates
+            avg_pred_entropy = total_pred_entropy / num_updates
+            avg_target_entropy = total_target_entropy / num_updates
+
+            # 记录到 SwanLab
             sw.log({
                 "epoch": epoch,
-                "loss": loss.item(),
-                "policy_loss": policy_loss.item(),
-                "value_loss": value_loss.item(),
+                "avg_loss": avg_loss,
+                "avg_policy_loss": avg_policy_loss,
+                "avg_value_loss": avg_value_loss,
+                "avg_pred_entropy": avg_pred_entropy,
+                "avg_target_entropy": avg_target_entropy,
                 "buffer_size": len(replay_buffer),
+                "num_updates": num_updates,
             })
 
             if epoch % 10 == 0:
-                print(f"Epoch {epoch}, Loss: {loss.item():.4f}, Policy Loss: {policy_loss.item():.4f}, Value Loss: {value_loss.item():.4f}")
-
+                print(
+                    f"Epoch {epoch}, Avg Loss: {avg_loss:.4f}, Policy: {avg_policy_loss:.4f}, Value: {avg_value_loss:.4f}, PredEnt: {avg_pred_entropy:.3f}, TgtEnt: {avg_target_entropy:.3f}")
         # ---- 定期评估 ----
-        if epoch % eval_interval == 0:
+        if (epoch + 1) % eval_interval == 0:
             win_rate = evaluate(net, baseline_net, eval_games, eval_sims, c_puct, device)
             print(f"Epoch {epoch}, Win Rate vs Baseline: {win_rate:.3f}")
             sw.log({"win_rate_vs_baseline": win_rate, "epoch": epoch})

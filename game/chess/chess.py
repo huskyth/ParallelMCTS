@@ -165,6 +165,15 @@ class Chess(ChessBoard):
 
 
 if __name__ == '__main__':
+    s = [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, -1, 0, 0, 0, 0, 0, -1]
+    c = Chess()
+    c.pointStatus = s
+    print(len(c.pointStatus))
+    c.image_show("a", True, 0)
+
+
+
+
     abv = [1, 2, 3, 4]
     print(np.random.shuffle(abv))
     print(abv)
