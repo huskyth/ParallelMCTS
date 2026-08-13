@@ -109,6 +109,7 @@ def evaluate(net, baseline_net, num_games, num_sims, c_puct, device):
     wins = 0
     for _ in range(num_games):
         result = play_game(net, baseline_net, num_sims, c_puct, device)
+        print(f"Play Done result {result}")
         if result == 1:
             wins += 1
     return wins / num_games
