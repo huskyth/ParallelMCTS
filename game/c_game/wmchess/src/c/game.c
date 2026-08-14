@@ -172,14 +172,14 @@ int gameEnded(float* const terminal_score, const float* const g) {
         if (p == BLACK) black++;
         else if (p == WHITE) white++;
     }
-    if (black < 3) {
-        *terminal_score = 1.0f;   // 白胜（玩家1胜）
+
+    // 终局判定：少于 3 子即结束
+    if (black < 3 || white < 3) {
+        // 🔥 返回归一化棋子差（连续值）
+        *terminal_score = (float)(black - white) / (float)BOARD_SIZE;
         return 1;
     }
-    if (white < 3) {
-        *terminal_score = -1.0f;  // 黑胜
-        return 1;
-    }
+
     *terminal_score = 0.0f;
     return 0;
 }

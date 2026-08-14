@@ -17,22 +17,19 @@ sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 # ------------------------------------------------------------
 def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_steps=500):
     """
-    使用 RMCTS 进行一盘自对弈，生成训练样本。
-    加入最大步数限制和重复局面检测，防止死循环。
+    使用 RMCTS 进行一盘自对弈，生成 (state, policy, z) 训练样本。
+    加入最大步数限制、重复局面检测、超时返回棋子差。
     """
     state = game.rootState()
     history = []
     player = game.playerId(state)
     score = 0.0
     step = 0
-    position_count = {}  # 新增：记录重复局面
-
-    while step < max_steps:  # 新增：最大步数限制
+    position_count = {}
+    reason = 'n'
+    while step < max_steps:
         step += 1
         actions = game.getValidActions(state)
-        if len(actions) == 0:
-            score = -player
-            break
 
         root = state[np.newaxis, :]
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
@@ -54,28 +51,48 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
         state = game.nextState(state, a)
         player = game.playerId(state)
 
+        # 检查游戏是否正常结束
         ended, score = game.gameEnded(state)
         if ended:
+            print(f"Self-play 结束，得分 {score:.3f}")
             break
 
-        # ---------- 🔥 新增：重复局面检测（三次重复判和） ----------
+        # 重复局面检测（三次重复判负/按棋子差给分）
         s = ','.join(str(int(x)) for x in state.tolist())
         position_count[s] = position_count.get(s, 0) + 1
         if position_count[s] >= 3:
-            print(f"Self-play 重复局面 {position_count[s]} 次，判平局")
-            score = 0.0
+            # 对重复局面施加惩罚：在棋子差基础上减去 0.3（惩罚）
+            score = get_dense_score(state) - 0.3
+            # 确保分数在 [-1, 1] 范围内（clip）
+            score = max(-1.0, min(1.0, score))
+            print(f"重复局面，惩罚后得分 {score:.3f}")
+            reason = 'r'
             break
     else:
-        # 如果超过最大步数，判平局
-        print(f"Self-play 达到最大步数 {max_steps}，判平局")
-        score = 0.0
+        # 超时：按棋子差给分
+        score = get_dense_score(state)
+        print(f"Self-play 超时({step}步)，得分 {score:.3f}")
 
-    # 生成训练样本
+    # ========== 在 self_play 的末尾，所有循环结束后 ==========
+    if abs(score) < 1e-6:  # 过滤 score=0 的数据
+        print(f"⚠️ 丢弃平局数据 (步数 {len(history)})")
+        return  # 直接返回，不 yield 任何数据
+
+    # 生成训练样本（score 现在是连续值，不再是 0/-1/+1）
     z_abs = score
     for s, p, pl in history:
-        z = z_abs * pl
-        yield s, p, z
+        z = z_abs * pl  # 转换到当前玩家视角
+        yield s, p, z, reason
 
+def get_dense_score(state):
+    """
+    根据当前棋盘状态计算归一化棋子差。
+    范围约 [-1, 1]（21 个点，差值除以 21）。
+    """
+    board = state[1:]  # 跳过玩家 ID
+    black = sum(1 for x in board if x == 1)
+    white = sum(1 for x in board if x == -1)
+    return (black - white) / 21.0
 
 # ------------------------------------------------------------
 # 2. 对战与评估函数
@@ -83,21 +100,18 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
 def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
     """
     一局对战：net1 先手，net2 后手。
-    返回终局得分（+1 表示 net1 赢，-1 表示 net2 赢，0 平局）。
-    加入最大步数和三次重复判和。
+    返回终局得分（连续值，约 -1 ~ 1）。
     """
     state = game.rootState()
     player = game.playerId(state)
     step = 0
-    position_count = {}  # 记录局面出现次数
+    position_count = {}
+    score = 0.0
 
     while step < max_steps:
         step += 1
         actions = game.getValidActions(state)
-        if len(actions) == 0:
-            break
 
-        # 选择当前玩家对应的网络
         net = net1 if player == 1 else net2
 
         def nnet(states):
@@ -110,31 +124,27 @@ def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
         root = state[np.newaxis, :]
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
         pi = pi[0]
-        # 确定性选择最佳动作
         best_action = actions[np.argmax(pi[actions])]
+
         state = game.nextState(state, best_action)
         player = game.playerId(state)
 
-        # 检查游戏是否结束
         ended, score = game.gameEnded(state)
         if ended:
+            print(f"对战 结束，得分 {score:.3f}")
             break
 
-        # 记录局面，检测重复（三次重复判和）
-        # 将 state 转为不可变的字符串（浮点数转为整数避免精度问题）
         s = ','.join(str(int(x)) for x in state.tolist())
         position_count[s] = position_count.get(s, 0) + 1
         if position_count[s] >= 3:
-            print(f"重复局面出现 {position_count[s]} 次，判平局")
-            score = 0.0
+            score = get_dense_score(state)
+            print(f"对战 重复局面，得分 {score:.3f}")
             break
-
     else:
-        # 超过最大步数，判平局
-        print(f"达到最大步数 {max_steps}，判平局")
-        score = 0.0
+        score = get_dense_score(state)
+        print(f"对战 超时({step}步)，得分 {score:.3f}")
 
-    return score  # net1 作为玩家1，得分 +1 表示胜
+    return score
 
 def evaluate(net, baseline_net, num_games, num_sims, c_puct, device, max_steps=500):
     """评估当前网络 vs 基线网络，返回胜率（当前网络先手胜率）"""
@@ -187,6 +197,7 @@ def train():
     # ---- 训练循环 ----
     for epoch in range(num_epochs):
         # ---- 自对弈生成数据 ----
+        rep = 0
         for idx in range(num_selfplay_games):
             def nnet(states):
                 with torch.no_grad():
@@ -195,8 +206,10 @@ def train():
                     probs = torch.softmax(logits, dim=1)
                 return probs.cpu().numpy(), values.cpu().numpy().flatten()
 
-            for state, policy, z in self_play(nnet, num_sims, c_puct):
+            for state, policy, z, ren in self_play(nnet, num_sims, c_puct):
                 replay_buffer.push(state, policy, z)
+                if ren == 'r':
+                    rep += 1
 
             print(f"{idx} Self-play done, buffer size: {len(replay_buffer)}")
 
@@ -268,6 +281,7 @@ def train():
 
             # 记录到 SwanLab
             sw.log({
+                "重复局面": rep,
                 "epoch": epoch,
                 "avg_loss": avg_loss,
                 "avg_policy_loss": avg_policy_loss,
