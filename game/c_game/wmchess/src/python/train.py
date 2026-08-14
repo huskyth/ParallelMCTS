@@ -156,8 +156,7 @@ def evaluate(net, baseline_net, num_games, num_sims, c_puct, device, max_steps=5
     for i in range(num_games):
         result = play_game(net, baseline_net, num_sims, c_puct, device, max_steps=max_steps)
         print(f"{i} evaluate ended result : {result}")
-        if result == 1:
-            wins += 1
+        wins += result
     return wins / num_games
 
 # ------------------------------------------------------------
