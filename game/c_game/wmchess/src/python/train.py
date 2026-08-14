@@ -186,7 +186,7 @@ def evaluate(net, baseline_net, num_games, num_sims, c_puct, device, max_steps=5
 # ------------------------------------------------------------
 def train():
     # ---- 超参数 ----
-    num_sims = 400
+    num_sims = 200
     c_puct = metaparm.c_puct
     batch_size = 256
     num_selfplay_games = 32
