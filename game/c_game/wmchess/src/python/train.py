@@ -124,7 +124,11 @@ def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
         root = state[np.newaxis, :]
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
         pi = pi[0]
-        best_action = actions[np.argmax(pi[actions])]
+
+        temperature_eval = 0.5
+        probs = pi[actions] ** (1.0 / temperature_eval)
+        probs /= np.sum(probs)
+        best_action = np.random.choice(actions, p=probs)
 
         state = game.nextState(state, best_action)
         player = game.playerId(state)
@@ -167,7 +171,7 @@ def train():
     num_selfplay_games = 32
     num_epochs = 1000
     learning_rate = 0.0001
-    eval_interval = 5          # 每20个epoch评估一次
+    eval_interval = 25          # 每20个epoch评估一次
     eval_games = 50             # 每评估50盘
     eval_sims = 200             # 评估时搜索次数（可小于训练值）
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
