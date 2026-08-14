@@ -12,14 +12,12 @@ from .replay_buf import ReplayBuffer
 from . import metaparm
 
 sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
+
+
 # ------------------------------------------------------------
 # 1. 自对弈函数（生成训练数据）
 # ------------------------------------------------------------
 def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_steps=500):
-    """
-    使用 RMCTS 进行一盘自对弈，生成 (state, policy, z) 训练样本。
-    加入最大步数限制、重复局面检测、超时返回棋子差。
-    """
     state = game.rootState()
     history = []
     player = game.playerId(state)
@@ -27,27 +25,45 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     step = 0
     position_count = {}
     reason = 'n'
+
     while step < max_steps:
         step += 1
         actions = game.getValidActions(state)
+        if not actions:
+            score = get_dense_score(state)
+            reason = 'm'
+            break
 
         root = state[np.newaxis, :]
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
         pi = pi[0]
 
+        # 备份纯净策略（用于训练标签）
+        pure_pi = pi.copy()
+
+        # ---- 动作采样（加入探索噪声） ----
+        # 只对合法动作进行操作
+        legal_pi = pi[actions]
+
+        # 1. 添加 Dirichlet 噪声（仅在 temperature == 1.0 时）
         if temperature == 1.0:
             noise = np.random.dirichlet([dirichlet_alpha] * len(actions))
-            for i, a in enumerate(actions):
-                pi[a] = 0.75 * pi[a] + 0.25 * noise[i]
+            legal_pi = 0.75 * legal_pi + 0.25 * noise
 
+        # 2. 温度缩放
         if temperature == 0:
-            a = actions[np.argmax(pi[actions])]
+            # 确定性选择
+            a = actions[np.argmax(legal_pi)]
         else:
-            probs = pi[actions] ** (1.0 / temperature)
-            probs /= np.sum(probs)
-            a = np.random.choice(actions, p=probs)
+            # 随机采样（温度缩放）
+            scaled_probs = legal_pi ** (1.0 / temperature)
+            scaled_probs /= np.sum(scaled_probs)
+            a = np.random.choice(actions, p=scaled_probs)
 
-        history.append((state.copy(), pi.copy(), player))
+        # 记录纯净策略（不带噪声）
+        history.append((state.copy(), pure_pi.copy(), player))
+
+        # 执行动作
         state = game.nextState(state, a)
         player = game.playerId(state)
 
@@ -55,34 +71,37 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
         ended, score = game.gameEnded(state)
         if ended:
             print(f"Self-play 结束，得分 {score:.3f}")
+            reason = 'e'
             break
 
-        # 重复局面检测（三次重复判负/按棋子差给分）
+        # 重复局面检测
         s = ','.join(str(int(x)) for x in state.tolist())
         position_count[s] = position_count.get(s, 0) + 1
         if position_count[s] >= 3:
-            # 对重复局面施加惩罚：在棋子差基础上减去 0.3（惩罚）
-            score = get_dense_score(state) - 0.3
-            # 确保分数在 [-1, 1] 范围内（clip）
+            # ✅ 去除人为惩罚，直接返回棋子差
+            score = get_dense_score(state)
+            # 确保分数在 [-1, 1] 范围内
             score = max(-1.0, min(1.0, score))
-            print(f"重复局面，惩罚后得分 {score:.3f}")
+            print(f"重复局面，得分 {score:.3f}")
             reason = 'r'
             break
     else:
         # 超时：按棋子差给分
         score = get_dense_score(state)
         print(f"Self-play 超时({step}步)，得分 {score:.3f}")
+        reason = 't'
 
-    # ========== 在 self_play 的末尾，所有循环结束后 ==========
-    if abs(score) < 1e-6:  # 过滤 score=0 的数据
+    # 丢弃平局数据（纯净信号）
+    if abs(score) < 1e-6:
         print(f"⚠️ 丢弃平局数据 (步数 {len(history)})")
-        return  # 直接返回，不 yield 任何数据
+        return
 
-    # 生成训练样本（score 现在是连续值，不再是 0/-1/+1）
+    # 生成训练样本
     z_abs = score
     for s, p, pl in history:
-        z = z_abs * pl  # 转换到当前玩家视角
+        z = z_abs * pl
         yield s, p, z, reason
+
 
 def get_dense_score(state):
     """
@@ -93,6 +112,7 @@ def get_dense_score(state):
     black = sum(1 for x in board if x == 1)
     white = sum(1 for x in board if x == -1)
     return (black - white) / 21.0
+
 
 # ------------------------------------------------------------
 # 2. 对战与评估函数
@@ -150,6 +170,7 @@ def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
 
     return score
 
+
 def evaluate(net, baseline_net, num_games, num_sims, c_puct, device, max_steps=500):
     """评估当前网络 vs 基线网络，返回胜率（当前网络先手胜率）"""
     wins = 0
@@ -158,6 +179,7 @@ def evaluate(net, baseline_net, num_games, num_sims, c_puct, device, max_steps=5
         print(f"{i} evaluate ended result : {result}")
         wins += result
     return wins / num_games
+
 
 # ------------------------------------------------------------
 # 3. 主训练循环
@@ -170,9 +192,9 @@ def train():
     num_selfplay_games = 32
     num_epochs = 1000
     learning_rate = 0.0001
-    eval_interval = 25          # 每20个epoch评估一次
-    eval_games = 50             # 每评估50盘
-    eval_sims = 200             # 评估时搜索次数（可小于训练值）
+    eval_interval = 25  # 每20个epoch评估一次
+    eval_games = 50  # 每评估50盘
+    eval_sims = 200  # 评估时搜索次数（可小于训练值）
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # ---- 初始化 SwanLab ----
