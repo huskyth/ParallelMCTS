@@ -78,7 +78,7 @@ int maximum_of_int_array(int* a, int len_a) {
 int bound_test(float* x, int len_x, float bound) {
   int i;
   for(i=0;i<len_x;i++) {
-    if(abs(x[i]) > bound) return 0;
+    if(fabs(x[i]) > bound) return 0;
   }
   return 1;
 }
