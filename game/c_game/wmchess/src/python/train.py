@@ -29,10 +29,7 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     while step < max_steps:
         step += 1
         actions = game.getValidActions(state)
-        if not actions:
-            score = get_dense_score(state)
-            reason = 'm'
-            break
+
 
         root = state[np.newaxis, :]
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
