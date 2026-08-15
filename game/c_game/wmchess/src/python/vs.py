@@ -51,15 +51,9 @@ def play_game_deterministic(net1, net2, num_sims, c_puct, device, max_steps=500)
             stale_steps = 0
             last_piece_count = current_count
 
-        # 动作选择
-        if stale_steps > 30:
-            # 用温度 0.5 随机破局
-            probs = pi[actions] ** (1.0 / 0.5)
-            probs /= np.sum(probs)
-            best_action = np.random.choice(actions, p=probs)
-        else:
-            # 确定性选择
-            best_action = actions[np.argmax(pi[actions])]
+
+        # 确定性选择
+        best_action = actions[np.argmax(pi[actions])]
 
         state = game.nextState(state, best_action)
         player = game.playerId(state)
