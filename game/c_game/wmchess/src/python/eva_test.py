@@ -113,7 +113,7 @@ def test_with_noise(net, baseline_net, device, num_games=30, num_sims=200, c_puc
 
 
 # 使用方法（在 train.py 中或单独运行）
-if __name__ == "__main__":
+def main():
     # 加载你的网络（假设你有一个 saved_model.pth）
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = WatermelonNet(input_dim=game.gameLength(), num_actions=game.numActions()).to(device)
