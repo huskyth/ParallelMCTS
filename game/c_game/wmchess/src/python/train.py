@@ -192,9 +192,9 @@ def train():
     num_selfplay_games = 32
     num_epochs = 1000
     learning_rate = 0.0001
-    eval_interval = 25  # 每20个epoch评估一次
-    eval_games = 100  # 每评估50盘
-    eval_sims = 200  # 评估时搜索次数（可小于训练值）
+    eval_interval = 25
+    eval_games = 100
+    eval_sims = 200
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # ---- 初始化 SwanLab ----
@@ -219,6 +219,10 @@ def train():
     # ---- 保存基线模型（初始网络） ----
     baseline_net = copy.deepcopy(net)
 
+    # ---- 🔥 新增：用于追踪最佳模型 ----
+    best_win_rate = 0.0
+    best_epoch = 0
+
     # ---- 训练循环 ----
     for epoch in range(num_epochs):
         # ---- 自对弈生成数据 ----
@@ -242,13 +246,11 @@ def train():
 
         # ---- 训练网络 ----
         if len(replay_buffer) >= batch_size:
-            # 动态调整更新次数
             if len(replay_buffer) < 50000:
-                num_updates = min(len(replay_buffer) // batch_size, 8)
+                num_updates = min(len(replay_buffer) // batch_size, 2)
             else:
-                num_updates = min(len(replay_buffer) // batch_size, 8)
+                num_updates = min(len(replay_buffer) // batch_size, 2)
 
-            # 用于累积指标
             total_loss = 0.0
             total_policy_loss = 0.0
             total_value_loss = 0.0
@@ -263,26 +265,18 @@ def train():
                 target_values_t = torch.from_numpy(target_values).float().to(device).unsqueeze(1)
 
                 logits, values = net(states_t)
-                probs = torch.softmax(logits, dim=1)  # 预测策略
+                probs = torch.softmax(logits, dim=1)
                 log_probs = torch.log_softmax(logits, dim=1)
 
                 policy_loss = -torch.mean(torch.sum(target_policies_t * log_probs, dim=1))
                 value_loss = torch.mean((values - target_values_t) ** 2)
 
-                # 3. 🔥 熵正则化（鼓励探索）
-                # 计算当前预测策略的熵: -sum(p * log(p))
                 entropy = -torch.mean(torch.sum(probs * log_probs, dim=1))
-                # beta 是正则化系数，通常设一个很小的数，比如 0.01 或 0.005
-                beta = 0.01
-                entropy_loss = -beta * entropy  # 注意是减号，因为要让熵变大（即 loss 中减去熵）
-
+                beta = 0.06
+                entropy_loss = -beta * entropy
                 loss = policy_loss + value_loss + entropy_loss
 
-                # 计算熵
-                # 预测策略熵：-sum(p * log(p))
                 pred_entropy = -torch.mean(torch.sum(probs * log_probs, dim=1)).item()
-                # 目标策略熵：用同样的方式计算 target_policies 的熵（注意 target_policies 是概率分布）
-                # 为了避免 log(0)，加一个小 epsilon
                 target_log_probs = torch.log(target_policies_t + 1e-10)
                 target_entropy = -torch.mean(torch.sum(target_policies_t * target_log_probs, dim=1)).item()
 
@@ -297,14 +291,12 @@ def train():
                 total_pred_entropy += pred_entropy
                 total_target_entropy += target_entropy
 
-            # 计算平均值
             avg_loss = total_loss / num_updates
             avg_policy_loss = total_policy_loss / num_updates
             avg_value_loss = total_value_loss / num_updates
             avg_pred_entropy = total_pred_entropy / num_updates
             avg_target_entropy = total_target_entropy / num_updates
 
-            # 记录到 SwanLab
             sw.log({
                 "重复局面": rep,
                 "epoch": epoch,
@@ -320,18 +312,30 @@ def train():
             if epoch % 10 == 0:
                 print(
                     f"Epoch {epoch}, Avg Loss: {avg_loss:.4f}, Policy: {avg_policy_loss:.4f}, Value: {avg_value_loss:.4f}, PredEnt: {avg_pred_entropy:.3f}, TgtEnt: {avg_target_entropy:.3f}")
+
         # ---- 定期评估 ----
         if (epoch + 1) % eval_interval == 0:
             win_rate = evaluate(net, baseline_net, eval_games, eval_sims, c_puct, device)
             print(f"Epoch {epoch}, Win Rate vs Baseline: {win_rate:.3f}")
             sw.log({"win_rate_vs_baseline": win_rate, "epoch": epoch})
 
-        # ---- 保存模型 ----
+            # ---- 🔥 新增：保存最优模型 ----
+            if win_rate > best_win_rate:
+                best_win_rate = win_rate
+                best_epoch = epoch
+                best_model_path = "best_model.pth"
+                torch.save(net.state_dict(), best_model_path)
+                sw.save(best_model_path)
+                print(f"🏆 新最佳模型保存！Epoch {epoch}, 胜率 {win_rate:.3f}")
+
+        # ---- 定期保存模型（保留最近 N 个） ----
         if epoch % 50 == 0:
             model_path = f"model_epoch_{epoch}.pth"
             torch.save(net.state_dict(), model_path)
             sw.save(model_path)
 
+    # ---- 训练结束，打印最佳模型信息 ----
+    print(f"\n🎉 训练完成！最佳模型来自 Epoch {best_epoch}，胜率 {best_win_rate:.3f}")
     sw.finish()
 
 
