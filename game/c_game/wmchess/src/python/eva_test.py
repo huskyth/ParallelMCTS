@@ -4,6 +4,7 @@ import copy
 from . import game
 from .RMCTS import learn_pi_and_v
 from .wmnet import WatermelonNet
+from .train import play_game
 
 
 def play_game_with_noise(net1, net2, num_sims, c_puct, device,
