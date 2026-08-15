@@ -224,9 +224,9 @@ def train():
         # ---- 训练网络（当前 net 拟合自对弈数据） ----
         if len(replay_buffer) >= batch_size:
             if len(replay_buffer) < 50000:
-                num_updates = min(len(replay_buffer) // batch_size, 8)
+                num_updates = min(len(replay_buffer) // batch_size, 1)
             else:
-                num_updates = min(len(replay_buffer) // batch_size, 8)
+                num_updates = min(len(replay_buffer) // batch_size, 1)
 
             total_loss = 0.0
             total_policy_loss = 0.0
