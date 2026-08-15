@@ -174,7 +174,10 @@ def evaluate(net, baseline_net, num_games, num_sims, c_puct, device, max_steps=5
     for i in range(num_games):
         result = play_game(net, baseline_net, num_sims, c_puct, device, max_steps=max_steps)
         print(f"{i} evaluate ended result : {result}")
-        wins += result
+        if result > 0:
+            wins += 1
+        elif result == 0:
+            wins += 0.5
     return wins / num_games
 
 
@@ -190,7 +193,7 @@ def train():
     num_epochs = 1000
     learning_rate = 0.0001
     eval_interval = 25  # 每20个epoch评估一次
-    eval_games = 50  # 每评估50盘
+    eval_games = 100  # 每评估50盘
     eval_sims = 200  # 评估时搜索次数（可小于训练值）
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
