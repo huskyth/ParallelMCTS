@@ -24,8 +24,6 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
         steps = np.random.randint(5, 15)
         for _ in range(steps):
             actions = game.getValidActions(state)
-            if not actions:
-                break
             a = np.random.choice(actions)
             state = game.nextState(state, a)
             ended, _ = game.gameEnded(state)
