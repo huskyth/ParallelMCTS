@@ -120,4 +120,4 @@ def main():
 
     baseline_net = copy.deepcopy(net)  # 或者加载初始基线模型
 
-    test_with_noise(net, baseline_net, device, num_games=30, num_sims=200, c_puct=1.0)
+    test_with_noise(net, baseline_net, device, num_games=60, num_sims=200, c_puct=1.0)
