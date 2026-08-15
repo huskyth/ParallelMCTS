@@ -35,9 +35,6 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
         while step < max_steps:
             step += 1
             actions = game.getValidActions(state)
-            if not actions:
-                score = -1.0 if player == 1 else 1.0
-                break
             if player == 1:
                 def nnet(states):
                     with torch.no_grad():
