@@ -4,7 +4,7 @@ import copy
 from . import game
 from .RMCTS import learn_pi_and_v
 from .wmnet import WatermelonNet
-from .train import play_game
+from .train import play_game, get_dense_score
 
 
 def play_game_with_noise(net1, net2, num_sims, c_puct, device,
@@ -83,7 +83,7 @@ def test_with_noise(net, baseline_net, device, num_games=30, num_sims=200, c_puc
         elif result == 0:
             wins_no_noise += 0.5
     win_rate_no_noise = wins_no_noise / num_games
-    print(f"📊 无噪声胜率: {win_rate_no_noise * 100:.1f}% ({wins_no_noise}/{num_games})")
+    print(f"📊 无噪声胜率: {win_rate_no_noise * 100:.1f}% ({wins_no_noise}/{num_games} = {wins_no_noise / num_games})")
 
     # 2. 给对手加噪声（net2）
     for noise_level in [0.1, 0.2, 0.3, 0.5]:
@@ -96,7 +96,8 @@ def test_with_noise(net, baseline_net, device, num_games=30, num_sims=200, c_puc
             elif result == 0:
                 wins_with_noise += 0.5
         win_rate_with_noise = wins_with_noise / num_games
-        print(f"📊 对手噪声 {noise_level * 100:.0f}% 胜率: {win_rate_with_noise * 100:.1f}% ({wins_with_noise}/{num_games})")
+        print(
+            f"📊 对手噪声 {noise_level * 100:.0f}% 胜率: {win_rate_with_noise * 100:.1f}% ({wins_with_noise}/{num_games} = {wins_with_noise / num_games})")
 
     print("=" * 60)
     print("💡 结论：")
