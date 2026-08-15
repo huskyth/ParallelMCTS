@@ -22,9 +22,6 @@ def play_game_with_noise(net1, net2, num_sims, c_puct, device,
     while step < max_steps:
         step += 1
         actions = game.getValidActions(state)
-        if not actions:
-            score = get_dense_score(state)
-            break
 
         net = net1 if player == 1 else net2
 
