@@ -3,7 +3,59 @@ import torch
 import numpy as np
 from . import game
 from .wmnet import WatermelonNet
-from .train import play_game  # 假设 play_game 在 train.py 中
+from .RMCTS import learn_pi_and_v
+
+def get_dense_score(state):
+    board = state[1:]
+    black = sum(1 for x in board if x == 1)
+    white = sum(1 for x in board if x == -1)
+    return (black - white) / 21.0
+
+def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
+    state = game.rootState()
+    player = game.playerId(state)
+    step = 0
+    position_count = {}
+    score = 0.0
+
+    while step < max_steps:
+        step += 1
+        actions = game.getValidActions(state)
+
+        net = net1 if player == 1 else net2
+
+        def nnet(states):
+            with torch.no_grad():
+                states_t = torch.from_numpy(states).float().to(device)
+                logits, values = net(states_t)
+                probs = torch.softmax(logits, dim=1)
+            return probs.cpu().numpy(), values.cpu().numpy().flatten()
+
+        root = state[np.newaxis, :]
+        pi, _ = learn_pi_and_v(root, num_sims * 5 if player == 1 else num_sims, nnet, c_puct)
+        pi = pi[0]
+
+        temperature_eval = 0.5
+        probs = pi[actions] ** (1.0 / temperature_eval)
+        probs /= np.sum(probs)
+        best_action = np.random.choice(actions, p=probs)
+
+        state = game.nextState(state, best_action)
+        player = game.playerId(state)
+
+        ended, score = game.gameEnded(state)
+        if ended:
+            break
+
+        s = ','.join(str(int(x)) for x in state.tolist())
+        position_count[s] = position_count.get(s, 0) + 1
+        if position_count[s] >= 3:
+            score = get_dense_score(state)
+            break
+    else:
+        score = get_dense_score(state)
+
+    return score
 
 
 def evaluate_best_vs_random(best_model_path, num_games=100, num_sims=200, c_puct=1.0, device=None):
