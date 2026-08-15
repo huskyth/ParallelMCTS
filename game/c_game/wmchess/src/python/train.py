@@ -186,37 +186,29 @@ def train():
     if os.path.exists(best_model_path):
         print(f"📂 发现已有 best_model.pth，加载权重继续训练...")
         net.load_state_dict(torch.load(best_model_path, map_location=device))
-        # 注意：此时 best_model 是历史最优，但我们的 net 将从该点开始继续优化。
-        # 我们将用这个 net 作为当前网络，并复制一份作为 best_net。
     else:
         print("🆕 未找到 best_model.pth，从随机初始化开始训练。")
 
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     replay_buffer = ReplayBuffer(max_size=200000)
 
-    # ---- 保存基线模型（初始随机网络，用于参考评估） ----
-    baseline_net = copy.deepcopy(net)
-    # 如果是从 best_model 恢复，baseline_net 是 best_model 的拷贝，不代表初始随机。
-    # 但我们仍希望有一个固定基线，因此建议训练开始时单独保存一个 baseline_net。
-    # 这里我们直接用当前 net 作为 baseline（但后续不变），或者使用训练前的随机网络。
-    # 更合理：重新初始化一个随机网络作为基线。
-    # 但我们也可使用当前 net 的拷贝，因为评估 vs 基线只是参考。
-    # 为了标准化，我们使用一个独立的随机网络：
+    # ---- 固定随机基线（用于参考评估） ----
     random_net = WatermelonNet(input_dim=game.gameLength(), num_actions=game.numActions()).to(device)
-    baseline_net = copy.deepcopy(random_net)  # 固定随机网络
+    baseline_net = copy.deepcopy(random_net)  # 固定，不更新
 
-    # ---- 历史最优网络（用于 vs best 评估） ----
-    best_net = copy.deepcopy(net)  # 当前网络作为初始历史最优
+    # ---- 历史最优网络（用于评估和生成数据） ----
+    best_net = copy.deepcopy(net)          # 初始为当前网络
+    selfplay_net = copy.deepcopy(best_net) # 用于生成自对弈数据，与 best_net 同步
 
     # ---- 训练循环 ----
     for epoch in range(start_epoch, num_epochs):
-        # ---- 自对弈 ----
+        # ---- 自对弈（使用 selfplay_net 生成数据） ----
         rep = 0
         for idx in range(num_selfplay_games):
             def nnet(states):
                 with torch.no_grad():
                     states_t = torch.from_numpy(states).float().to(device)
-                    logits, values = net(states_t)
+                    logits, values = selfplay_net(states_t)   # 🔥 使用历史最优模型生成数据
                     probs = torch.softmax(logits, dim=1)
                 return probs.cpu().numpy(), values.cpu().numpy().flatten()
 
@@ -229,12 +221,12 @@ def train():
 
         print(f"Epoch {epoch}, buffer size: {len(replay_buffer)}")
 
-        # ---- 训练网络 ----
+        # ---- 训练网络（当前 net 拟合自对弈数据） ----
         if len(replay_buffer) >= batch_size:
             if len(replay_buffer) < 50000:
-                num_updates = min(len(replay_buffer) // batch_size, 2)
+                num_updates = min(len(replay_buffer) // batch_size, 8)
             else:
-                num_updates = min(len(replay_buffer) // batch_size, 2)
+                num_updates = min(len(replay_buffer) // batch_size, 8)
 
             total_loss = 0.0
             total_policy_loss = 0.0
@@ -300,19 +292,20 @@ def train():
 
         # ---- 定期评估 ----
         if (epoch + 1) % eval_interval == 0:
-            # 1. vs 随机基线（供参考）
+            # 1. vs 随机基线（参考）
             win_rate_vs_random = evaluate(net, baseline_net, eval_games, eval_sims, c_puct, device)
             print(f"Epoch {epoch}, Win Rate vs Random: {win_rate_vs_random:.3f}")
             sw.log({"win_rate_vs_random": win_rate_vs_random, "epoch": epoch})
 
-            # 2. 🔥 核心评估：当前网络 vs 历史最优
+            # 2. 🔥 当前网络 vs 历史最优
             win_rate_vs_best = evaluate(net, best_net, eval_games, eval_sims, c_puct, device)
             print(f"Epoch {epoch}, Win Rate vs Best: {win_rate_vs_best:.3f}")
             sw.log({"win_rate_vs_best": win_rate_vs_best, "epoch": epoch})
 
-            # 3. 如果当前网络击败了历史最优（胜率 > 0.55），更新 best_net 并保存
+            # 3. 如果当前网络击败了历史最优（胜率 > 0.55），更新 best_net 和 selfplay_net
             if win_rate_vs_best > 0.55:
                 best_net = copy.deepcopy(net)
+                selfplay_net = copy.deepcopy(best_net)   # 🔥 同步自对弈生成器
                 torch.save(net.state_dict(), best_model_path)
                 sw.save(best_model_path)
                 print(f"🏆 更新历史最优模型！Epoch {epoch}, 胜率 {win_rate_vs_best:.3f}")
