@@ -5,6 +5,7 @@ import torch.optim as optim
 import swanlab as sw
 import copy
 import random
+import os
 from . import game
 from .RMCTS import learn_pi_and_v
 from .wmnet import WatermelonNet
@@ -15,7 +16,7 @@ sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 
 
 # ------------------------------------------------------------
-# 1. 自对弈函数（生成训练数据）
+# 1. 自对弈函数
 # ------------------------------------------------------------
 def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_steps=500):
     state = game.rootState()
@@ -35,65 +36,43 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
         pi = pi[0]
 
-        # 备份纯净策略（用于训练标签）
         pure_pi = pi.copy()
-
-        # ---- 动作采样（加入探索噪声） ----
-        # 只对合法动作进行操作
         legal_pi = pi[actions]
 
-        # 1. 添加 Dirichlet 噪声（仅在 temperature == 1.0 时）
         if temperature == 1.0:
             noise = np.random.dirichlet([dirichlet_alpha] * len(actions))
             legal_pi = 0.75 * legal_pi + 0.25 * noise
 
-        # 2. 温度缩放
         if temperature == 0:
-            # 确定性选择
             a = actions[np.argmax(legal_pi)]
         else:
-            # 随机采样（温度缩放）
             scaled_probs = legal_pi ** (1.0 / temperature)
             scaled_probs /= np.sum(scaled_probs)
             a = np.random.choice(actions, p=scaled_probs)
 
-        # 记录纯净策略（不带噪声）
         history.append((state.copy(), pure_pi.copy(), player))
-
-        # 执行动作
         state = game.nextState(state, a)
         player = game.playerId(state)
 
-        # 检查游戏是否正常结束
         ended, score = game.gameEnded(state)
         if ended:
-            print(f"Self-play 结束，得分 {score:.3f}")
             reason = 'e'
             break
 
-        # 重复局面检测
         s = ','.join(str(int(x)) for x in state.tolist())
         position_count[s] = position_count.get(s, 0) + 1
         if position_count[s] >= 3:
-            # ✅ 去除人为惩罚，直接返回棋子差
             score = get_dense_score(state)
-            # 确保分数在 [-1, 1] 范围内
             score = max(-1.0, min(1.0, score))
-            print(f"重复局面，得分 {score:.3f}")
             reason = 'r'
             break
     else:
-        # 超时：按棋子差给分
         score = get_dense_score(state)
-        print(f"Self-play 超时({step}步)，得分 {score:.3f}")
         reason = 't'
 
-    # 丢弃平局数据（纯净信号）
     if abs(score) < 1e-6:
-        print(f"⚠️ 丢弃平局数据 (步数 {len(history)})")
         return
 
-    # 生成训练样本
     z_abs = score
     for s, p, pl in history:
         z = z_abs * pl
@@ -101,11 +80,7 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
 
 
 def get_dense_score(state):
-    """
-    根据当前棋盘状态计算归一化棋子差。
-    范围约 [-1, 1]（21 个点，差值除以 21）。
-    """
-    board = state[1:]  # 跳过玩家 ID
+    board = state[1:]
     black = sum(1 for x in board if x == 1)
     white = sum(1 for x in board if x == -1)
     return (black - white) / 21.0
@@ -115,10 +90,6 @@ def get_dense_score(state):
 # 2. 对战与评估函数
 # ------------------------------------------------------------
 def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
-    """
-    一局对战：net1 先手，net2 后手。
-    返回终局得分（连续值，约 -1 ~ 1）。
-    """
     state = game.rootState()
     player = game.playerId(state)
     step = 0
@@ -152,28 +123,23 @@ def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
 
         ended, score = game.gameEnded(state)
         if ended:
-            print(f"对战 结束，得分 {score:.3f}")
             break
 
         s = ','.join(str(int(x)) for x in state.tolist())
         position_count[s] = position_count.get(s, 0) + 1
         if position_count[s] >= 3:
             score = get_dense_score(state)
-            print(f"对战 重复局面，得分 {score:.3f}")
             break
     else:
         score = get_dense_score(state)
-        print(f"对战 超时({step}步)，得分 {score:.3f}")
 
     return score
 
 
 def evaluate(net, baseline_net, num_games, num_sims, c_puct, device, max_steps=500):
-    """评估当前网络 vs 基线网络，返回胜率（当前网络先手胜率）"""
     wins = 0
     for i in range(num_games):
         result = play_game(net, baseline_net, num_sims, c_puct, device, max_steps=max_steps)
-        print(f"{i} evaluate ended result : {result}")
         if result > 0:
             wins += 1
         elif result == 0:
@@ -196,6 +162,7 @@ def train():
     eval_games = 100
     eval_sims = 200
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    best_model_path = "best_model.pth"
 
     # ---- 初始化 SwanLab ----
     sw.init(
@@ -213,19 +180,37 @@ def train():
 
     # ---- 网络、优化器、回放池 ----
     net = WatermelonNet(input_dim=game.gameLength(), num_actions=game.numActions()).to(device)
+
+    # 🔥 从 best_model.pth 恢复继续训练
+    start_epoch = 0
+    if os.path.exists(best_model_path):
+        print(f"📂 发现已有 best_model.pth，加载权重继续训练...")
+        net.load_state_dict(torch.load(best_model_path, map_location=device))
+        # 注意：此时 best_model 是历史最优，但我们的 net 将从该点开始继续优化。
+        # 我们将用这个 net 作为当前网络，并复制一份作为 best_net。
+    else:
+        print("🆕 未找到 best_model.pth，从随机初始化开始训练。")
+
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     replay_buffer = ReplayBuffer(max_size=200000)
 
-    # ---- 保存基线模型（初始网络） ----
+    # ---- 保存基线模型（初始随机网络，用于参考评估） ----
     baseline_net = copy.deepcopy(net)
+    # 如果是从 best_model 恢复，baseline_net 是 best_model 的拷贝，不代表初始随机。
+    # 但我们仍希望有一个固定基线，因此建议训练开始时单独保存一个 baseline_net。
+    # 这里我们直接用当前 net 作为 baseline（但后续不变），或者使用训练前的随机网络。
+    # 更合理：重新初始化一个随机网络作为基线。
+    # 但我们也可使用当前 net 的拷贝，因为评估 vs 基线只是参考。
+    # 为了标准化，我们使用一个独立的随机网络：
+    random_net = WatermelonNet(input_dim=game.gameLength(), num_actions=game.numActions()).to(device)
+    baseline_net = copy.deepcopy(random_net)  # 固定随机网络
 
-    # ---- 🔥 新增：用于追踪最佳模型 ----
-    best_win_rate = 0.0
-    best_epoch = 0
+    # ---- 历史最优网络（用于 vs best 评估） ----
+    best_net = copy.deepcopy(net)  # 当前网络作为初始历史最优
 
     # ---- 训练循环 ----
-    for epoch in range(num_epochs):
-        # ---- 自对弈生成数据 ----
+    for epoch in range(start_epoch, num_epochs):
+        # ---- 自对弈 ----
         rep = 0
         for idx in range(num_selfplay_games):
             def nnet(states):
@@ -315,28 +300,31 @@ def train():
 
         # ---- 定期评估 ----
         if (epoch + 1) % eval_interval == 0:
-            win_rate = evaluate(net, baseline_net, eval_games, eval_sims, c_puct, device)
-            print(f"Epoch {epoch}, Win Rate vs Baseline: {win_rate:.3f}")
-            sw.log({"win_rate_vs_baseline": win_rate, "epoch": epoch})
+            # 1. vs 随机基线（供参考）
+            win_rate_vs_random = evaluate(net, baseline_net, eval_games, eval_sims, c_puct, device)
+            print(f"Epoch {epoch}, Win Rate vs Random: {win_rate_vs_random:.3f}")
+            sw.log({"win_rate_vs_random": win_rate_vs_random, "epoch": epoch})
 
-            # ---- 🔥 新增：保存最优模型 ----
-            if win_rate > best_win_rate:
-                best_win_rate = win_rate
-                best_epoch = epoch
-                best_model_path = "best_model.pth"
+            # 2. 🔥 核心评估：当前网络 vs 历史最优
+            win_rate_vs_best = evaluate(net, best_net, eval_games, eval_sims, c_puct, device)
+            print(f"Epoch {epoch}, Win Rate vs Best: {win_rate_vs_best:.3f}")
+            sw.log({"win_rate_vs_best": win_rate_vs_best, "epoch": epoch})
+
+            # 3. 如果当前网络击败了历史最优（胜率 > 0.55），更新 best_net 并保存
+            if win_rate_vs_best > 0.55:
+                best_net = copy.deepcopy(net)
                 torch.save(net.state_dict(), best_model_path)
                 sw.save(best_model_path)
-                print(f"🏆 新最佳模型保存！Epoch {epoch}, 胜率 {win_rate:.3f}")
+                print(f"🏆 更新历史最优模型！Epoch {epoch}, 胜率 {win_rate_vs_best:.3f}")
 
-        # ---- 定期保存模型（保留最近 N 个） ----
+        # ---- 定期保存（每50轮） ----
         if epoch % 50 == 0:
             model_path = f"model_epoch_{epoch}.pth"
             torch.save(net.state_dict(), model_path)
             sw.save(model_path)
 
-    # ---- 训练结束，打印最佳模型信息 ----
-    print(f"\n🎉 训练完成！最佳模型来自 Epoch {best_epoch}，胜率 {best_win_rate:.3f}")
     sw.finish()
+    print(f"\n🎉 训练完成！最终最佳模型保存在 {best_model_path}")
 
 
 if __name__ == "__main__":
