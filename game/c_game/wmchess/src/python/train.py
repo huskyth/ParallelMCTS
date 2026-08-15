@@ -244,9 +244,9 @@ def train():
         if len(replay_buffer) >= batch_size:
             # 动态调整更新次数
             if len(replay_buffer) < 50000:
-                num_updates = min(len(replay_buffer) // batch_size, 32)
+                num_updates = min(len(replay_buffer) // batch_size, 8)
             else:
-                num_updates = min(len(replay_buffer) // batch_size, 32)
+                num_updates = min(len(replay_buffer) // batch_size, 8)
 
             # 用于累积指标
             total_loss = 0.0
