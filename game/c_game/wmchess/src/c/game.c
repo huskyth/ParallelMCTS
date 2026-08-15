@@ -208,24 +208,47 @@ int getValidActions(int* const actions, const float* const g) {
     return count;
 }
 
-int nextState(float* const ga, const float* const g, const int a) {
+// 🔥 修改 nextState 实现
+int nextState(float* const ga, const float* const g, const int a, int* const captures) {
     if (!isValidAction(g, a)) return -1;
+
     // 复制状态
     for (int i = 0; i < BOARD_SIZE + 1; i++) ga[i] = g[i];
+
     int from = ACTION_FROM[a];
     int to = ACTION_TO[a];
     int player = get_player(ga);
-    // 移动
+    int opp_color = -player;
+
+    // 记录移动前对手棋子总数
+    int before_opp = 0;
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        if ((int)ga[i+1] == opp_color) before_opp++;
+    }
+
+    // 执行移动
     set_piece(ga, from, 0);
     set_piece(ga, to, player);
-    // 移位（移除被围死的棋子）
+
+    // 执行移位（吃子）
     shiftOutChessman(ga);
+
+    // 计算移动后对手棋子总数
+    int after_opp = 0;
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        if ((int)ga[i+1] == opp_color) after_opp++;
+    }
+
+    // 吃子数量 = 对手减少的棋子数
+    *captures = before_opp - after_opp;
+
     // 切换玩家
     set_player(ga, -player);
-    // 判断是否终局
+
     float score;
     return gameEnded(&score, ga);
 }
+
 
 void printGame(const float* const g) {
     printf("Current player: %d\n", get_player(g));

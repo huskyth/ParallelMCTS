@@ -35,7 +35,7 @@ int getValidActions(int* const actions, const float* const g);
 
 // records the next state of the game g given action a into ga.
 // Returns -1 if action=a is invalid. Returns 1 if ga is terminal, and 0 otherwise.
-int nextState(float* const ga, const float* const g, const int a);
+int nextState(float* const ga, const float* const g, const int a, int* const captures);
 
 void printGame(const float* const g);
 

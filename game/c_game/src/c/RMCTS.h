@@ -21,6 +21,7 @@ typedef struct {
 	float* N;
 	int32_t* parent;
 	int32_t* a0;
+	float* r;
 	int32_t* sims;
 	int32_t* sims_remaining;
 	int32_t* inference_stack;

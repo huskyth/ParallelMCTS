@@ -5,6 +5,7 @@ import torch.optim as optim
 import swanlab as sw
 import copy
 import random
+import ctypes
 import os
 from . import game
 from .RMCTS import learn_pi_and_v
@@ -22,15 +23,16 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     state = game.rootState()
     history = []
     player = game.playerId(state)
-    score = 0.0
     step = 0
     position_count = {}
     reason = 'n'
+    gamma = 0.95  # 折扣因子
+    step_rewards = []  # 存储每步的即时奖励（吃子奖励）
+    terminal_score = 0.0
 
     while step < max_steps:
         step += 1
         actions = game.getValidActions(state)
-
 
         root = state[np.newaxis, :]
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
@@ -51,14 +53,23 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
             a = np.random.choice(actions, p=scaled_probs)
 
         history.append((state.copy(), pure_pi.copy(), player))
-        state = game.nextState(state, a)
+
+        # 🔥 调用 nextState，获取吃子数
+        captures = ctypes.c_int()
+        state = game.nextState(state, a, captures)
+        # 即时奖励：每吃一个子 +0.3
+        r = captures.value * 0.3
+        step_rewards.append(r)
+
         player = game.playerId(state)
 
         ended, score = game.gameEnded(state)
         if ended:
+            terminal_score = score
             reason = 'e'
             break
 
+        # 重复检测（可选）
         s = ','.join(str(int(x)) for x in state.tolist())
         position_count[s] = position_count.get(s, 0) + 1
         if position_count[s] >= 3:
@@ -67,16 +78,24 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     else:
         reason = 't'
 
-    # 只保留自然终局
-    if reason != 'e':
-        print(f"⚠️ 丢弃非自然终局 (reason={reason}, 步数 {len(history)})")
-        return
+    # 计算累积回报（包含即时奖励和终端奖励）
+    if reason == 'e':
+        # 自然终局：使用终端奖励作为基值
+        cumulative = terminal_score
+    else:
+        # 非终局：使用当前棋子差作为基值（你可以保留或设为0）
+        cumulative = get_dense_score(state)
 
-    z_abs = score
-    for s, p, pl in history:
-        z = z_abs * pl
+    returns = []
+    for r in reversed(step_rewards):
+        cumulative = r + gamma * cumulative
+        returns.append(cumulative)
+    returns.reverse()
+
+    # 生成训练样本
+    for i, (s, p, pl) in enumerate(history):
+        z = returns[i] * pl  # 转换到当前玩家视角
         yield s, p, z, reason
-
 
 def get_dense_score(state):
     board = state[1:]

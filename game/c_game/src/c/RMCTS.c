@@ -258,16 +258,23 @@ void* MCTS_init(int const num_lanes,
   t->num_completed = num_completed;
   t->row_count = row_count;
 
+  // 计算最大节点数
+  int total_rows = num_lanes * numSims;
+  // 分配即时奖励数组
+  t->r = (float*) calloc(total_rows, sizeof(float));
+
+
   return (void*) t;
 }
 
 void MCTS_free(void* const mcts) {
   MCTS_new_t* t = (MCTS_new_t*) mcts;
   if(!t) return;
+  if(t->r) free(t->r);
   free(t);
 }
 
-int update_parent(MCTS_new_t* const t, int parent, int a0, float v_child, int sims_child, float player_id_child){
+int update_parent(MCTS_new_t* const t, int parent, int a0, float v_child, int sims_child, float player_id_child, float immediate_r){
   // updates Q and N values for the parent
   // returns the number of simulations remaining for the parent
   float v, player_id_parent;
@@ -281,7 +288,12 @@ int update_parent(MCTS_new_t* const t, int parent, int a0, float v_child, int si
   v = v_child * player_id_child * player_id_parent;
   Q = t->Q + parent*n;
   N = t->N + parent*n;
-  Q[a0] = (Q[a0]*N[a0] + v*sims_child)/(N[a0] + sims_child);
+
+    // 折扣因子
+  float gamma = 0.95f;
+  // 计算新的 Q 值：加入即时奖励
+  float new_Q = (Q[a0] * N[a0] + (immediate_r + gamma * v) * sims_child) / (N[a0] + sims_child);
+  Q[a0] = new_Q;
   N[a0] += sims_child;
   t->sims_remaining[parent] -= sims_child;
   return t->sims_remaining[parent];
@@ -453,7 +465,7 @@ void propagate(MCTS_new_t* t, int parent, int a0, float v_child, int sims_child,
   int child;
   int sims_remaining;
 
-  sims_remaining = update_parent(t, parent, a0, v_child, sims_child, player_id_child);
+  sims_remaining = update_parent(t, parent, a0, v_child, sims_child, player_id_child, t->r[parent]);
   while(sims_remaining == 1) {
     if(parent < t->num_lanes) {
       v_child = compute_new_value_and_policy_root(t, parent);
@@ -468,7 +480,7 @@ void propagate(MCTS_new_t* t, int parent, int a0, float v_child, int sims_child,
     a0 = t->a0[child];
     parent = t->parent[child];
     t->sims_remaining[child] = 0;
-    sims_remaining = update_parent(t, parent, a0, v_child, sims_child, player_id_child);
+    sims_remaining = update_parent(t, parent, a0, v_child, sims_child, player_id_child, t->r[child]);
   }
 }
 
@@ -529,7 +541,8 @@ void MCTS_flush_new_stack(void* const mcts)
     assign_simulations(action_counts, numSims-1, pi0_legal, n);
     for(a=0;a<n;a++) {
       if(action_counts[a] == 0) continue;
-      nextState(h, g, a);
+      int captures;
+      nextState(h, g, a, &captures);
       player_h = playerId(h);
       ended = gameEnded(&score, h);
       m = t->row_count[0];
@@ -538,6 +551,8 @@ void MCTS_flush_new_stack(void* const mcts)
       t->a0[m] = a;
       t->sims[m] = action_counts[a];
       t->sims_remaining[m] = action_counts[a];
+      // 存储即时奖励（吃子奖励）
+      t->r[m] = (float)captures * 0.3f;
       t->row_count[0]++;
       if(ended) {
         // Stage 1: terminal child gets a row but no inference.
@@ -585,7 +600,7 @@ void MCTS_propagate_all(void* const mcts)
       sims_i = t->sims[i];
     }
     player_id_i = playerId(t->G + i * gamesize);
-    update_parent(t, t->parent[i], t->a0[i], v_i, sims_i, player_id_i);
+    update_parent(t, t->parent[i], t->a0[i], v_i, sims_i, player_id_i, t->r[i]);
     t->sims_remaining[i] = 0;
   }
 
