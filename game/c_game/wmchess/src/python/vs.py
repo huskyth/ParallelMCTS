@@ -35,7 +35,7 @@ def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
         pi = pi[0]
 
-        temperature_eval = 0.5
+        temperature_eval = 0.05
         probs = pi[actions] ** (1.0 / temperature_eval)
         probs /= np.sum(probs)
         best_action = np.random.choice(actions, p=probs)
