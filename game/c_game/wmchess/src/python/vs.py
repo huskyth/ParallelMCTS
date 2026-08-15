@@ -28,9 +28,7 @@ def play_game_deterministic(net1, net2, num_sims, c_puct, device, max_steps=500)
     while step < max_steps:
         step += 1
         actions = game.getValidActions(state)
-        if not actions:
-            score = get_dense_score(state)
-            break
+
 
         net = net1 if player == 1 else net2
 
