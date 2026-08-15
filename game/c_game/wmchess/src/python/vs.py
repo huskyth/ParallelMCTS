@@ -11,16 +11,26 @@ def get_dense_score(state):
     white = sum(1 for x in board if x == -1)
     return (black - white) / 21.0
 
-def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
+def play_game_deterministic(net1, net2, num_sims, c_puct, device, max_steps=500):
+    """
+    确定性评估：温度=0（argmax），但加入“破僵局”机制。
+    如果连续 30 步没有吃子（棋子数不变），则用温度 0.5 随机走一步破局。
+    返回终局得分（连续值）。
+    """
     state = game.rootState()
     player = game.playerId(state)
     step = 0
     position_count = {}
     score = 0.0
+    last_piece_count = sum(1 for x in state[1:] if x != 0)
+    stale_steps = 0
 
     while step < max_steps:
         step += 1
         actions = game.getValidActions(state)
+        if not actions:
+            score = get_dense_score(state)
+            break
 
         net = net1 if player == 1 else net2
 
@@ -35,10 +45,23 @@ def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
         pi = pi[0]
 
-        temperature_eval = 0.5
-        probs = pi[actions] ** (1.0 / temperature_eval)
-        probs /= np.sum(probs)
-        best_action = np.random.choice(actions, p=probs)
+        # 破僵局检测
+        current_count = sum(1 for x in state[1:] if x != 0)
+        if current_count == last_piece_count:
+            stale_steps += 1
+        else:
+            stale_steps = 0
+            last_piece_count = current_count
+
+        # 动作选择
+        if stale_steps > 30:
+            # 用温度 0.5 随机破局
+            probs = pi[actions] ** (1.0 / 0.5)
+            probs /= np.sum(probs)
+            best_action = np.random.choice(actions, p=probs)
+        else:
+            # 确定性选择
+            best_action = actions[np.argmax(pi[actions])]
 
         state = game.nextState(state, best_action)
         player = game.playerId(state)
@@ -57,6 +80,21 @@ def play_game(net1, net2, num_sims, c_puct, device, max_steps=500):
 
     return score
 
+
+def evaluate_advanced(net, baseline_net, num_games, num_sims, c_puct, device, max_steps=500):
+    """
+    增强评估：返回 (胜率, 平均得分)
+    """
+    wins = 0
+    total_score = 0.0
+    for i in range(num_games):
+        result = play_game_deterministic(net, baseline_net, num_sims, c_puct, device, max_steps)
+        total_score += result
+        if result > 0:
+            wins += 1
+        elif result == 0:
+            wins += 0.5
+    return wins / num_games, total_score / num_games
 
 def evaluate_best_vs_random(best_model_path, num_games=100, num_sims=200, c_puct=1.0, device=None):
     """
@@ -78,7 +116,7 @@ def evaluate_best_vs_random(best_model_path, num_games=100, num_sims=200, c_puct
     # 3. 对弈
     wins = 0
     for i in range(num_games):
-        result = play_game(best_net, random_net, num_sims, c_puct, device)
+        result = play_game_deterministic(best_net, random_net, num_sims, c_puct, device)
         if result > 0:
             wins += 1
         elif result == 0:
