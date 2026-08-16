@@ -13,13 +13,13 @@ import os
 import pickle  # 新增
 from . import game
 from .RMCTS import learn_pi_and_v
-from .wmnet import WatermelonNet
+from .wmnet_gcn import WatermelonGCN
 from .replay_buf import ReplayBuffer
 from . import metaparm
 
 sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 
-SAVE_TRAJECTORY = True          # True 表示保存每局轨迹到磁盘
+SAVE_TRAJECTORY = False          # True 表示保存每局轨迹到磁盘
 TRAJECTORY_DIR = "./trajectories"  # 保存目录
 # ------------------------------------------------------------
 # 1. 自对弈函数（只保留自然终局）
@@ -299,7 +299,7 @@ def train():
     )
 
     # ---- 网络、优化器、回放池 ----
-    net = WatermelonNet(input_dim=game.gameLength(), num_actions=game.numActions()).to(device)
+    net = WatermelonGCN().to(device)
 
     start_epoch = 0
     if os.path.exists(best_model_path):
@@ -312,7 +312,7 @@ def train():
     replay_buffer = ReplayBuffer(max_size=200000)
 
     # ---- 固定随机基线（仅用于参考，不参与决策） ----
-    random_net = WatermelonNet(input_dim=game.gameLength(), num_actions=game.numActions()).to(device)
+    random_net = WatermelonGCN().to(device)
     baseline_net = copy.deepcopy(random_net)  # 固定，不更新
 
 

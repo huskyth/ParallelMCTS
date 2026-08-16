@@ -166,3 +166,6 @@ summary_log
 
 logs
 checkpoints*
+
+*.json
+*.pth
