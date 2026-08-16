@@ -4,7 +4,7 @@
 
 int main() {
     // 初始化棋盘（默认开局）
-    float state[22];
+    float state[22] = {-1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, -1, 0, 0, 0, -1, 0, 0};
     rootState(state);
     printf("初始棋盘:\n");
     printGame(state);
