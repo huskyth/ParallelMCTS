@@ -553,6 +553,8 @@ void MCTS_flush_new_stack(void* const mcts)
       t->sims_remaining[m] = action_counts[a];
       // 存储即时奖励（吃子奖励）
       t->r[m] = (float)captures * 0.3f;
+      printf("节点 %d: 吃子数 = %d, 即时奖励 = %.3f\n", m, captures, t->r[m]);
+
       t->row_count[0]++;
       if(ended) {
         // Stage 1: terminal child gets a row but no inference.

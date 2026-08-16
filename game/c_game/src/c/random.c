@@ -51,6 +51,8 @@ void random_game_state(float* const g) {
   float terminal_score;
   int i,j;
   int a;
+  int dummy_captures;
+
 
   rootState(h);
   memcpy(G,h,len_gamestate*sizeof(float));
@@ -59,7 +61,8 @@ void random_game_state(float* const g) {
     num_actions = getValidActions(actions,h);
     if(num_actions == 0) break;
     a = actions[Knuth_lrand() % num_actions];
-    nextState(G+(i+1)*len_gamestate,h,a);
+
+    nextState(G+(i+1)*len_gamestate,h,a, &dummy_captures);
     memcpy(h, G + (i+1)*len_gamestate, len_gamestate*sizeof(float));
     i++;
   }
