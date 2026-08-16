@@ -143,7 +143,7 @@ def play_game_deterministic(net1, net2, num_sims, c_puct, device, state=None, ma
         # 纯 argmax（无随机）
         best_action = actions[np.argmax(pi[actions])]
 
-        state = game.nextState(state, best_action)
+        state, _ = game.nextState(state, best_action)
         player = game.playerId(state)
 
         ended, score = game.gameEnded(state)
@@ -175,7 +175,7 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
             actions = game.getValidActions(state)
 
             a = np.random.choice(actions)
-            state = game.nextState(state, a)
+            state, _ = game.nextState(state, a)
             ended, _ = game.gameEnded(state)
             if ended:
                 break
@@ -206,7 +206,7 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
                 # 对手：纯随机走子（无搜索）
                 best_action = np.random.choice(actions)
 
-            state = game.nextState(state, best_action)
+            state, _ = game.nextState(state, best_action)
             player = game.playerId(state)
 
             ended, score = game.gameEnded(state)
@@ -237,7 +237,7 @@ def evaluate_deterministic_avg(net, baseline_net, num_sims, c_puct, device, num_
             if not actions:
                 break
             a = np.random.choice(actions)
-            state = game.nextState(state, a)
+            state, _ = game.nextState(state, a)
             ended, _ = game.gameEnded(state)
             if ended:
                 break

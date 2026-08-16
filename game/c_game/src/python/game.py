@@ -55,6 +55,11 @@ libgame.printGame.argtypes = [array_float]
 libnetwork.games_to_nnet_inputs.restype = None
 libnetwork.games_to_nnet_inputs.argtypes = [array_float,array_float,c_int]
 
+# 更新 argtypes（在文件开头设置函数原型的部分）
+libgame.nextState.restype = c_int
+libgame.nextState.argtypes = [array_float, array_float, c_int, ctypes.POINTER(ctypes.c_int)]  # 新增 captures 指针
+
+
 def numActions():
     return libgame.numActions()
 
@@ -99,15 +104,24 @@ def getValidActions(g):
     num_actions = libgame.getValidActions(actions,g)
     return actions[:num_actions]
 
-def nextState(g,a):
+
+def nextState(g, a, captures=None):
+    """
+    执行动作，返回 (新状态, 吃子数)
+    captures: 可选，如果传入 ctypes.c_int 对象，则填充吃子数
+    """
     c_a = c_int(a)
-    ga = np.zeros(gameLength(),dtype=np.float32)
-    res = libgame.nextState(ga,g,c_a)
-    #if res == -1:
-    #    print("Warning! The action you took was not valid.")
-    #    printGame(g)
-    #    print(f"You tried to take action {a}")
-    return ga
+    ga = np.zeros(gameLength(), dtype=np.float32)
+
+    if captures is None:
+        # 若未传入 captures，内部创建临时变量并丢弃
+        cap = ctypes.c_int()
+        res = libgame.nextState(ga, g, c_a, ctypes.byref(cap))
+        return ga, cap.value
+    else:
+        # 若传入，则填充
+        res = libgame.nextState(ga, g, c_a, ctypes.byref(captures))
+        return ga
 
 def printGame(g):
     libgame.printGame(g)
