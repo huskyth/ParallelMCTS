@@ -234,8 +234,6 @@ def evaluate_deterministic_avg(net, baseline_net, num_sims, c_puct, device, num_
         steps = np.random.randint(5, 15)
         for _ in range(steps):
             actions = game.getValidActions(state)
-            if not actions:
-                break
             a = np.random.choice(actions)
             state, _ = game.nextState(state, a)
             ended, _ = game.gameEnded(state)
