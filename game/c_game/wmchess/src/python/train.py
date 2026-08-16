@@ -1,4 +1,7 @@
 # train.py
+import json
+import time
+
 import numpy as np
 import torch
 import torch.optim as optim
@@ -16,7 +19,8 @@ from . import metaparm
 
 sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 
-
+SAVE_TRAJECTORY = True          # True 表示保存每局轨迹到磁盘
+TRAJECTORY_DIR = "./trajectories"  # 保存目录
 # ------------------------------------------------------------
 # 1. 自对弈函数（只保留自然终局）
 # ------------------------------------------------------------
@@ -27,8 +31,8 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     step = 0
     position_count = {}
     reason = 'n'
-    gamma = 0.95  # 折扣因子
-    step_rewards = []  # 存储每步的即时奖励（吃子奖励）
+    gamma = 0.95
+    step_rewards = []
     terminal_score = 0.0
 
     while step < max_steps:
@@ -55,10 +59,8 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
 
         history.append((state.copy(), pure_pi.copy(), player))
 
-        # 🔥 调用 nextState，获取吃子数
         captures = ctypes.c_int()
         state = game.nextState(state, a, captures)
-        # 即时奖励：每吃一个子 +0.3
         r = captures.value * 0.3
         step_rewards.append(r)
 
@@ -70,7 +72,6 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
             reason = 'e'
             break
 
-        # 重复检测（可选）
         s = ','.join(str(int(x)) for x in state.tolist())
         position_count[s] = position_count.get(s, 0) + 1
         if position_count[s] >= 3:
@@ -79,12 +80,14 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     else:
         reason = 't'
 
-    # 计算累积回报（包含即时奖励和终端奖励）
+    KEEP_STEPS = 60
+    if len(history) > KEEP_STEPS:
+        history = history[-KEEP_STEPS:]
+        step_rewards = step_rewards[-KEEP_STEPS:]
+
     if reason == 'e':
-        # 自然终局：使用终端奖励作为基值
         cumulative = terminal_score
     else:
-        # 非终局：使用当前棋子差作为基值（你可以保留或设为0）
         cumulative = get_dense_score(state)
 
     returns = []
@@ -93,11 +96,40 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
         returns.append(cumulative)
     returns.reverse()
 
-    # 生成训练样本
-    for i, (s, p, pl) in enumerate(history):
-        z = returns[i] * pl  # 转换到当前玩家视角
-        yield s, p, z, reason
+    # ========== 🔥 新增：保存完整轨迹到磁盘 ==========
+    if SAVE_TRAJECTORY:
+        # 创建目录
+        os.makedirs(TRAJECTORY_DIR, exist_ok=True)
+        # 生成时间戳文件名
+        timestamp = int(time.time() * 1000)
+        filename = f"{TRAJECTORY_DIR}/traj_{timestamp}.json"
 
+        # 构造可序列化的轨迹数据
+        traj_data = {
+            "reason": reason,
+            "terminal_score": terminal_score,
+            "step_rewards": [float(r) for r in step_rewards],
+            "returns": [float(r) for r in returns],
+            "history": []
+        }
+        for i, (s, p, pl) in enumerate(history):
+            traj_data["history"].append({
+                "state": s.tolist(),  # 棋盘状态（22维）
+                "policy": p.tolist(),  # 策略分布（72维）
+                "player": int(pl),
+                "step_reward": float(step_rewards[i]) if i < len(step_rewards) else 0.0,
+                "return": float(returns[i]) if i < len(returns) else 0.0,
+            })
+        # 写入文件
+        with open(filename, "w") as f:
+            json.dump(traj_data, f, indent=2)
+        # 可选：打印提示（但可能干扰训练输出，可注释掉）
+        # print(f"💾 轨迹已保存到 {filename}")
+
+    # 生成训练样本（原有逻辑）
+    for i, (s, p, pl) in enumerate(history):
+        z = returns[i] * pl
+        yield s, p, z, reason
 
 def get_dense_score(state):
     board = state[1:]
@@ -170,15 +202,6 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
     for _ in range(num_starts):
         # 随机生成初始状态（从默认开局走 5~15 步）
         state = game.rootState()
-        steps = np.random.randint(5, 15)
-        for _ in range(steps):
-            actions = game.getValidActions(state)
-
-            a = np.random.choice(actions)
-            state, _ = game.nextState(state, a)
-            ended, _ = game.gameEnded(state)
-            if ended:
-                break
 
         # 在该状态下进行对决
         player = game.playerId(state)
@@ -252,11 +275,11 @@ def train():
     num_sims = 400
     c_puct = metaparm.c_puct
     batch_size = 256
-    num_selfplay_games = 32
+    num_selfplay_games = 3
     num_epochs = 1000
     learning_rate = 0.0001
-    eval_interval = 25
-    num_starts = 5  # 评估使用的初始状态数
+    eval_interval = 3
+    num_starts = 10  # 评估使用的初始状态数
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     best_model_path = "best_model.pth"
     buffer_path = "replay_buffer.pkl"
@@ -292,34 +315,30 @@ def train():
     random_net = WatermelonNet(input_dim=game.gameLength(), num_actions=game.numActions()).to(device)
     baseline_net = copy.deepcopy(random_net)  # 固定，不更新
 
-    # ---- 历史最优网络（用于生成数据） ----
-    best_net = copy.deepcopy(net)
-    selfplay_net = copy.deepcopy(best_net)
 
     # ---- 训练循环 ----
     for epoch in range(start_epoch, num_epochs):
-        # ---- 自对弈（使用 selfplay_net 生成数据） ----
-        rep = 0
+
         for idx in range(num_selfplay_games):
             def nnet(states):
                 with torch.no_grad():
                     states_t = torch.from_numpy(states).float().to(device)
-                    logits, values = selfplay_net(states_t)
+                    logits, values = net(states_t)
                     probs = torch.softmax(logits, dim=1)
                 return probs.cpu().numpy(), values.cpu().numpy().flatten()
 
+            rep = 0
             for state, policy, z, ren in self_play(nnet, num_sims, c_puct):
                 replay_buffer.push(state, policy, z)
-                if ren == 'r':
-                    rep += 1
-
+                rep += 1
+            sw.log({"self_play长": rep, "epoch": epoch})
             print(f"{idx} Self-play done, buffer size: {len(replay_buffer)}")
 
         print(f"Epoch {epoch}, buffer size: {len(replay_buffer)}")
 
         # ---- 训练网络 ----
         if len(replay_buffer) >= batch_size:
-            num_updates = min(len(replay_buffer) // batch_size, 8)
+            num_updates = min(len(replay_buffer) // batch_size, 1)
 
             total_loss = 0.0
             total_policy_loss = 0.0
@@ -344,7 +363,9 @@ def train():
                 entropy = -torch.mean(torch.sum(probs * log_probs, dim=1))
                 beta = 0.06
                 entropy_loss = -beta * entropy
-                loss = policy_loss + value_loss + entropy_loss
+                pw = 0.3
+                vw = 3
+                loss = pw * policy_loss + vw * value_loss + entropy_loss
 
                 pred_entropy = -torch.mean(torch.sum(probs * log_probs, dim=1)).item()
                 target_log_probs = torch.log(target_policies_t + 1e-10)
@@ -392,33 +413,11 @@ def train():
             print(f"Epoch {epoch}, Avg Score vs Pure Random: {avg_score_vs_random:.4f}")
             sw.log({"avg_score_vs_pure_random": avg_score_vs_random, "epoch": epoch})
 
-            # 辅助评估：当前网络 vs 固定随机基线（带搜索，仅参考）
-            avg_score_vs_baseline = evaluate_deterministic_avg(
-                net, baseline_net, num_sims, c_puct, device, num_starts=num_starts
-            )
-            sw.log({"avg_score_vs_baseline": avg_score_vs_baseline, "epoch": epoch})
-
             # 更新教师模型：若对纯随机胜率（得分）高于 0.1，认为有明显优势
             if avg_score_vs_random > 0.1:
-                best_net = copy.deepcopy(net)
-                selfplay_net = copy.deepcopy(best_net)
                 torch.save(net.state_dict(), best_model_path)
                 sw.save(best_model_path)
                 print(f"🏆 更新历史最优模型！Epoch {epoch}, 得分 {avg_score_vs_random:.4f}")
-
-        # ---- 保存 Replay Buffer ----
-        if epoch % 10 == 0:
-            try:
-                # 保存主 buffer 文件（覆盖）
-                with open(buffer_path, "wb") as f:
-                    pickle.dump(replay_buffer.buffer, f, protocol=pickle.HIGHEST_PROTOCOL)
-                # 额外保存带 epoch 号的备份
-                backup_path = f"replay_buffer_epoch_{epoch}.pkl"
-                with open(backup_path, "wb") as f:
-                    pickle.dump(replay_buffer.buffer, f, protocol=pickle.HIGHEST_PROTOCOL)
-                print(f"💾 保存 Replay Buffer (epoch {epoch})，大小 {len(replay_buffer.buffer)}")
-            except Exception as e:
-                print(f"⚠️ 保存 Buffer 失败: {e}")
 
         # ---- 保存模型 ----
         if epoch % 50 == 0:

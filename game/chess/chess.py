@@ -47,21 +47,21 @@ class Chess(ChessBoard):
             SCREEN_HEIGHT - CHESSMAN_HEIGHT * 1
         return x, y
 
-    def _write_point(self):
-        image = cv2.imread(str(ROOT_PATH / "game/chess/assets/watermelon.png"))
-        for index, point in enumerate(self.pointStatus):
-            if point == 0:
-                continue
-            (x, y) = Chess._fix_xy(index)
-            if point == BLACK:
-                cv2.circle(img=image, color=(0.0, 0.0, 0.0),
-                           center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
-                           radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
-            elif point == WHITE:
-                cv2.circle(img=image, color=(0.0, 0.0, 255.0),
-                           center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
-                           radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
-        return image
+    # def _write_point(self):
+    #     image = cv2.imread(str(ROOT_PATH / "game/chess/assets/watermelon.png"))
+    #     for index, point in enumerate(self.pointStatus):
+    #         if point == 0:
+    #             continue
+    #         (x, y) = Chess._fix_xy(index)
+    #         if point == BLACK:
+    #             cv2.circle(img=image, color=(0.0, 0.0, 0.0),
+    #                        center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
+    #                        radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
+    #         elif point == WHITE:
+    #             cv2.circle(img=image, color=(0.0, 0.0, 255.0),
+    #                        center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
+    #                        radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
+    #     return image
 
     def render(self, key):
         if not self.is_render:
@@ -134,13 +134,6 @@ class Chess(ChessBoard):
             new_pi = torch.from_numpy(new_pi).float()
         return new_board, new_pi
 
-    def image_show(self, key, is_image_show, wait_key=5):
-        if not is_image_show:
-            return
-        img = self._write_point()
-        cv2.imshow(key, img)
-        return cv2.waitKey(wait_key)
-
     def left_right(self, s, p):
         board = s
         pi = p
@@ -163,16 +156,116 @@ class Chess(ChessBoard):
 
         return new_board, new_pi
 
+    def draw_policy_info(self, image, pi, player=None, top_k=15, step_reward=None, return_val=None):
+        """
+        在图像的右下角绘制策略信息。
+        pi: 长度为 num_actions 的概率数组 (numpy array)
+        player: 当前玩家（1 或 -1），用于显示在左上角
+        top_k: 显示概率最大的前 k 个动作
+        step_reward: 当前步的即时奖励（吃子奖励）
+        return_val: 当前步的累积回报（z）
+        """
+        if pi is None:
+            return image
+        pi = np.array(pi)
+        h, w = image.shape[:2]
+
+        # ----- 在左上角显示当前玩家 -----
+        if player is not None:
+            player_text = "Black" if player == 1 else "White"
+            cv2.putText(image, f"Player: {player_text}", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+
+        # ----- 右下角策略信息框 -----
+        overlay = image.copy()
+        box_width = 250
+        # 高度增加两行用于显示 step_reward 和 return
+        box_height = 180 + 20 * (top_k + 1)
+        x0 = w - box_width - 10
+        y0 = h - box_height - 10
+        cv2.rectangle(overlay, (x0, y0), (x0 + box_width, y0 + box_height), (255, 255, 255), -1)
+        cv2.addWeighted(overlay, 0.8, image, 0.2, 0, image)
+        cv2.rectangle(image, (x0, y0), (x0 + box_width, y0 + box_height), (0, 0, 0), 1)
+
+        # 计算熵
+        eps = 1e-8
+        entropy = -np.sum(pi * np.log(pi + eps))
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.5
+        color_text = (0, 0, 0)
+        thickness = 1
+
+        y = y0 + 20
+        cv2.putText(image, f"Entropy: {entropy:.3f}", (x0 + 5, y), font, font_scale, color_text, thickness)
+
+        # 显示 step_reward 和 return（如果提供）
+        if step_reward is not None:
+            y += 20
+            cv2.putText(image, f"Step Reward: {step_reward:.3f}", (x0 + 5, y), font, font_scale, color_text, thickness)
+        if return_val is not None:
+            y += 20
+            cv2.putText(image, f"Return: {return_val:.3f}", (x0 + 5, y), font, font_scale, color_text, thickness)
+
+        # Top-k 动作
+        y += 20
+        cv2.putText(image, "Top actions:", (x0 + 5, y), font, font_scale, color_text, thickness)
+
+        indices = np.argsort(pi)[::-1][:top_k]
+        for i, idx in enumerate(indices):
+            y += 20
+            prob = pi[idx]
+            cv2.putText(image, f"  {idx}: {prob:.3f}", (x0 + 5, y), font, font_scale, color_text, thickness)
+
+        return image
+
+    def _write_point(self, pi=None, player=None, step_reward=None, return_val=None):
+        """
+        绘制棋盘，可选传入策略 pi、当前玩家、即时奖励和累积回报。
+        """
+        image = cv2.imread(str(ROOT_PATH / "game/chess/assets/watermelon.png"))
+        for index, point in enumerate(self.pointStatus):
+            if point == 0:
+                continue
+            (x, y) = Chess._fix_xy(index)
+            if point == BLACK:
+                cv2.circle(img=image, color=(0.0, 0.0, 0.0),
+                           center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
+                           radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
+            elif point == WHITE:
+                cv2.circle(img=image, color=(0.0, 0.0, 255.0),
+                           center=(int(x + CHESSMAN_WIDTH / 2), int(y + CHESSMAN_HEIGHT / 2)),
+                           radius=int(CHESSMAN_HEIGHT // 2 * 1.5), thickness=-1)
+        # 如果传入了策略等信息，绘制信息框
+        if pi is not None or player is not None:
+            image = self.draw_policy_info(image, pi, player=player,
+                                          step_reward=step_reward, return_val=return_val)
+        return image
+
+    def image_show(self, key, is_image_show, wait_key=5, pi=None, player=None,
+                   step_reward=None, return_val=None):
+        """
+        显示图像，可传入策略 pi、当前玩家、即时奖励和累积回报。
+        """
+        if not is_image_show:
+            return
+        img = self._write_point(pi=pi, player=player,
+                                step_reward=step_reward, return_val=return_val)
+        cv2.imshow(key, img)
+        return cv2.waitKey(wait_key)
+
 
 if __name__ == '__main__':
-    s = [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, -1, 0, 0, 0, 0, 0, -1]
+    s = [1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, -1.0, 1.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
     c = Chess()
     c.pointStatus = s
     print(len(c.pointStatus))
-    c.image_show("a", True, 0)
-
-
-
+    pi = [0.004635749850422144, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.004514929838478565, 0.0, 0.0046821278519928455, 0.0,
+          0.0, 0.9525789618492126, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.004794583655893803, 0.004272001795470715,
+          0.005039438139647245, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+          0.005404447205364704, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+          0.0, 0.0, 0.0, 0.0, 0.0, 0.004634215496480465, 0.004692332819104195, 0.004751227796077728, 0.0, 0.0, 0.0, 0.0,
+          0.0, 0.0, 0.0, 0.0]
+    c.image_show("a", True, 0, pi=pi, player=1)
 
     abv = [1, 2, 3, 4]
     print(np.random.shuffle(abv))
