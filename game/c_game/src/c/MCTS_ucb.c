@@ -117,6 +117,8 @@ void GamePath_update(GamePath_t* const gpath, int const a) {
   int l;
   float* g;
   float* ga = (float*) malloc(len_gamestate*sizeof(float));
+  int dummy_captures;  // 用于接收吃子数，忽略
+
   if((gpath->len_path + 1) >> (gpath->log2_capacity)) {
     gpath->log2_capacity++;
     gpath->game = (float*) realloc(gpath->game, (1ll<<gpath->log2_capacity)*len_gamestate*sizeof(float));
@@ -125,7 +127,7 @@ void GamePath_update(GamePath_t* const gpath, int const a) {
   l = gpath->len_path;
   if(l>0) g = gpath->game + (l-1)*len_gamestate;
   else g = gpath->root;
-  nextState(ga,g,a);
+  nextState(ga,g,a,&dummy_captures);
   memcpy(gpath->game + (gpath->len_path)*len_gamestate, ga, len_gamestate*sizeof(float));
   gpath->action[gpath->len_path] = a;
   gpath->len_path++;
