@@ -7,6 +7,7 @@ import copy
 import random
 import ctypes
 import os
+import pickle  # 新增
 from . import game
 from .RMCTS import learn_pi_and_v
 from .wmnet import WatermelonNet
@@ -96,6 +97,7 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     for i, (s, p, pl) in enumerate(history):
         z = returns[i] * pl  # 转换到当前玩家视角
         yield s, p, z, reason
+
 
 def get_dense_score(state):
     board = state[1:]
@@ -219,7 +221,33 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
 
 
 # ------------------------------------------------------------
-# 4. 主训练循环
+# 4. 辅助评估：与固定随机基线比较（确定性）
+# ------------------------------------------------------------
+def evaluate_deterministic_avg(net, baseline_net, num_sims, c_puct, device, num_starts=5):
+    """
+    在多个不同初始状态下，用确定性走法比较 net 与 baseline_net，返回平均得分。
+    """
+    np.random.seed(42)
+    scores = []
+    for _ in range(num_starts):
+        state = game.rootState()
+        steps = np.random.randint(5, 15)
+        for _ in range(steps):
+            actions = game.getValidActions(state)
+            if not actions:
+                break
+            a = np.random.choice(actions)
+            state = game.nextState(state, a)
+            ended, _ = game.gameEnded(state)
+            if ended:
+                break
+        score = play_game_deterministic(net, baseline_net, num_sims, c_puct, device, state)
+        scores.append(score)
+    return np.mean(scores)
+
+
+# ------------------------------------------------------------
+# 5. 主训练循环
 # ------------------------------------------------------------
 def train():
     # ---- 超参数 ----
@@ -233,6 +261,7 @@ def train():
     num_starts = 5  # 评估使用的初始状态数
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     best_model_path = "best_model.pth"
+    buffer_path = "replay_buffer.pkl"
 
     # ---- 初始化 SwanLab ----
     sw.init(
@@ -379,6 +408,20 @@ def train():
                 sw.save(best_model_path)
                 print(f"🏆 更新历史最优模型！Epoch {epoch}, 得分 {avg_score_vs_random:.4f}")
 
+        # ---- 保存 Replay Buffer ----
+        if epoch % 10 == 0:
+            try:
+                # 保存主 buffer 文件（覆盖）
+                with open(buffer_path, "wb") as f:
+                    pickle.dump(replay_buffer.buffer, f, protocol=pickle.HIGHEST_PROTOCOL)
+                # 额外保存带 epoch 号的备份
+                backup_path = f"replay_buffer_epoch_{epoch}.pkl"
+                with open(backup_path, "wb") as f:
+                    pickle.dump(replay_buffer.buffer, f, protocol=pickle.HIGHEST_PROTOCOL)
+                print(f"💾 保存 Replay Buffer (epoch {epoch})，大小 {len(replay_buffer.buffer)}")
+            except Exception as e:
+                print(f"⚠️ 保存 Buffer 失败: {e}")
+
         # ---- 保存模型 ----
         if epoch % 50 == 0:
             model_path = f"model_epoch_{epoch}.pth"
@@ -387,30 +430,6 @@ def train():
 
     sw.finish()
     print(f"\n🎉 训练完成！最终最佳模型保存在 {best_model_path}")
-
-
-# ------------------------------------------------------------
-# 辅助评估（与固定随机基线比较，确定性评估）
-# ------------------------------------------------------------
-def evaluate_deterministic_avg(net, baseline_net, num_sims, c_puct, device, num_starts=5):
-    """
-    在多个不同初始状态下，用确定性走法比较 net 与 baseline_net，返回平均得分。
-    """
-    np.random.seed(42)
-    scores = []
-    for _ in range(num_starts):
-        state = game.rootState()
-        steps = np.random.randint(5, 15)
-        for _ in range(steps):
-            actions = game.getValidActions(state)
-            a = np.random.choice(actions)
-            state = game.nextState(state, a)
-            ended, _ = game.gameEnded(state)
-            if ended:
-                break
-        score = play_game_deterministic(net, baseline_net, num_sims, c_puct, device, state)
-        scores.append(score)
-    return np.mean(scores)
 
 
 if __name__ == "__main__":
