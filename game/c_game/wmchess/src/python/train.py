@@ -19,7 +19,7 @@ from . import metaparm
 
 sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 
-SAVE_TRAJECTORY = True          # True 表示保存每局轨迹到磁盘
+SAVE_TRAJECTORY = False          # True 表示保存每局轨迹到磁盘
 TRAJECTORY_DIR = "./trajectories"  # 保存目录
 # ------------------------------------------------------------
 # 1. 自对弈函数（只保留自然终局）
@@ -188,16 +188,13 @@ def play_game_deterministic(net1, net2, num_sims, c_puct, device, state=None, ma
     return score
 
 
-# ------------------------------------------------------------
-# 3. 评估函数：当前网络 vs 纯随机（无搜索）
-# ------------------------------------------------------------
 def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_steps=300):
     """
     在多个不同的初始状态下，让当前网络（带搜索）对阵纯随机走子（无搜索）。
-    返回平均得分（>0 表示网络占优）。
+    返回胜率（当前网络获胜的比例），平局算 0.5 胜。
     """
-    np.random.seed(42)  # 固定种子确保可复现
-    scores = []
+    np.random.seed(42)  # 固定种子确保可复现（如果你想取消可注释掉）
+    wins = 0.0
 
     for _ in range(num_starts):
         # 随机生成初始状态（从默认开局走 5~15 步）
@@ -240,12 +237,16 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
             if ended:
                 break
         else:
+            # 超时，使用放大后的 get_dense_score（已乘 3）
             score = get_dense_score(state)
 
-        scores.append(score)
+        # 统计胜负（平局算 0.5 胜）
+        if score > 0:
+            wins += 1.0
+        elif score == 0:
+            wins += 0.5
 
-    return np.mean(scores)
-
+    return wins / num_starts
 
 # ------------------------------------------------------------
 # 4. 辅助评估：与固定随机基线比较（确定性）
