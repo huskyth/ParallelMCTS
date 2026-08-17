@@ -21,8 +21,9 @@ sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 
 SAVE_TRAJECTORY = False          # True 表示保存每局轨迹到磁盘
 TRAJECTORY_DIR = "./trajectories"  # 保存目录
+
 # ------------------------------------------------------------
-# 1. 自对弈函数（只保留自然终局）
+# 1. 自对弈函数
 # ------------------------------------------------------------
 def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_steps=500):
     state = game.rootState()
@@ -96,15 +97,11 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
         returns.append(cumulative)
     returns.reverse()
 
-    # ========== 🔥 新增：保存完整轨迹到磁盘 ==========
+    # 保存轨迹到磁盘（可选）
     if SAVE_TRAJECTORY:
-        # 创建目录
         os.makedirs(TRAJECTORY_DIR, exist_ok=True)
-        # 生成时间戳文件名
         timestamp = int(time.time() * 1000)
         filename = f"{TRAJECTORY_DIR}/traj_{timestamp}.json"
-
-        # 构造可序列化的轨迹数据
         traj_data = {
             "reason": reason,
             "terminal_score": terminal_score,
@@ -114,22 +111,20 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
         }
         for i, (s, p, pl) in enumerate(history):
             traj_data["history"].append({
-                "state": s.tolist(),  # 棋盘状态（22维）
-                "policy": p.tolist(),  # 策略分布（72维）
+                "state": s.tolist(),
+                "policy": p.tolist(),
                 "player": int(pl),
                 "step_reward": float(step_rewards[i]) if i < len(step_rewards) else 0.0,
                 "return": float(returns[i]) if i < len(returns) else 0.0,
             })
-        # 写入文件
         with open(filename, "w") as f:
             json.dump(traj_data, f, indent=2)
-        # 可选：打印提示（但可能干扰训练输出，可注释掉）
-        # print(f"💾 轨迹已保存到 {filename}")
 
-    # 生成训练样本（原有逻辑）
+    # 生成训练样本
     for i, (s, p, pl) in enumerate(history):
         z = returns[i] * pl
         yield s, p, z, reason
+
 
 def get_dense_score(state):
     board = state[1:]
@@ -139,13 +134,10 @@ def get_dense_score(state):
 
 
 # ------------------------------------------------------------
-# 2. 确定性对战（用于评估）
+# 2. 对战与评估函数
 # ------------------------------------------------------------
-def play_game_deterministic(net1, net2, num_sims, c_puct, device, state=None, max_steps=300):
-    """
-    纯确定性评估：永远走 argmax，无随机采样。
-    如果 state 为 None，则使用默认开局。
-    """
+def play_game(net1, net2, num_sims, c_puct, device, state=None, max_steps=300):
+    """单局对战：net1 先手，net2 后手，返回终局得分（已放大3倍）。"""
     if state is None:
         state = game.rootState()
     else:
@@ -172,8 +164,11 @@ def play_game_deterministic(net1, net2, num_sims, c_puct, device, state=None, ma
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
         pi = pi[0]
 
-        # 纯 argmax（无随机）
-        best_action = actions[np.argmax(pi[actions])]
+        # 评估温度 0.3
+        temperature_eval = 0.3
+        probs = pi[actions] ** (1.0 / temperature_eval)
+        probs /= np.sum(probs)
+        best_action = np.random.choice(actions, p=probs)
 
         state, _ = game.nextState(state, best_action)
         player = game.playerId(state)
@@ -182,25 +177,18 @@ def play_game_deterministic(net1, net2, num_sims, c_puct, device, state=None, ma
         if ended:
             break
     else:
-        # 超时，返回当前棋子差
         score = get_dense_score(state)
 
     return score
 
 
 def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_steps=300):
-    """
-    在多个不同的初始状态下，让当前网络（带搜索）对阵纯随机走子（无搜索）。
-    返回胜率（当前网络获胜的比例），平局算 0.5 胜。
-    """
-    np.random.seed(42)  # 固定种子确保可复现（如果你想取消可注释掉）
+    """当前网络（带搜索）vs 纯随机对手（无搜索），返回胜率。"""
+    np.random.seed(42)
     wins = 0.0
 
     for _ in range(num_starts):
-        # 随机生成初始状态（从默认开局走 5~15 步）
         state = game.rootState()
-
-        # 在该状态下进行对决
         player = game.playerId(state)
         step = 0
         score = 0.0
@@ -221,13 +209,11 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
                 root = state[np.newaxis, :]
                 pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
                 pi = pi[0]
-                # 评估温度设为 0.3（既能保持网络偏好，又给一点随机性）
                 temperature_eval = 0.3
                 probs = pi[actions] ** (1.0 / temperature_eval)
                 probs /= np.sum(probs)
                 best_action = np.random.choice(actions, p=probs)
             else:
-                # 对手：纯随机走子（无搜索）
                 best_action = np.random.choice(actions)
 
             state, _ = game.nextState(state, best_action)
@@ -237,10 +223,8 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
             if ended:
                 break
         else:
-            # 超时，使用放大后的 get_dense_score（已乘 3）
             score = get_dense_score(state)
 
-        # 统计胜负（平局算 0.5 胜）
         if score > 0:
             wins += 1.0
         elif score == 0:
@@ -248,32 +232,64 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
 
     return wins / num_starts
 
-# ------------------------------------------------------------
-# 4. 辅助评估：与固定随机基线比较（确定性）
-# ------------------------------------------------------------
-def evaluate_deterministic_avg(net, baseline_net, num_sims, c_puct, device, num_starts=5):
+
+# 🔥 新增：当前网络 vs 历史最优模型评估
+def evaluate_vs_best(net, best_net, num_sims, c_puct, device, num_starts=20, max_steps=300):
     """
-    在多个不同初始状态下，用确定性走法比较 net 与 baseline_net，返回平均得分。
+    当前网络（带搜索）与历史最优模型（带搜索）对战，返回当前网络的胜率。
+    平局算 0.5 胜。
     """
     np.random.seed(42)
-    scores = []
+    wins = 0.0
+
     for _ in range(num_starts):
         state = game.rootState()
-        steps = np.random.randint(5, 15)
-        for _ in range(steps):
+        player = game.playerId(state)
+        step = 0
+        score = 0.0
+
+        while step < max_steps:
+            step += 1
             actions = game.getValidActions(state)
-            a = np.random.choice(actions)
-            state, _ = game.nextState(state, a)
-            ended, _ = game.gameEnded(state)
+
+            # 当前玩家使用对应的网络
+            net_used = net if player == 1 else best_net
+
+            def nnet(states):
+                with torch.no_grad():
+                    states_t = torch.from_numpy(states).float().to(device)
+                    logits, values = net_used(states_t)
+                    probs = torch.softmax(logits, dim=1)
+                return probs.cpu().numpy(), values.cpu().numpy().flatten()
+
+            root = state[np.newaxis, :]
+            pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
+            pi = pi[0]
+
+            temperature_eval = 0.3
+            probs = pi[actions] ** (1.0 / temperature_eval)
+            probs /= np.sum(probs)
+            best_action = np.random.choice(actions, p=probs)
+
+            state, _ = game.nextState(state, best_action)
+            player = game.playerId(state)
+
+            ended, score = game.gameEnded(state)
             if ended:
                 break
-        score = play_game_deterministic(net, baseline_net, num_sims, c_puct, device, state)
-        scores.append(score)
-    return np.mean(scores)
+        else:
+            score = get_dense_score(state)
+
+        if score > 0:
+            wins += 1.0
+        elif score == 0:
+            wins += 0.5
+
+    return wins / num_starts
 
 
 # ------------------------------------------------------------
-# 5. 主训练循环
+# 3. 主训练循环
 # ------------------------------------------------------------
 def train():
     # ---- 超参数 ----
@@ -283,8 +299,8 @@ def train():
     num_selfplay_games = 3
     num_epochs = 1000
     learning_rate = 0.0001
-    eval_interval = 3
-    num_starts = 10  # 评估使用的初始状态数
+    eval_interval = 10          # 🔥 每 10 个 epoch 评估一次（与 best 对比）
+    num_starts = 20             # 🔥 与 best 对比时用 20 局
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     best_model_path = "best_model.pth"
     buffer_path = "replay_buffer.pkl"
@@ -316,30 +332,36 @@ def train():
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     replay_buffer = ReplayBuffer(max_size=200000)
 
-    # ---- 固定随机基线（仅用于参考，不参与决策） ----
+    # ---- 固定随机基线（仅用于参考） ----
     random_net = WatermelonGCN().to(device)
     baseline_net = copy.deepcopy(random_net)  # 固定，不更新
 
+    # ---- 🔥 历史最优网络（用于生成数据和评估） ----
+    best_net = copy.deepcopy(net)
+    selfplay_net = copy.deepcopy(best_net)
 
     # ---- 训练循环 ----
     for epoch in range(start_epoch, num_epochs):
-
+        # ---- 自对弈（使用 selfplay_net 生成数据） ----
+        total_steps = 0
         for idx in range(num_selfplay_games):
             def nnet(states):
                 with torch.no_grad():
                     states_t = torch.from_numpy(states).float().to(device)
-                    logits, values = net(states_t)
+                    logits, values = selfplay_net(states_t)
                     probs = torch.softmax(logits, dim=1)
                 return probs.cpu().numpy(), values.cpu().numpy().flatten()
 
-            rep = 0
+            steps_in_game = 0
             for state, policy, z, ren in self_play(nnet, num_sims, c_puct):
                 replay_buffer.push(state, policy, z)
-                rep += 1
-            sw.log({"self_play长": rep, "epoch": epoch})
-            print(f"{idx} Self-play done, buffer size: {len(replay_buffer)}")
+                steps_in_game += 1
+                total_steps += 1
 
-        print(f"Epoch {epoch}, buffer size: {len(replay_buffer)}")
+            print(f"{idx} Self-play done, steps={steps_in_game}, buffer size: {len(replay_buffer)}")
+
+        sw.log({"self_play_steps": total_steps, "epoch": epoch})
+        print(f"Epoch {epoch}, total steps: {total_steps}, buffer size: {len(replay_buffer)}")
 
         # ---- 训练网络 ----
         if len(replay_buffer) >= batch_size:
@@ -369,7 +391,7 @@ def train():
                 beta = 0.02
                 entropy_loss = -beta * entropy
                 pw = 0.8
-                vw = 3
+                vw = 3.0
                 loss = pw * policy_loss + vw * value_loss + entropy_loss
 
                 pred_entropy = -torch.mean(torch.sum(probs * log_probs, dim=1)).item()
@@ -394,7 +416,6 @@ def train():
             avg_target_entropy = total_target_entropy / num_updates
 
             sw.log({
-                "重复局面": rep,
                 "epoch": epoch,
                 "avg_loss": avg_loss,
                 "avg_policy_loss": avg_policy_loss,
@@ -409,22 +430,25 @@ def train():
                 print(
                     f"Epoch {epoch}, Avg Loss: {avg_loss:.4f}, Policy: {avg_policy_loss:.4f}, Value: {avg_value_loss:.4f}, PredEnt: {avg_pred_entropy:.3f}, TgtEnt: {avg_target_entropy:.3f}")
 
-        # ---- 评估 ----
+        # ---- 🔥 核心评估：当前网络 vs 历史最优 ----
         if (epoch + 1) % eval_interval == 0:
-            # 主评估：当前网络 vs 纯随机（无搜索）
-            avg_score_vs_random = evaluate_vs_pure_random(
-                net, num_sims, c_puct, device, num_starts=num_starts
-            )
-            print(f"Epoch {epoch}, Avg Score vs Pure Random: {avg_score_vs_random:.4f}")
-            sw.log({"avg_score_vs_pure_random": avg_score_vs_random, "epoch": epoch})
 
-            # 更新教师模型：若对纯随机胜率（得分）高于 0.1，认为有明显优势
-            if avg_score_vs_random > 0.1:
+            # 🔥 主评估：当前网络 vs 历史最优
+            win_rate_vs_best = evaluate_vs_best(
+                net, best_net, num_sims, c_puct, device, num_starts=num_starts
+            )
+            print(f"Epoch {epoch}, Win Rate vs Best: {win_rate_vs_best:.3f}")
+            sw.log({"win_rate_vs_best": win_rate_vs_best, "epoch": epoch})
+
+            # 🔥 如果当前网络胜率 > 0.55，覆盖历史最优
+            if win_rate_vs_best > 0.55:
+                best_net = copy.deepcopy(net)
+                selfplay_net = copy.deepcopy(best_net)  # 同步数据生成器
                 torch.save(net.state_dict(), best_model_path)
                 sw.save(best_model_path)
-                print(f"🏆 更新历史最优模型！Epoch {epoch}, 得分 {avg_score_vs_random:.4f}")
+                print(f"🏆 更新历史最优模型！Epoch {epoch}, 胜率 {win_rate_vs_best:.3f}")
 
-        # ---- 保存模型 ----
+        # ---- 定期保存模型 ----
         if epoch % 50 == 0:
             model_path = f"model_epoch_{epoch}.pth"
             torch.save(net.state_dict(), model_path)
