@@ -3,9 +3,9 @@ import sys
 import numpy as np
 import torch
 import copy
-from game import game  # 你的 game 模块（C 接口）
-from RMCTS import learn_pi_and_v
-from wmnet import WatermelonNet  # 你的网络定义
+from . import game
+from .RMCTS import learn_pi_and_v
+from .wmnet_gcn import WatermelonGCN  # 你的网络定义
 
 # 初始化 Pygame
 pygame.init()
@@ -130,10 +130,10 @@ def get_action_from_click(state, click_pos):
     return selected, None
 
 
-def main():
+def start():
     # 加载 AI 模型
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = WatermelonNet(input_dim=game.gameLength(), num_actions=game.numActions()).to(device)
+    model = WatermelonGCN().to(device)
     model_path = "best_model.pth"
     try:
         model.load_state_dict(torch.load(model_path, map_location=device))
