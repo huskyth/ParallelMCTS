@@ -19,7 +19,7 @@ from . import metaparm
 
 sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 
-SAVE_TRAJECTORY = False          # True 表示保存每局轨迹到磁盘
+SAVE_TRAJECTORY = True          # True 表示保存每局轨迹到磁盘
 TRAJECTORY_DIR = "./trajectories"  # 保存目录
 # ------------------------------------------------------------
 # 1. 自对弈函数（只保留自然终局）
@@ -224,7 +224,11 @@ def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_ste
                 root = state[np.newaxis, :]
                 pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
                 pi = pi[0]
-                best_action = actions[np.argmax(pi[actions])]
+                # 评估温度设为 0.3（既能保持网络偏好，又给一点随机性）
+                temperature_eval = 0.3
+                probs = pi[actions] ** (1.0 / temperature_eval)
+                probs /= np.sum(probs)
+                best_action = np.random.choice(actions, p=probs)
             else:
                 # 对手：纯随机走子（无搜索）
                 best_action = np.random.choice(actions)
@@ -338,7 +342,7 @@ def train():
 
         # ---- 训练网络 ----
         if len(replay_buffer) >= batch_size:
-            num_updates = min(len(replay_buffer) // batch_size, 1)
+            num_updates = min(len(replay_buffer) // batch_size, 8)
 
             total_loss = 0.0
             total_policy_loss = 0.0
@@ -361,9 +365,9 @@ def train():
                 value_loss = torch.mean((values - target_values_t) ** 2)
 
                 entropy = -torch.mean(torch.sum(probs * log_probs, dim=1))
-                beta = 0.06
+                beta = 0.02
                 entropy_loss = -beta * entropy
-                pw = 0.3
+                pw = 0.8
                 vw = 3
                 loss = pw * policy_loss + vw * value_loss + entropy_loss
 

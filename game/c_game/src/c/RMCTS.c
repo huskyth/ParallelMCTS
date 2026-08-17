@@ -288,11 +288,13 @@ int update_parent(MCTS_new_t* const t, int parent, int a0, float v_child, int si
   v = v_child * player_id_child * player_id_parent;
   Q = t->Q + parent*n;
   N = t->N + parent*n;
-
+  // 2. 🔥 immediate_r 也必须转换为父节点视角
+  // 因为 immediate_r 是绝对视角（黑棋视角），只需乘以 parent 的玩家 ID
+  float r_converted = immediate_r * player_id_parent;
     // 折扣因子
   float gamma = 0.95f;
   // 计算新的 Q 值：加入即时奖励
-  float new_Q = (Q[a0] * N[a0] + (immediate_r + gamma * v) * sims_child) / (N[a0] + sims_child);
+  float new_Q = (Q[a0] * N[a0] + (r_converted + gamma * v) * sims_child) / (N[a0] + sims_child);
   Q[a0] = new_Q;
   N[a0] += sims_child;
   t->sims_remaining[parent] -= sims_child;

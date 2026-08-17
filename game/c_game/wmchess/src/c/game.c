@@ -239,8 +239,8 @@ int nextState(float* const ga, const float* const g, const int a, int* const cap
         if ((int)ga[i+1] == opp_color) after_opp++;
     }
 
-    // 吃子数量 = 对手减少的棋子数
-    *captures = before_opp - after_opp;
+    // 修改后（正确：转换为绝对棋盘视角）
+    *captures = (before_opp - after_opp) * player;
 
     // 切换玩家
     set_player(ga, -player);
