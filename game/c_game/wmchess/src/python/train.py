@@ -10,7 +10,7 @@ import copy
 import random
 import ctypes
 import os
-import pickle  # 新增
+import pickle
 from . import game
 from .RMCTS import learn_pi_and_v
 from .wmnet_gcn import WatermelonGCN
@@ -19,8 +19,8 @@ from . import metaparm
 
 sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 
-SAVE_TRAJECTORY = False          # True 表示保存每局轨迹到磁盘
-TRAJECTORY_DIR = "./trajectories"  # 保存目录
+SAVE_TRAJECTORY = False
+TRAJECTORY_DIR = "./trajectories"
 
 # ------------------------------------------------------------
 # 1. 自对弈函数
@@ -81,10 +81,10 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     else:
         reason = 't'
 
-    KEEP_STEPS = 60
-    if len(history) > KEEP_STEPS:
-        history = history[-KEEP_STEPS:]
-        step_rewards = step_rewards[-KEEP_STEPS:]
+    # KEEP_STEPS = 60
+    # if len(history) > KEEP_STEPS:
+    #     history = history[-KEEP_STEPS:]
+    #     step_rewards = step_rewards[-KEEP_STEPS:]
 
     if reason == 'e':
         cumulative = terminal_score
@@ -97,7 +97,6 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
         returns.append(cumulative)
     returns.reverse()
 
-    # 保存轨迹到磁盘（可选）
     if SAVE_TRAJECTORY:
         os.makedirs(TRAJECTORY_DIR, exist_ok=True)
         timestamp = int(time.time() * 1000)
@@ -120,7 +119,6 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
         with open(filename, "w") as f:
             json.dump(traj_data, f, indent=2)
 
-    # 生成训练样本
     for i, (s, p, pl) in enumerate(history):
         z = returns[i] * pl
         yield s, p, z, reason
@@ -137,7 +135,6 @@ def get_dense_score(state):
 # 2. 对战与评估函数
 # ------------------------------------------------------------
 def play_game(net1, net2, num_sims, c_puct, device, state=None, max_steps=300):
-    """单局对战：net1 先手，net2 后手，返回终局得分（已放大3倍）。"""
     if state is None:
         state = game.rootState()
     else:
@@ -164,7 +161,6 @@ def play_game(net1, net2, num_sims, c_puct, device, state=None, max_steps=300):
         pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
         pi = pi[0]
 
-        # 评估温度 0.3
         temperature_eval = 0.3
         probs = pi[actions] ** (1.0 / temperature_eval)
         probs /= np.sum(probs)
@@ -182,61 +178,9 @@ def play_game(net1, net2, num_sims, c_puct, device, state=None, max_steps=300):
     return score
 
 
-def evaluate_vs_pure_random(net, num_sims, c_puct, device, num_starts=5, max_steps=300):
-    """当前网络（带搜索）vs 纯随机对手（无搜索），返回胜率。"""
-    np.random.seed(42)
-    wins = 0.0
-
-    for _ in range(num_starts):
-        state = game.rootState()
-        player = game.playerId(state)
-        step = 0
-        score = 0.0
-
-        while step < max_steps:
-            step += 1
-            actions = game.getValidActions(state)
-
-            if player == 1:
-                # 当前网络走棋（带 RMCTS）
-                def nnet(states):
-                    with torch.no_grad():
-                        states_t = torch.from_numpy(states).float().to(device)
-                        logits, values = net(states_t)
-                        probs = torch.softmax(logits, dim=1)
-                    return probs.cpu().numpy(), values.cpu().numpy().flatten()
-
-                root = state[np.newaxis, :]
-                pi, _ = learn_pi_and_v(root, num_sims, nnet, c_puct)
-                pi = pi[0]
-                temperature_eval = 0.3
-                probs = pi[actions] ** (1.0 / temperature_eval)
-                probs /= np.sum(probs)
-                best_action = np.random.choice(actions, p=probs)
-            else:
-                best_action = np.random.choice(actions)
-
-            state, _ = game.nextState(state, best_action)
-            player = game.playerId(state)
-
-            ended, score = game.gameEnded(state)
-            if ended:
-                break
-        else:
-            score = get_dense_score(state)
-
-        if score > 0:
-            wins += 1.0
-        elif score == 0:
-            wins += 0.5
-
-    return wins / num_starts
-
-
-# 🔥 新增：当前网络 vs 历史最优模型评估
-def evaluate_vs_best(net, best_net, num_sims, c_puct, device, num_starts=20, max_steps=300):
+def evaluate_vs_previous(net, previous_net, num_sims, c_puct, device, num_starts=20, max_steps=300):
     """
-    当前网络（带搜索）与历史最优模型（带搜索）对战，返回当前网络的胜率。
+    当前网络（带搜索）与前一个模型（带搜索）对战，返回当前网络的胜率。
     平局算 0.5 胜。
     """
     np.random.seed(42)
@@ -252,8 +196,7 @@ def evaluate_vs_best(net, best_net, num_sims, c_puct, device, num_starts=20, max
             step += 1
             actions = game.getValidActions(state)
 
-            # 当前玩家使用对应的网络
-            net_used = net if player == 1 else best_net
+            net_used = net if player == 1 else previous_net
 
             def nnet(states):
                 with torch.no_grad():
@@ -293,14 +236,15 @@ def evaluate_vs_best(net, best_net, num_sims, c_puct, device, num_starts=20, max
 # ------------------------------------------------------------
 def train():
     # ---- 超参数 ----
-    num_sims = 400
+    num_sims = 1200
     c_puct = metaparm.c_puct
     batch_size = 256
     num_selfplay_games = 3
     num_epochs = 1000
     learning_rate = 0.0001
-    eval_interval = 10          # 🔥 每 10 个 epoch 评估一次（与 best 对比）
-    num_starts = 20             # 🔥 与 best 对比时用 20 局
+    eval_interval = 10
+    num_starts = 50
+    update_threshold = 0.55       # 胜率超过此值即认为有进步
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     best_model_path = "best_model.pth"
     buffer_path = "replay_buffer.pkl"
@@ -315,6 +259,7 @@ def train():
             "num_selfplay_games": num_selfplay_games,
             "num_epochs": num_epochs,
             "learning_rate": learning_rate,
+            "update_threshold": update_threshold,
         },
         reinit=True
     )
@@ -334,10 +279,11 @@ def train():
 
     # ---- 固定随机基线（仅用于参考） ----
     random_net = WatermelonGCN().to(device)
-    baseline_net = copy.deepcopy(random_net)  # 固定，不更新
+    baseline_net = copy.deepcopy(random_net)
 
-    # ---- 🔥 历史最优网络（用于生成数据和评估） ----
+    # ---- 🔥 历史最优（存档）和“上一个模型”（用于评估） ----
     best_net = copy.deepcopy(net)
+    previous_net = copy.deepcopy(net)   # 用于评估对比的前一个模型
     selfplay_net = copy.deepcopy(best_net)
 
     # ---- 训练循环 ----
@@ -365,7 +311,7 @@ def train():
 
         # ---- 训练网络 ----
         if len(replay_buffer) >= batch_size:
-            num_updates = min(len(replay_buffer) // batch_size, 8)
+            num_updates = min(len(replay_buffer) // batch_size, 128)
 
             total_loss = 0.0
             total_policy_loss = 0.0
@@ -390,8 +336,8 @@ def train():
                 entropy = -torch.mean(torch.sum(probs * log_probs, dim=1))
                 beta = 0.02
                 entropy_loss = -beta * entropy
-                pw = 0.8
-                vw = 3.0
+                pw = 1
+                vw = 1
                 loss = pw * policy_loss + vw * value_loss + entropy_loss
 
                 pred_entropy = -torch.mean(torch.sum(probs * log_probs, dim=1)).item()
@@ -430,23 +376,26 @@ def train():
                 print(
                     f"Epoch {epoch}, Avg Loss: {avg_loss:.4f}, Policy: {avg_policy_loss:.4f}, Value: {avg_value_loss:.4f}, PredEnt: {avg_pred_entropy:.3f}, TgtEnt: {avg_target_entropy:.3f}")
 
-        # ---- 🔥 核心评估：当前网络 vs 历史最优 ----
+        # ---- 🔥 核心评估：当前网络 vs 前一个模型 ----
         if (epoch + 1) % eval_interval == 0:
-
-            # 🔥 主评估：当前网络 vs 历史最优
-            win_rate_vs_best = evaluate_vs_best(
-                net, best_net, num_sims, c_puct, device, num_starts=num_starts
+            win_rate_vs_previous = evaluate_vs_previous(
+                net, previous_net, num_sims, c_puct, device, num_starts=num_starts
             )
-            print(f"Epoch {epoch}, Win Rate vs Best: {win_rate_vs_best:.3f}")
-            sw.log({"win_rate_vs_best": win_rate_vs_best, "epoch": epoch})
+            print(f"Epoch {epoch}, Win Rate vs Previous: {win_rate_vs_previous:.3f}")
+            sw.log({"win_rate_vs_previous": win_rate_vs_previous, "epoch": epoch})
 
-            # 🔥 如果当前网络胜率 > 0.55，覆盖历史最优
-            if win_rate_vs_best > 0.55:
+            # 🔥 如果当前网络胜率 > 阈值，认为有进步：
+            # 1. 更新 previous_net 为当前网络（下次评估对照新的“上一代”）
+            # 2. 同步更新 best_net 和 selfplay_net（因为比上一代强，自然也比历史最优强）
+            if win_rate_vs_previous > update_threshold:
+                previous_net = copy.deepcopy(net)
                 best_net = copy.deepcopy(net)
-                selfplay_net = copy.deepcopy(best_net)  # 同步数据生成器
+                selfplay_net = copy.deepcopy(best_net)
                 torch.save(net.state_dict(), best_model_path)
                 sw.save(best_model_path)
-                print(f"🏆 更新历史最优模型！Epoch {epoch}, 胜率 {win_rate_vs_best:.3f}")
+                print(f"🏆 模型进步！Epoch {epoch}, 胜率 {win_rate_vs_previous:.3f}")
+            else:
+                print(f"⏳ 未达到阈值 {update_threshold}，继续训练...")
 
         # ---- 定期保存模型 ----
         if epoch % 50 == 0:

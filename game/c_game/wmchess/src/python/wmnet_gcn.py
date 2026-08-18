@@ -54,7 +54,7 @@ class GraphConvLayer(nn.Module):
 
 
 class WatermelonGCN(nn.Module):
-    def __init__(self, num_actions=72, hidden_dim=128):
+    def __init__(self, num_actions=72, hidden_dim=256):
         super().__init__()
         self.adj = ADJ_norm  # (21, 21)
 
