@@ -16,8 +16,9 @@ import torch
 from wmchess.infer import infer
 # from wmchess.tree_dis import ds
 if __name__ == "__main__":
-    s = [0.0, -1.0, 0.0, -1.0, 0, 0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0, 0, -1.0, -1.0, 1.0, 1.0, 0.0, 0.0, 1.0]
-    probs, value = infer("best_model.pth", state=[1] + s)
+    s = [1, 1, 0, 0, 0, -1, -1, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0.,
+         0, 0, 0, 0.]
+    probs, value = infer("best_model.pth",state=s)
 
 
     # main()

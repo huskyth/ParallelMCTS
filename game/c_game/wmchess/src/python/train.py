@@ -13,13 +13,14 @@ import os
 import pickle
 from . import game
 from .RMCTS import learn_pi_and_v
-from .wmnet_gcn import WatermelonGCN
+# from .wmnet_gcn import WatermelonGCN
+from .wmnet_not_use import WatermelonNet
 from .replay_buf import ReplayBuffer
 from . import metaparm
 
 sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 
-SAVE_TRAJECTORY = False
+SAVE_TRAJECTORY = True
 TRAJECTORY_DIR = "./trajectories"
 
 # ------------------------------------------------------------
@@ -81,10 +82,10 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     else:
         reason = 't'
 
-    KEEP_STEPS = 40
-    if len(history) > KEEP_STEPS:
-        history = history[-KEEP_STEPS:]
-        step_rewards = step_rewards[-KEEP_STEPS:]
+    # KEEP_STEPS = 40
+    # if len(history) > KEEP_STEPS:
+    #     history = history[-KEEP_STEPS:]
+    #     step_rewards = step_rewards[-KEEP_STEPS:]
 
     if reason == 'e':
         cumulative = terminal_score
@@ -275,7 +276,7 @@ def train():
     )
 
     # ---- 网络、优化器、回放池 ----
-    net = WatermelonGCN().to(device)
+    net = WatermelonNet(21, 72).to(device)
 
     start_epoch = 0
     if os.path.exists(best_model_path):
@@ -285,10 +286,10 @@ def train():
         print("🆕 未找到 best_model.pth，从随机初始化开始训练。")
 
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
-    replay_buffer = ReplayBuffer(max_size=2000)
+    replay_buffer = ReplayBuffer(max_size=20000)
 
     # ---- 固定随机基线（仅用于参考） ----
-    random_net = WatermelonGCN().to(device)
+    random_net = WatermelonNet(21, 72).to(device)
     baseline_net = copy.deepcopy(random_net)
 
     # ---- 🔥 历史最优（存档）和“上一个模型”（用于评估） ----
