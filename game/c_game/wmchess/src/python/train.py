@@ -230,6 +230,16 @@ def evaluate_vs_previous(net, previous_net, num_sims, c_puct, device, num_starts
 
     return wins / num_starts
 
+def evaluate_initial_state(net, device):
+    """评估初始棋盘状态的价值（当前玩家视角）"""
+    state = game.rootState()  # 长度为 22 的 numpy 数组
+    state_t = torch.from_numpy(state).float().unsqueeze(0).to(device)
+    with torch.no_grad():
+        _, value_1 = net(state_t)
+        state_t[0] = state_t[0] * -1
+        _, value_neg_1 = net(state_t)
+
+    return value_1.item(), value_neg_1.item()
 
 # ------------------------------------------------------------
 # 3. 主训练循环
@@ -383,6 +393,10 @@ def train():
             )
             print(f"Epoch {epoch}, Win Rate vs Previous: {win_rate_vs_previous:.3f}")
             sw.log({"win_rate_vs_previous": win_rate_vs_previous, "epoch": epoch})
+
+            # 新增：初始状态价值监控
+            value1, v_neg = evaluate_initial_state(net, device)
+            sw.log({"player1_value": value1, "player_neg_value": v_neg, "v_sum":value1 + v_neg , "epoch": epoch})
 
             # 🔥 如果当前网络胜率 > 阈值，认为有进步：
             # 1. 更新 previous_net 为当前网络（下次评估对照新的“上一代”）
