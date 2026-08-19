@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RMCTS Tree Viewer</title>
+  <style>
+    :root {
+      --bg-1: #0f172a;
+      --bg-2: #111827;
+      --panel: rgba(15, 23, 42, 0.8);
+      --panel-border: rgba(148, 163, 184, 0.3);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22d3ee;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; color: var(--text); font-family: "Segoe UI", sans-serif; background: var(--bg-1); }
+    .app { display: flex; flex-direction: column; height: 100%; padding: 10px; gap: 10px; }
+    .toolbar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 8px 14px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; backdrop-filter: blur(6px);
+    }
+    .toolbar .title { font-weight: 600; color: var(--accent); }
+    .toolbar input, .toolbar button {
+      background: rgba(2,6,23,0.7); border: 1px solid var(--panel-border); border-radius: 6px; padding: 5px 10px; color: var(--text); font-size: 0.9rem; cursor: pointer;
+    }
+    .toolbar button:hover { border-color: var(--accent); }
+    #cy { flex: 1; border: 1px solid var(--panel-border); border-radius: 12px; background: rgba(2,6,23,0.4); }
+    #infoPanel {
+      position: fixed; bottom: 20px; right: 20px; width: 280px;
+      background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 12px; padding: 14px; color: #e5e7eb; font-size: 13px;
+      backdrop-filter: blur(8px); z-index: 100;
+      display: none; max-height: 420px; overflow-y: auto;
+    }
+    #infoPanel .row { margin: 4px 0; }
+    #infoPanel .label { color: var(--muted); font-weight: 300; }
+    #boardCanvas { width: 100%; height: auto; border-radius: 6px; border: 1px solid #475569; margin-top: 6px; }
+    .status { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar">
+    <span class="title">🌳 RMCTS Tree Viewer</span>
+    <input id="jsonFile" type="file" accept=".json" />
+    <button id="loadDefault">Load R_tree.json</button>
+    <button id="fitBtn">Fit</button>
+    <button id="relayoutBtn">Relayout</button>
+    <span class="status" id="status">Load a JSON to begin.</span>
+  </div>
+  <div id="cy"></div>
+</div>
+
+<!-- Info Panel -->
+<div id="infoPanel">
+  <div class="row"><span class="label">Node ID:</span> <span id="nodeId">-</span></div>
+  <div class="row"><span class="label">Value:</span> <span id="nodeValue">-</span></div>
+  <div class="row"><span class="label">Children (actions):</span> <span id="nodeChildren">-</span></div>
+  <div class="row" style="margin-top:6px;"><span class="label">Board:</span></div>
+  <canvas id="boardCanvas" width="240" height="240"></canvas>
+</div>
+
+<script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+<script>
+(function() {
+  const cyContainer = document.getElementById('cy');
+  const statusEl = document.getElementById('status');
+  const infoPanel = document.getElementById('infoPanel');
+  const nodeIdEl = document.getElementById('nodeId');
+  const nodeValueEl = document.getElementById('nodeValue');
+  const nodeChildrenEl = document.getElementById('nodeChildren');
+  const boardCanvas = document.getElementById('boardCanvas');
+  const ctx = boardCanvas.getContext('2d');
+
+  // 21 个点的归一化坐标（与你的 POINTPOS 一致）
+  const pointPos = [
+    [0.4017,0.0621], [0.3017,0.0759], [0.4034,0.1948], [0.5,0.0759],
+    [0.0638,0.3138], [0.1690,0.4103], [0.0483,0.4121], [0.0638,0.5172],
+    [0.7397,0.3155], [0.6362,0.4086], [0.7517,0.4069], [0.7379,0.5155],
+    [0.4034,0.6448], [0.2914,0.7466], [0.4966,0.75], [0.4017,0.7621],
+    [0.4,0.3138], [0.3,0.4103], [0.5052,0.4121], [0.4052,0.5138], [0.4017,0.4103]
+  ];
+
+  function drawBoard(state) {
+    ctx.clearRect(0, 0, 240, 240);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, 240, 240);
+    if (!state || state.length < 21) return;
+    for (let i=0; i<21; i++) {
+      const x = pointPos[i][0]*220 + 10;
+      const y = pointPos[i][1]*220 + 10;
+      const val = state[i];
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, 2*Math.PI);
+      if (val === 1) { ctx.fillStyle = '#000000'; ctx.strokeStyle = '#ffffff'; }
+      else if (val === -1) { ctx.fillStyle = '#ff4444'; ctx.strokeStyle = '#000000'; }
+      else { ctx.fillStyle = '#334155'; ctx.strokeStyle = '#64748b'; }
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  // Cytoscape 初始化
+  let cy = cytoscape({
+    wheelSensitivity: 0.05,
+    container: cyContainer,
+    elements: [],
+    style: [
+      { selector: 'node', style: { 'background-color': '#0b4f6c', 'border-color': '#67e8f9', 'border-width': 1, width: 12, height: 12, label: '', 'font-size': 10, color: '#f1f5f9', 'text-valign': 'top', 'text-margin-y': -6, 'text-outline-color': '#020617', 'text-outline-width': 2 } },
+      { selector: 'edge', style: { 'curve-style': 'bezier', 'line-color': '#64748b', 'target-arrow-color': '#64748b', 'target-arrow-shape': 'triangle', width: 1, 'arrow-scale': 0.6, label: '', 'font-size': 8, color: '#cbd5e1', 'text-background-opacity': 0.8, 'text-background-color': '#020617', 'text-background-padding': 1 } },
+      { selector: ':selected', style: { 'background-color': '#34d399', 'border-color': '#86efac' } }
+    ]
+  });
+
+  function setStatus(text) { statusEl.textContent = text; }
+
+  function loadTreeData(data, source) {
+    if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+      setStatus('Invalid JSON structure');
+      return;
+    }
+    const elements = [];
+    data.nodes.forEach(n => {
+      const nodeData = { id: String(n.id), label: typeof n.label === 'number' ? n.label.toFixed(3) : String(n.label) };
+      if (n.state !== undefined) nodeData.state = n.state;
+      if (n.num_children !== undefined) nodeData.num_children = n.num_children;
+      elements.push({ data: nodeData });
+    });
+    data.edges.forEach((e, idx) => {
+      elements.push({ data: { id: `e-${idx}-${e.source}-${e.target}`, source: String(e.source), target: String(e.target), label: String(e.label) } });
+    });
+    cy.elements().remove();
+    cy.add(elements);
+    const root = data.root !== undefined ? String(data.root) : '0';
+    const layout = cy.layout({ name: 'breadthfirst', directed: true, roots: cy.$id(root), spacingFactor: 2.2, avoidOverlap: true, padding: 40 });
+    layout.run();
+    cy.fit(undefined, 30);
+    setStatus(`Loaded ${data.nodes.length} nodes, ${data.edges.length} edges from ${source}`);
+  }
+
+  // 事件：点击节点显示信息
+  cy.on('tap', 'node', function(evt) {
+    const node = evt.target;
+    const data = node.data();
+    nodeIdEl.textContent = data.id || '?';
+    nodeValueEl.textContent = data.label || '?';
+    const ch = data.num_children !== undefined ? data.num_children : '?';
+    nodeChildrenEl.textContent = ch;
+    const state = data.state || [];
+    drawBoard(state);
+    infoPanel.style.display = 'block';
+  });
+
+  cy.on('tap', function(evt) {
+    if (evt.target === cy) infoPanel.style.display = 'none';
+  });
+
+  // 加载 JSON 文件
+  document.getElementById('jsonFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try { const data = JSON.parse(ev.target.result); loadTreeData(data, file.name); }
+      catch(err) { setStatus('JSON parse error: ' + err.message); }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('loadDefault').addEventListener('click', async () => {
+    try {
+      const res = await fetch('./R_tree.json');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      loadTreeData(data, 'R_tree.json');
+    } catch(e) {
+      setStatus('Load failed: ' + e.message + ' (use file picker)');
+    }
+  });
+
+  document.getElementById('fitBtn').addEventListener('click', () => cy.fit(undefined, 30));
+  document.getElementById('relayoutBtn').addEventListener('click', () => {
+    const root = cy.elements('node').filter(n => n.indegree() === 0)[0];
+    const layout = cy.layout({ name: 'breadthfirst', directed: true, roots: root, spacingFactor: 2.2, avoidOverlap: true, padding: 40 });
+    layout.run();
+    cy.fit(undefined, 30);
+  });
+
+  // 缩放时显示/隐藏标签
+  cy.on('zoom', () => {
+    const z = cy.zoom();
+    const showLabel = z > 0.5;
+    cy.style().selector('node').style('label', showLabel ? 'data(label)' : '').update();
+    const showEdgeLabel = z > 0.8;
+    cy.style().selector('edge').style('label', showEdgeLabel ? 'data(label)' : '').update();
+  });
+})();
+</script>
+</body>
+</html>

@@ -56,44 +56,32 @@ class GraphConvLayer(nn.Module):
 class WatermelonGCN(nn.Module):
     def __init__(self, num_actions=72, hidden_dim=128):
         super().__init__()
-        self.adj = ADJ_norm  # (21, 21)
-
-        # 特征维度：棋子颜色（1维）+ 当前玩家（1维） = 2
-        self.gc1 = GraphConvLayer(2, hidden_dim)
+        self.register_buffer('adj', ADJ_norm)
+        # 输入维度改为 1（只有归一化棋盘）
+        self.gc1 = GraphConvLayer(1, hidden_dim)
         self.gc2 = GraphConvLayer(hidden_dim, hidden_dim)
         self.gc3 = GraphConvLayer(hidden_dim, hidden_dim)
-
-        # 全局池化后接全连接
         self.policy_fc = nn.Linear(hidden_dim, num_actions)
         self.value_fc = nn.Linear(hidden_dim, 1)
 
     def forward(self, x):
-        """
-        x: (batch, 22) 原始状态 [player, board_0, ..., board_20]
-        其中 board_i 为 1, -1, 0
-        """
-        # 分离玩家和棋盘
-        player = x[:, 0:1]  # (batch, 1)
-        board = x[:, 1:]  # (batch, 21)
+        if not isinstance(x, torch.Tensor):
+            x = torch.from_numpy(x).float().to(self.adj.device)
+        else:
+            x = x.to(self.adj.device)
 
-        # 🔥 视角归一化：将棋盘乘以当前玩家，使“当前玩家的棋子”始终为 +1，“对手”始终为 -1
+        player = x[:, 0:1]
+        board = x[:, 1:]
         norm_board = board * player  # (batch, 21)
 
-        # 构造节点特征：每个节点拼接 [棋子颜色, 当前玩家]
-        # 将玩家信息广播到每个节点
-        node_features = torch.stack([norm_board, player.expand(-1, 21)], dim=-1)  # (batch, 21, 2)
+        # 节点特征：每个节点 1 维（归一化棋子状态）
+        node_features = norm_board.unsqueeze(-1)  # (batch, 21, 1)
 
-        # GCN 前向
-        h = self.gc1(node_features, self.adj.to(node_features.device))
-        h = self.gc2(h, self.adj.to(h.device))
-        h = self.gc3(h, self.adj.to(h.device))
+        h = self.gc1(node_features, self.adj)
+        h = self.gc2(h, self.adj)
+        h = self.gc3(h, self.adj)
 
-        # 全局平均池化（所有节点取平均）
-        global_feat = h.mean(dim=1)  # (batch, hidden_dim)
-
-        # 策略头
-        policy_logits = self.policy_fc(global_feat)  # (batch, num_actions)
-        # 价值头
-        value = torch.tanh(self.value_fc(global_feat))  # (batch, 1)
-
+        global_feat = h.mean(dim=1)
+        policy_logits = self.policy_fc(global_feat)
+        value = torch.tanh(self.value_fc(global_feat))
         return policy_logits, value

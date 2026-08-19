@@ -81,10 +81,10 @@ def self_play(nnet, num_sims, c_puct, temperature=1.0, dirichlet_alpha=0.3, max_
     else:
         reason = 't'
 
-    # KEEP_STEPS = 60
-    # if len(history) > KEEP_STEPS:
-    #     history = history[-KEEP_STEPS:]
-    #     step_rewards = step_rewards[-KEEP_STEPS:]
+    KEEP_STEPS = 40
+    if len(history) > KEEP_STEPS:
+        history = history[-KEEP_STEPS:]
+        step_rewards = step_rewards[-KEEP_STEPS:]
 
     if reason == 'e':
         cumulative = terminal_score
@@ -275,7 +275,7 @@ def train():
         print("🆕 未找到 best_model.pth，从随机初始化开始训练。")
 
     optimizer = optim.Adam(net.parameters(), lr=learning_rate)
-    replay_buffer = ReplayBuffer(max_size=200000)
+    replay_buffer = ReplayBuffer(max_size=2000)
 
     # ---- 固定随机基线（仅用于参考） ----
     random_net = WatermelonGCN().to(device)

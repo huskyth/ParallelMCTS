@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RMCTS Tree Viewer</title>
+  <style>
+    :root {
+      --bg-1: #0f172a;
+      --bg-2: #111827;
+      --panel: rgba(15, 23, 42, 0.72);
+      --panel-border: rgba(148, 163, 184, 0.28);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22d3ee;
+      --accent-2: #34d399;
+      --edge: #64748b;
+      --node-fill: #0b4f6c;
+      --node-border: #67e8f9;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      color: var(--text);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(34, 211, 238, 0.15), transparent 35%),
+        radial-gradient(circle at 85% 80%, rgba(52, 211, 153, 0.12), transparent 38%),
+        linear-gradient(140deg, var(--bg-1), var(--bg-2));
+    }
+
+    .app {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+      background: var(--panel);
+      animation: fadeIn 350ms ease-out;
+    }
+
+    .title {
+      font-family: "IBM Plex Mono", "Consolas", monospace;
+      letter-spacing: 0.04em;
+      margin-right: 6px;
+      color: #a5f3fc;
+    }
+
+    button,
+    input[type="file"] {
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+      background: rgba(2, 6, 23, 0.7);
+      color: var(--text);
+      padding: 7px 10px;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-left: auto;
+    }
+
+    #cy {
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      background: rgba(2, 6, 23, 0.35);
+      animation: riseIn 420ms ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes riseIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div id="infoPanel" style="
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    color: #e5e7eb;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    max-width: 300px;
+    backdrop-filter: blur(8px);
+    z-index: 20;
+    display: none;
+">
+    <div><b>Node ID:</b> <span id="nodeId">-</span></div>
+    <div><b>Value:</b> <span id="nodeValue">-</span></div>
+    <div><b>Children:</b> <span id="nodeChildren">-</span></div>
+    <div style="margin-top: 8px;"><b>Board:</b></div>
+    <canvas id="boardCanvas" width="240" height="240" style="width:100%; height:auto; border:1px solid #64748b; border-radius:8px;"></canvas>
+</div>
+
+  <div class="app">
+    <div class="toolbar">
+      <div class="title">RMCTS Tree Viewer</div>
+      <input id="jsonFile" type="file" accept=".json,application/json" />
+      <button id="loadDefaultBtn" type="button">Load R_tree.json</button>
+      <button id="fitBtn" type="button">Fit</button>
+      <button id="relayoutBtn" type="button">Relayout</button>
+      <span id="status" class="hint">Choose a JSON tree file to begin.</span>
+    </div>
+    <div id="cy"></div>
+  </div>
+
+  <script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+  <script>
+    let currentRootId = "0";
+    let cy = cytoscape({
+      container: document.getElementById("cy"),
+      elements: [],
+      wheelSensitivity: 0.15,
+      minZoom: 0.05,
+      maxZoom: 5,
+      style: [
+        {
+          selector: "node",
+          style: {
+            "background-color": "#0b4f6c",
+            "border-color": "#67e8f9",
+            "border-width": 1,
+            "width": 12,
+            "height": 12,
+            "label": "",
+            "font-size": 10,
+            "color": "#f1f5f9",
+            "text-wrap": "none",
+            "text-valign": "top",
+            "text-margin-y": -8,
+            "text-outline-color": "#020617",
+            "text-outline-width": 2
+          }
+        },
+        {
+          selector: "edge",
+          style: {
+            "curve-style": "bezier",
+            "line-color": "#64748b",
+            "target-arrow-color": "#64748b",
+            "target-arrow-shape": "triangle",
+            "width": 1,
+            "arrow-scale": 0.7,
+            "label": "",
+            "font-size": 8,
+            "color": "#cbd5e1",
+            "text-background-opacity": 1,
+            "text-background-color": "#020617",
+            "text-background-padding": 1,
+            "text-rotation": "autorotate"
+          }
+        },
+        {
+          selector: ":selected",
+          style: {
+            "background-color": "#34d399",
+            "line-color": "#34d399",
+            "target-arrow-color": "#34d399",
+            "border-color": "#86efac"
+          }
+        }
+      ]
+    });
+
+
+// 获取信息面板元素
+const infoPanel = document.getElementById('infoPanel');
+const nodeIdSpan = document.getElementById('nodeId');
+const nodeValueSpan = document.getElementById('nodeValue');
+const nodeChildrenSpan = document.getElementById('nodeChildren');
+const boardCanvas = document.getElementById('boardCanvas');
+const ctx = boardCanvas.getContext('2d');
+
+// 棋盘坐标（与你的 POINTPOS 相同）
+const pointPos = [
+    [0.4017, 0.0621], [0.3017, 0.0759], [0.4034, 0.1948], [0.5, 0.0759],
+    [0.0638, 0.3138], [0.1690, 0.4103], [0.0483, 0.4121], [0.0638, 0.5172],
+    [0.7397, 0.3155], [0.6362, 0.4086], [0.7517, 0.4069], [0.7379, 0.5155],
+    [0.4034, 0.6448], [0.2914, 0.7466], [0.4966, 0.75], [0.4017, 0.7621],
+    [0.4, 0.3138], [0.3, 0.4103], [0.5052, 0.4121], [0.4052, 0.5138],
+    [0.4017, 0.4103]
+];
+
+function drawBoard(state) {
+    ctx.clearRect(0, 0, 240, 240);
+    if (!state || state.length < 21) return;
+    // 绘制棋盘背景
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, 240, 240);
+    // 绘制每个点
+    for (let i = 0; i < 21; i++) {
+        const x = pointPos[i][0] * 220 + 10;
+        const y = pointPos[i][1] * 220 + 10;
+        const color = state[i];
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, 2 * Math.PI);
+        if (color === 1) {
+            ctx.fillStyle = '#000000';
+            ctx.strokeStyle = '#ffffff';
+        } else if (color === -1) {
+            ctx.fillStyle = '#ff4444';
+            ctx.strokeStyle = '#000000';
+        } else {
+            ctx.fillStyle = '#334155';
+            ctx.strokeStyle = '#64748b';
+        }
+        ctx.fill();
+        ctx.stroke();
+    }
+}
+
+cy.on('tap', 'node', function(evt) {
+    const node = evt.target;
+    const data = node.data();
+    const id = data.id;
+    const label = data.label !== undefined ? data.label : '?';
+    const numChildren = data.num_children !== undefined ? data.num_children : '?';
+    const state = data.state || [];
+
+    // 更新信息面板
+    nodeIdSpan.textContent = id;
+    nodeValueSpan.textContent = typeof label === 'number' ? label.toFixed(3) : label;
+    nodeChildrenSpan.textContent = numChildren;
+    drawBoard(state);
+    infoPanel.style.display = 'block';
+});
+
+// 点击空白处可隐藏面板（可选）
+cy.on('tap', function(evt) {
+    if (evt.target === cy) {
+        infoPanel.style.display = 'none';
+    }
+});
+
+
+
+    function setStatus(text) {
+      document.getElementById("status").textContent = text;
+    }
+
+    function toCytoscapeElements(treeData) {
+      if (!treeData || !Array.isArray(treeData.nodes) || !Array.isArray(treeData.edges)) {
+        throw new Error("Expected JSON with {nodes: [], edges: []}.");
+      }
+
+      const nodeElements = treeData.nodes.map((n) => ({
+        data: {
+          id: String(n.id),
+          label: typeof n.label === "number" ? Number(n.label).toPrecision(2) : String(n.label)
+        }
+      }));
+
+      const edgeElements = treeData.edges.map((e, idx) => ({
+        data: {
+          id: `e-${idx}-${e.source}-${e.target}`,
+          source: String(e.source),
+          target: String(e.target),
+          label: String(e.label)
+        }
+      }));
+
+      return [...nodeElements, ...edgeElements];
+    }
+
+    function applyLayout(rootId = "0") {
+      const rootCollection = cy.$id(String(rootId));
+      const layout = cy.layout({
+        name: "breadthfirst",
+        directed: true,
+        circle: false,
+        roots: rootCollection.length > 0 ? rootCollection : undefined,
+        spacingFactor: 3.5,
+        avoidOverlap: true,
+        nodeDimensionsIncludeLabels: true,
+        padding: 40,
+        animate: false
+      });
+      layout.run();
+
+      // A post-layout pass spreads siblings a bit if many edges visually overlap.
+      const root = cy.$id(String(rootId));
+      if (root.length === 1) {
+        const kids = root.outgoers("node");
+        if (kids.length >= 3) {
+          const rootPos = root.position();
+          const gap = 80;
+          kids.forEach((node, idx) => {
+            node.position({
+              x: rootPos.x + (idx - (kids.length - 1) / 2) * gap,
+              y: rootPos.y + 120
+            });
+          });
+        }
+      }
+    }
+
+    function updateEdgeCurvature() {
+      const root = cy.$id(String(currentRootId));
+      if (root.length !== 1) {
+        return;
+      }
+      const rootEdges = root.outgoers("edge");
+      rootEdges.forEach((e, idx) => {
+        const offset = (idx - (rootEdges.length - 1) / 2) * 28;
+        e.style("curve-style", "unbundled-bezier");
+        e.style("control-point-distances", `${offset}`);
+      });
+    }
+
+    function refreshViewport() {
+      cy.fit(undefined, 35);
+      applySemanticZoom();
+      updateEdgeCurvature();
+    }
+
+    function loadTreeData(treeData, sourceName = "data") {
+      const elements = toCytoscapeElements(treeData);
+      cy.elements().remove();
+      cy.add(elements);
+      const root = treeData.root !== undefined ? treeData.root : 0;
+      currentRootId = String(root);
+      applyLayout(root);
+      refreshViewport();
+      setStatus(`Loaded ${elements.length} elements from ${sourceName}. Nodes=${treeData.nodes.length}, edges=${treeData.edges.length}`);
+    }
+
+    async function loadFromUrl(url) {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Could not fetch ${url} (HTTP ${res.status}).`);
+      }
+      const data = await res.json();
+      loadTreeData(data, url);
+    }
+
+    document.getElementById("jsonFile").addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) {
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(String(reader.result));
+          loadTreeData(data, file.name);
+        } catch (err) {
+          setStatus(`Invalid JSON: ${err.message}`);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // "Load R_tree.json" only works when served over HTTP, not file://
+    const loadDefaultBtn = document.getElementById("loadDefaultBtn");
+    if (location.protocol === "file:") {
+      loadDefaultBtn.disabled = true;
+      loadDefaultBtn.title = "Not available when opened as a local file — use the file picker instead.";
+      loadDefaultBtn.style.opacity = "0.4";
+      loadDefaultBtn.style.cursor = "not-allowed";
+      setStatus("Open via file picker: click 'Choose File' and select R_tree.json.");
+    }
+
+    loadDefaultBtn.addEventListener("click", async () => {
+      try {
+        await loadFromUrl("./R_tree.json");
+      } catch (err) {
+        setStatus(`Load failed: ${err.message}. Use the file picker instead.`);
+      }
+    });
+
+    document.getElementById("fitBtn").addEventListener("click", () => {
+      refreshViewport();
+    });
+
+    document.getElementById("relayoutBtn").addEventListener("click", () => {
+      applyLayout(0);
+      refreshViewport();
+    });
+
+    cy.on("zoom", applySemanticZoom);
+    function applySemanticZoom() {
+      const z = cy.zoom();
+      let nodeLabel = "";
+      let edgeLabel = "";
+
+      if (z >= 0.45 && z < 1.1) {
+        nodeLabel = "data(label)";
+      } else if (z >= 1.1) {
+        nodeLabel = "data(label)";
+        edgeLabel = "data(label)";
+      }
+
+      cy.style()
+        .selector("node")
+        .style("label", nodeLabel)
+        .selector("edge")
+        .style("label", edgeLabel)
+        .update();
+    }
+
+  </script>
+</body>
+</html>

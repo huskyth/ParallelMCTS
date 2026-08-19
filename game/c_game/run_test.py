@@ -12,10 +12,15 @@ import torch
 # from wmchess.wm_play import start
 #from wmchess.train import evaluate_vs_best
 #from wmchess.wmnet_gcn import WatermelonGCN
-from wmchess.eva_model import main
+# from wmchess.eva_model import main
+from wmchess.infer import infer
+# from wmchess.tree_dis import ds
 if __name__ == "__main__":
+    s = [0.0, -1.0, 0.0, -1.0, 0, 0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0, 0, -1.0, -1.0, 1.0, 1.0, 0.0, 0.0, 1.0]
+    probs, value = infer("best_model.pth", state=[1] + s)
 
-    main()
+
+    # main()
 
     # start()
     #

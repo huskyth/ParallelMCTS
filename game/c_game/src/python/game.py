@@ -89,9 +89,13 @@ def inputNetworkMany(G):
     return X.reshape((m,) + metaparm.input_shape)
 
 def playerId(g):
+    if not isinstance(g, np.ndarray):
+        g = np.array(g, dtype=np.float32)
     return libgame.playerId(g)
 
 def gameEnded(g):
+    if not isinstance(g, np.ndarray):
+        g = np.array(g, dtype=np.float32)
     terminal_score = c_float(0.0)
     ended = libgame.gameEnded(ctypes.byref(terminal_score),g)
     return ended, terminal_score.value
@@ -100,6 +104,8 @@ def isValidAction(g,a):
     return libgame.isValidAction(g,a)
 
 def getValidActions(g):
+    if not isinstance(g, np.ndarray):
+        g = np.array(g, dtype=np.float32)
     actions = np.zeros(numActions(),dtype=np.int32)
     num_actions = libgame.getValidActions(actions,g)
     return actions[:num_actions]
@@ -110,6 +116,8 @@ def nextState(g, a, captures=None):
     执行动作，返回 (新状态, 吃子数)
     captures: 可选，如果传入 ctypes.c_int 对象，则填充吃子数
     """
+    if not isinstance(g, np.ndarray):
+        g = np.array(g, dtype=np.float32)
     c_a = c_int(a)
     ga = np.zeros(gameLength(), dtype=np.float32)
 

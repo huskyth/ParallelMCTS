@@ -413,7 +413,7 @@ class RMCTS_Tree:
         '''
         assert parent_index >= 0 and parent_index < self.num_rows
         g = self.state[parent_index]
-        h = game.nextState(g, a)
+        h, _ = game.nextState(g, a)
         ended_h, score_h = game.gameEnded(h)
         if self.child_index[parent_index, a] == -1:
             # add new entry
@@ -447,6 +447,10 @@ class RMCTS_Tree:
         assert np.all(self.node_type[indices] == 0)
         states = self.state[indices]
         pi, v = self.engine(states)
+        # 🔥 确保转换为 NumPy 并移到 CPU
+        if hasattr(pi, 'cpu'):
+            pi = pi.detach().cpu().numpy()
+            v = v.detach().cpu().numpy()
         self.P[indices] = pi
         self.v[indices] = v.flatten()
         self.node_type[indices] = 1
@@ -544,8 +548,8 @@ class RMCTS_Tree:
             print(f"explore: depth {depth}, num_nodes {len(T)}, numSims {numSims}")
         return T, leaves
 
-    def export_tree_json(self, file_path, max_row=None):
-        '''
+    def export_tree_json(self, file_path, include_state=False, max_row=None):
+        """
         Export the currently explored tree to a JSON file.
 
         Node i gets label self.v[i].
@@ -555,10 +559,11 @@ class RMCTS_Tree:
         ----------
         file_path : str or Path
             Output JSON path.
+        include_state : bool
+            If True, include state (board) and num_children for each node.
         max_row : int or None
-            Optional inclusive upper row bound. If None, exports through
-            self.num_rows - 1.
-        '''
+            Optional inclusive upper row bound. If None, exports through self.num_rows - 1.
+        """
         if max_row is None:
             last_row = self.num_rows - 1
         else:
@@ -570,10 +575,17 @@ class RMCTS_Tree:
         edges = []
 
         for i in range(last_row + 1):
-            nodes.append({
+            node_data = {
                 'id': int(i),
                 'label': float(self.v[i]),
-            })
+            }
+            if include_state:
+                # 棋盘状态（21个点，跳过玩家标志）
+                node_data['state'] = self.state[i][1:].tolist()
+                # 树中已展开的子节点数（即该节点在树中的实际分支数）
+                num_children = sum(1 for x in self.child_index[i] if x >= 0)
+                node_data['num_children'] = num_children
+            nodes.append(node_data)
 
             if i == 0:
                 continue
