@@ -54,7 +54,7 @@ class GraphConvLayer(nn.Module):
 
 
 class WatermelonGCN(nn.Module):
-    def __init__(self, num_actions=72, hidden_dim=256):
+    def __init__(self, num_actions=72, hidden_dim=128):
         super().__init__()
         self.adj = ADJ_norm  # (21, 21)
 
@@ -76,9 +76,12 @@ class WatermelonGCN(nn.Module):
         player = x[:, 0:1]  # (batch, 1)
         board = x[:, 1:]  # (batch, 21)
 
+        # 🔥 视角归一化：将棋盘乘以当前玩家，使“当前玩家的棋子”始终为 +1，“对手”始终为 -1
+        norm_board = board * player  # (batch, 21)
+
         # 构造节点特征：每个节点拼接 [棋子颜色, 当前玩家]
         # 将玩家信息广播到每个节点
-        node_features = torch.stack([board, player.expand(-1, 21)], dim=-1)  # (batch, 21, 2)
+        node_features = torch.stack([norm_board, player.expand(-1, 21)], dim=-1)  # (batch, 21, 2)
 
         # GCN 前向
         h = self.gc1(node_features, self.adj.to(node_features.device))
