@@ -57,7 +57,7 @@ BLACK_COLOR = (0, 0, 0)
 WHITE = -1
 
 # difficulty of the game
-DEEPEST_LEVEL = 3
+DEEPEST_LEVEL = 4
 
 
 def getScore(pointStatus):
@@ -101,7 +101,7 @@ def computerMove(pointStatus, level):
         opponentColor = WHITE
     else:
         selfColor = WHITE
-        opponentColor = WHITE
+        opponentColor = BLACK
     # In the deepest level, the best move is itself, replace it with None
     if level > DEEPEST_LEVEL:
         score = getScore(pointStatus)
@@ -131,17 +131,9 @@ def computerMove(pointStatus, level):
         return bestMove, maxScore
 
 
-class AStarPlayer:
-
-    @staticmethod
-    def select(state):
-        act,_ =  computerMove(copy.deepcopy(state.pointStatus), 1 if state.get_current_player() == BLACK else 2)
-        return act, _
-
-    def update_tree(self):
-        pass
-
 
 if __name__ == '__main__':
-    p = [1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, -1, 1.0, 0.0, 0.0, 0.0, 0.0, 0, -1.0, -1.0, 0.0, -1.0, 0.0, -1.0, 0.0]
-    print(computerMove(p, 1, 0))
+    p = [0, 0, 0, 0, 0., -1, 0, 0, 0, 1, 0, 0., -1, 0, 0., -1, 1.,
+  1, 1, 1, 1.]
+    print(len(p))
+    print(computerMove(p, 2))

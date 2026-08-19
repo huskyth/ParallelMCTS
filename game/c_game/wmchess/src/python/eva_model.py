@@ -101,8 +101,11 @@ def play_vs_astar(net, num_sims, c_puct, device, max_steps=300):
 
         else:
             point_status = state[1:].tolist()
-            best_move, _ = computerMove(point_status, 1)
+            best_move, _ = computerMove(point_status, 2)
+            if best_move is None:
+                print(f'None state = {state}')
             from_idx, to_idx = best_move
+
             action = get_action_index_from_move(state, from_idx, to_idx)
             if action == -1:
                 break
@@ -111,9 +114,12 @@ def play_vs_astar(net, num_sims, c_puct, device, max_steps=300):
         player = game.playerId(state)
         ended, score = game.gameEnded(state)
         if ended:
+            print(f"结束 {score}, state = {state}")
             break
     else:
         score = get_dense_score(state)
+        print(f"和棋, score = {score}")
+
     return score
 
 # ---------- 批量评估函数 ----------
