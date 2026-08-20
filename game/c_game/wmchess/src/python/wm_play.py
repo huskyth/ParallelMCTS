@@ -7,22 +7,25 @@ from .RMCTS import learn_pi_and_v
 from .wmnet_gcn import WatermelonGCN
 from .wmnet_not_use import WatermelonNet
 
-# 初始化 Pygame
 pygame.init()
 
-# 窗口设置
-WINDOW_SIZE = 600
+WINDOW_SIZE = 700
 FPS = 60
 
 # 颜色
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (200, 50, 50)
-GRAY = (200, 200, 200)
-LIGHT_GRAY = (240, 240, 240)
-GREEN = (50, 200, 50)
+COLOR_BG = (18, 25, 45)
+COLOR_BOARD_LINE = (100, 130, 180)
+COLOR_TEXT = (220, 230, 255)
+COLOR_TEXT_HIGHLIGHT = (100, 220, 255)
+COLOR_BLACK_PIECE = (15, 15, 25)
+COLOR_WHITE_PIECE = (220, 220, 230)
+COLOR_EMPTY = (60, 70, 95)
+COLOR_SELECTED = (100, 220, 255)
 
-# 棋盘坐标（归一化 0~1）
+# 角色定义
+HUMAN_COLOR = -1   # 白棋
+AI_COLOR = 1       # 黑棋
+
 POINTPOS = [
     [0.4017241379310345, 0.06206896551724138],
     [0.3017241379310345, 0.07586206896551724],
@@ -47,57 +50,83 @@ POINTPOS = [
     [0.4017241379310345, 0.4103448275862069]
 ]
 
-PIECE_RADIUS = 18
+PIECE_RADIUS = 22
+DOT_RADIUS = 4
+CLICK_RADIUS = PIECE_RADIUS + 25
 
-def screen_pos(coord):
-    """将归一化坐标转为屏幕坐标"""
-    x, y = coord
-    return int(x * WINDOW_SIZE), int(y * WINDOW_SIZE)
+def screen_pos(coord, offset=0):
+    margin = 80
+    size = WINDOW_SIZE - 2 * margin
+    x = margin + coord[0] * size
+    y = margin + coord[1] * size
+    return int(x + offset), int(y + offset)
 
-def draw_board(screen, state, selected_idx=None):
-    """绘制棋盘和棋子"""
-    screen.fill(WHITE)
+def draw_board(screen, state, selected_idx=None, thinking=False, game_over=False, winner=None):
+    screen.fill(COLOR_BG)
 
-    # 绘制棋子
+    # 装饰网格
+    for i, p1 in enumerate(POINTPOS):
+        for j, p2 in enumerate(POINTPOS):
+            if i < j:
+                dx = p1[0] - p2[0]
+                dy = p1[1] - p2[1]
+                if dx*dx + dy*dy < 0.04:
+                    x1, y1 = screen_pos(p1)
+                    x2, y2 = screen_pos(p2)
+                    pygame.draw.line(screen, COLOR_BOARD_LINE, (x1, y1), (x2, y2), 1)
+
     for i, coord in enumerate(POINTPOS):
         x, y = screen_pos(coord)
         color_val = state[i + 1]
-        color = GRAY if color_val == 0 else (BLACK if color_val == 1 else RED)
         if selected_idx == i:
-            pygame.draw.circle(screen, GREEN, (x, y), PIECE_RADIUS + 4, 3)
-        pygame.draw.circle(screen, color, (x, y), PIECE_RADIUS)
-        if color_val == -1:
-            pygame.draw.circle(screen, BLACK, (x, y), PIECE_RADIUS, 2)
+            pygame.draw.circle(screen, COLOR_SELECTED, (x, y), PIECE_RADIUS + 6, 3)
+        if color_val == 0:
+            pygame.draw.circle(screen, COLOR_EMPTY, (x, y), DOT_RADIUS)
+        else:
+            shadow_offset = 3
+            pygame.draw.circle(screen, (0,0,0), (x+shadow_offset, y+shadow_offset), PIECE_RADIUS)
+            color = COLOR_BLACK_PIECE if color_val == 1 else COLOR_WHITE_PIECE
+            pygame.draw.circle(screen, color, (x, y), PIECE_RADIUS)
+            if color_val == 1:
+                highlight_color = (60, 60, 80)
+            else:
+                highlight_color = (255, 255, 255)
+            pygame.draw.circle(screen, highlight_color, (x-4, y-4), PIECE_RADIUS//3)
 
-    # 显示玩家（英文避免乱码）
+    font = pygame.font.Font(None, 30)
     player = state[0]
-    font = pygame.font.Font(None, 36)
-    text = font.render(f"Player: {'Black' if player == 1 else 'White'}", True, BLACK)
-    screen.blit(text, (10, 10))
+    if thinking:
+        status = "AI is thinking..."
+    else:
+        # 现在人类是白棋（-1），AI是黑棋（1）
+        if player == HUMAN_COLOR:
+            status = "Your turn (White)"
+        elif player == AI_COLOR:
+            status = "AI's turn (Black)"
+        else:
+            status = ""
+    status_color = COLOR_TEXT_HIGHLIGHT if player == HUMAN_COLOR else COLOR_TEXT
+    text = font.render(status, True, status_color)
+    screen.blit(text, (20, WINDOW_SIZE - 50))
 
-    # 显示得分
     board = state[1:]
     black = sum(1 for x in board if x == 1)
     white = sum(1 for x in board if x == -1)
     score = (black - white) / 21.0
-    score_text = font.render(f"Score: {score:.3f}", True, BLACK)
-    screen.blit(score_text, (10, 50))
+    score_text = font.render(f"Black: {black}  White: {white}  Advantage: {score:.3f}", True, COLOR_TEXT)
+    screen.blit(score_text, (20, WINDOW_SIZE - 80))
 
-    if selected_idx is not None:
-        hint = font.render("Click target", True, GREEN)
-        screen.blit(hint, (10, 90))
+    if game_over and winner is not None:
+        font_big = pygame.font.Font(None, 60)
+        text = font_big.render(f"Game Over: {winner}", True, (255, 215, 0))
+        screen.blit(text, (WINDOW_SIZE//2 - text.get_width()//2, WINDOW_SIZE//2 - 30))
 
 def get_action_from_to(state, from_idx, to_idx):
-    """
-    根据状态、起点和终点，返回合法的动作索引，如果不存在则返回 -1。
-    """
     actions = game.getValidActions(state)
     player = state[0]
     for a in actions:
         test_state = np.copy(state)
-        # nextState 返回 (new_state, captures)
         test_state, _ = game.nextState(test_state, a)
-        # 检查起点被清空，终点变成玩家棋子（即移动成功）
         if test_state[from_idx + 1] == 0 and test_state[to_idx + 1] == player:
             return a
     return -1
@@ -113,15 +142,15 @@ def start():
         print("best_model.pth not found, using random")
         model = None
 
-    state = game.rootState()
+    state = game.rootState()  # 初始 player=1 (黑先)
     game_over = False
     winner = None
+    thinking = False
+    selected_idx = None
 
     screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
-    pygame.display.set_caption("Watermelon Chess")
+    pygame.display.set_caption("Watermelon Chess - Human (White) vs AI (Black)")
     clock = pygame.time.Clock()
-
-    selected_idx = None
 
     running = True
     while running:
@@ -130,47 +159,62 @@ def start():
                 running = False
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r and game_over:
+                    state = game.rootState()
+                    game_over = False
+                    winner = None
+                    selected_idx = None
+                    thinking = False
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+                    pygame.quit()
+                    sys.exit()
 
-            if event.type == pygame.MOUSEBUTTONDOWN and not game_over:
+            # 人类回合：当前玩家是白棋（-1）
+            if event.type == pygame.MOUSEBUTTONDOWN and not game_over and not thinking and state[0] == HUMAN_COLOR:
                 x, y = event.pos
-                if selected_idx is None:
-                    # 选择己方棋子
-                    for i, coord in enumerate(POINTPOS):
-                        sx, sy = screen_pos(coord)
-                        dist = ((x - sx) ** 2 + (y - sy) ** 2) ** 0.5
-                        if dist < PIECE_RADIUS + 5:
-                            if state[i + 1] == state[0]:
-                                selected_idx = i
-                                break
-                else:
-                    # 选择目标位置
-                    target_idx = None
-                    for i, coord in enumerate(POINTPOS):
-                        sx, sy = screen_pos(coord)
-                        dist = ((x - sx) ** 2 + (y - sy) ** 2) ** 0.5
-                        if dist < PIECE_RADIUS + 5:
-                            target_idx = i
-                            break
-                    if target_idx is not None and target_idx != selected_idx:
-                        action = get_action_from_to(state, selected_idx, target_idx)
-                        if action != -1:
-                            # nextState 返回 (new_state, captures)
-                            state, _ = game.nextState(state, action)
-                            ended, score = game.gameEnded(state)
-                            if ended:
-                                game_over = True
-                                winner = "Black" if score > 0 else ("White" if score < 0 else "Draw")
-                                print(f"Game over! Winner: {winner}")
-                            selected_idx = None
-                        else:
-                            # 非法移动，取消选中
-                            selected_idx = None
-                    else:
-                        # 点击了相同位置或空白，取消选中
-                        selected_idx = None
+                clicked_idx = None
+                for i, coord in enumerate(POINTPOS):
+                    sx, sy = screen_pos(coord)
+                    if ((x - sx)**2 + (y - sy)**2)**0.5 < CLICK_RADIUS:
+                        clicked_idx = i
+                        break
 
-        # AI 回合（白棋）
-        if not game_over and state[0] == -1:
+                if selected_idx is None:
+                    # 选择己方白棋
+                    if clicked_idx is not None and state[clicked_idx + 1] == HUMAN_COLOR:
+                        selected_idx = clicked_idx
+                else:
+                    if clicked_idx is None:
+                        selected_idx = None
+                    else:
+                        if state[clicked_idx + 1] == HUMAN_COLOR:
+                            if clicked_idx != selected_idx:
+                                selected_idx = clicked_idx
+                            else:
+                                selected_idx = None
+                        elif state[clicked_idx + 1] == 0:
+                            if clicked_idx != selected_idx:
+                                action = get_action_from_to(state, selected_idx, clicked_idx)
+                                if action != -1:
+                                    state, _ = game.nextState(state, action)
+                                    selected_idx = None
+                                    ended, score = game.gameEnded(state)
+                                    if ended:
+                                        game_over = True
+                                        winner = "Black" if score > 0 else ("White" if score < 0 else "Draw")
+                                else:
+                                    selected_idx = None
+                            else:
+                                selected_idx = None
+                        else:
+                            selected_idx = None
+
+        # AI 回合：当前玩家是黑棋（1）
+        if not game_over and state[0] == AI_COLOR and not thinking:
+            thinking = True
+            pygame.time.wait(300)
             if model is not None:
                 def nnet(states):
                     with torch.no_grad():
@@ -178,7 +222,6 @@ def start():
                         logits, values = model(states_t)
                         probs = torch.softmax(logits, dim=1)
                     return probs.cpu().numpy(), values.cpu().numpy().flatten()
-
                 root = state[np.newaxis, :]
                 pi, _ = learn_pi_and_v(root, numSims=200, nnet=nnet, c_puct=1.0)
                 pi = pi[0]
@@ -192,20 +235,15 @@ def start():
                 if len(actions) > 0:
                     a = np.random.choice(actions)
                     state, _ = game.nextState(state, a)
-
             ended, score = game.gameEnded(state)
             if ended:
                 game_over = True
                 winner = "Black" if score > 0 else ("White" if score < 0 else "Draw")
-                print(f"Game over! Winner: {winner}")
+            thinking = False
 
-        draw_board(screen, state, selected_idx)
-        if game_over:
-            font = pygame.font.Font(None, 48)
-            text = font.render(f"Game Over: {winner}", True, BLACK)
-            screen.blit(text, (WINDOW_SIZE // 2 - 100, WINDOW_SIZE // 2 - 20))
+        draw_board(screen, state, selected_idx, thinking, game_over, winner)
         pygame.display.flip()
         clock.tick(FPS)
 
 if __name__ == "__main__":
-    main()
+    start()
