@@ -5,6 +5,7 @@ import torch
 from . import game
 from .RMCTS import learn_pi_and_v
 from .wmnet_gcn import WatermelonGCN
+from .wmnet_not_use import WatermelonNet
 
 # 初始化 Pygame
 pygame.init()
@@ -103,7 +104,7 @@ def get_action_from_to(state, from_idx, to_idx):
 
 def start():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = WatermelonGCN().to(device)
+    model = WatermelonNet().to(device)
     model_path = "best_model.pth"
     try:
         model.load_state_dict(torch.load(model_path, map_location=device))
