@@ -20,7 +20,7 @@ from . import metaparm
 
 sw.login(api_key="rdGaOSnlBY0KBDnNdkzja")
 
-SAVE_TRAJECTORY = True
+SAVE_TRAJECTORY = False
 TRAJECTORY_DIR = "./trajectories"
 
 # ------------------------------------------------------------
