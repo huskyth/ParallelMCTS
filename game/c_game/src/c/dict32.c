@@ -225,14 +225,14 @@ void print_dict32(const dict32_t* const d) {
 
   printf("First:\n");
   for(i=0ull;i<(1ull<<(d->log2_len_first));i++) {
-    if(d->first[i] < nopos) printf(" %lu", d->first[i]);
+    if(d->first[i] < nopos) printf(" %llu", d->first[i]);
     else printf(" .");
   }
   printf("\n");
 
   printf("Stack:\n");
   for(i=0ull;i<d->num_stack;i++) {
-    printf("%lu  ",i);
+    printf("%llu  ",i);
     key = d->stack_key + i*(d->len_key);
     for(j=0;j<d->len_key;j++) {
 	   printf(" %.2f",key[j]);
@@ -242,7 +242,7 @@ void print_dict32(const dict32_t* const d) {
     for(j=0;j<d->len_value;j++) {
       printf(" %.0f", value[j]);
     }
-    if(d->stack_next[i] < nopos) printf(" ; next = %lu",d->stack_next[i]);
+    if(d->stack_next[i] < nopos) printf(" ; next = %llu",d->stack_next[i]);
     printf(" ; hash = %u\n", MYHASH((char*) (d->stack_key + i*(d->len_key)), keysize) & (d->mask));
   }
 }

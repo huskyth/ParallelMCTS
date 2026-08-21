@@ -18,7 +18,7 @@ static int ACTION_TO[512];
 static int distance[BOARD_SIZE][BOARD_SIZE];
 
 // ---------- 初始化距离矩阵（使用你的 21x21 数据） ----------
-static void init_distance() {
+static void init_distance(void) {
     int raw[BOARD_SIZE][BOARD_SIZE] = {
         {0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
         {1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -48,7 +48,7 @@ static void init_distance() {
 }
 
 // ---------- 初始化动作列表 ----------
-static void init_actions() {
+static void init_actions(void) {
     if (NUM_ACTIONS != 0) return;
     init_distance();
     int count = 0;
